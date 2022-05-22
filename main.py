@@ -1,4 +1,5 @@
 from PyQt5 import QtGui, QtCore
+from PyQt5.QtGui import QPixmap, QPainter
 from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (
     QApplication,
@@ -25,10 +26,16 @@ from PyQt5.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QMessageBox    
+    QMessageBox,
+    QGraphicsScene,
+    QGraphicsView   
 )
 from PyQt5.QtGui import QIcon
-
+import matplotlib
+matplotlib.use('Qt5Agg')
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
+import pandas as pd
 import sys, os
 
 basedir = os.path.dirname(__file__)
@@ -39,6 +46,13 @@ try:
     winddl.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
+#Clase para graficar curvas
+class MplCanvas(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width,height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        super(MplCanvas,self).__init__(fig)
+
 #Clase modelo generico de loggin 
 class PopUpLoggin(QWidget):
     def __init__(self):
@@ -143,32 +157,76 @@ class MainWindow(QDialog):
         self.bodyTabWidget.setFixedSize(700,500)
 
         tab1Boton = QWidget() #defino la pestaña de la tabla asociada al boton 1
-        textEditTab1Boton = QTextEdit() #cargo el texto en el label, esto es de ejemplo vamos a reemplazarlo por la imagen
-        textEditTab1Boton.setPlainText("Aca va a ir en lugar del texto la imagen de la camara 1") #este texto lo vamos a 
-                                                                                                  #a reemplazar por la imagen
-                                                                                                  #
+        textEditTab1Boton = QLineEdit() #cargo el texto en el label, esto es de ejemplo vamos a reemplazarlo por la imagen
+        textEditTab1Boton.setText("Aca va a ir en lugar del texto la barra de conexion") #este texto lo vamos a 
+        subWindowTab1Boton = QWidget()
+        scene = QGraphicsScene(0, 0, 0, 0)
+        pixmap = QPixmap("imageCam1.jpg")                                                                                       #a reemplazar por la imagen
+        pixmapitem = scene.addPixmap(pixmap)
+        viewPixMapItem = QGraphicsView(scene)
+        viewPixMapItem.setRenderHint(QPainter.Antialiasing)
+        #agrego grafico izquierda
+        graficoTab1Izq = MplCanvas(self, width=2, height=2, dpi=100)
+        #genero un dataframe de prueba
+        dfTab1Izq = pd.DataFrame([
+            [0, 10],
+            [5, 15],
+            [2, 20],
+            [15, 25],
+            [4, 10]
+        ], columns=['A','B'])
+        dfTab1Izq.plot(ax=graficoTab1Izq.axes)
+        #agrego grafico derecha
+        graficoTab1Der = MplCanvas(self,width=2, height=2, dpi=100)
+        #genero un dataframe de prueba
+        dfTab1Der = pd.DataFrame([
+            [0,10],
+            [5,15],
+            [2,20],
+            [15,25],
+            [4,10]
+        ], columns=['A','B'])
+        dfTab1Der.plot(ax=graficoTab1Der.axes)
+
         tab1BotonHbox = QHBoxLayout()
-        tab1BotonHbox.setContentsMargins(5,5,5,5)
-        tab1BotonHbox.addWidget(textEditTab1Boton)
-        tab1Boton.setLayout(tab1BotonHbox)
+        tab1BotonHbox.addWidget(graficoTab1Izq)
+        tab1BotonHbox.addWidget(viewPixMapItem)
+        tab1BotonHbox.addWidget(graficoTab1Der)
+        subWindowTab1Boton.setLayout(tab1BotonHbox)
+        #agrego el texto q representa la barra de conexion y la ventana de trending e imagen                                                                               #
+        tab1BotonVbox = QVBoxLayout()
+        tab1BotonVbox.setContentsMargins(5,5,5,5)
+        tab1BotonVbox.addWidget(textEditTab1Boton)
+        tab1BotonVbox.addWidget(subWindowTab1Boton)
+        tab1Boton.setLayout(tab1BotonVbox)
 
         tab2Boton = QWidget() #defino la pestaña de la 2 camara
-        textEditTab2Boton = QTextEdit()
-        textEditTab2Boton.setPlainText("Aca va a ir en lugar del texto la imagen de la camara 2")
-
-        tab2BotonHBox = QHBoxLayout()
-        tab2BotonHBox.setContentsMargins(5,5,5,5)
-        tab2BotonHBox.addWidget(textEditTab2Boton)
-        tab2Boton.setLayout(tab2BotonHBox)
+        textEditTab2Boton = QLineEdit()
+        textEditTab2Boton.setText("Aca va a ir en lugar del texto la barra de conexion")
+        scene2 = QGraphicsScene(0,0,0,0)
+        pixmap2 = QPixmap("imageCam2.jpg")
+        pixmapitem2 = scene2.addPixmap(pixmap2)
+        viewPixMapItem2 = QGraphicsView(scene2)
+        viewPixMapItem2.setRenderHint(QPainter.Antialiasing)
+        tab2BotonVBox = QVBoxLayout()
+        tab2BotonVBox.setContentsMargins(5,5,5,5)
+        tab2BotonVBox.addWidget(textEditTab2Boton)
+        tab2BotonVBox.addWidget(viewPixMapItem2)
+        tab2Boton.setLayout(tab2BotonVBox)
 
         tab3Boton = QWidget() #defino la pestaña de la 3 camara
-        textEditTab3Boton = QTextEdit()
-        textEditTab3Boton.setPlainText("Aca va a ir en lugar del texto la imagen de la camara 3")
-        
-        tab3BotonHBox = QHBoxLayout()
-        tab3BotonHBox.setContentsMargins(5,5,5,5)
-        tab3BotonHBox.addWidget(textEditTab3Boton)
-        tab3Boton.setLayout(tab3BotonHBox)
+        textEditTab3Boton = QLineEdit()
+        textEditTab3Boton.setText("Aca va a ir en lugar del texto la barra de conexion")
+        scene3 = QGraphicsScene(0,0,0,0)
+        pixmap3 = QPixmap("imageCam3.jpg")
+        pixmapitem3 = scene3.addPixmap(pixmap3)
+        viewPixMapItem3 = QGraphicsView(scene3)
+        viewPixMapItem3.setRenderHint(QPainter.Antialiasing)        
+        tab3BotonVBox = QVBoxLayout()
+        tab3BotonVBox.setContentsMargins(5,5,5,5)
+        tab3BotonVBox.addWidget(textEditTab3Boton)
+        tab3BotonVBox.addWidget(viewPixMapItem3)
+        tab3Boton.setLayout(tab3BotonVBox)
 
         tab4Boton = QWidget() #defino la pestaña de las imagenes de los historicos
         textEditTab4Boton = QTextEdit()
