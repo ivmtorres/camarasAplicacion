@@ -155,19 +155,19 @@ class MainWindow(QDialog):
             QSizePolicy.Ignored
         )
         self.bodyTabWidget.setFixedSize(700,500)
-
+        #Creo el contenido de la primer pestaña
         tab1Boton = QWidget() #defino la pestaña de la tabla asociada al boton 1
         textEditTab1Boton = QLineEdit() #cargo el texto en el label, esto es de ejemplo vamos a reemplazarlo por la imagen
         textEditTab1Boton.setText("Aca va a ir en lugar del texto la barra de conexion") #este texto lo vamos a 
-        subWindowTab1Boton = QWidget()
+        sub1WindowTab1Boton = QWidget() #creo una subventana para mostrar la camara1 y las curvas1
         scene = QGraphicsScene(0, 0, 0, 0)
         pixmap = QPixmap("imageCam1.jpg")                                                                                       #a reemplazar por la imagen
         pixmapitem = scene.addPixmap(pixmap)
         viewPixMapItem = QGraphicsView(scene)
         viewPixMapItem.setRenderHint(QPainter.Antialiasing)
-        #agrego grafico izquierda
+        #agrego grafico izquierda para la camara 1
         graficoTab1Izq = MplCanvas(self, width=2, height=2, dpi=100)
-        #genero un dataframe de prueba
+        #genero un dataframe de prueba para la curva de la camara 1
         dfTab1Izq = pd.DataFrame([
             [0, 10],
             [5, 15],
@@ -188,30 +188,63 @@ class MainWindow(QDialog):
         ], columns=['A','B'])
         dfTab1Der.plot(ax=graficoTab1Der.axes)
 
-        tab1BotonHbox = QHBoxLayout()
-        tab1BotonHbox.addWidget(graficoTab1Izq)
-        tab1BotonHbox.addWidget(viewPixMapItem)
-        tab1BotonHbox.addWidget(graficoTab1Der)
-        subWindowTab1Boton.setLayout(tab1BotonHbox)
+        tab1BotonHboxSub1 = QHBoxLayout()
+        tab1BotonHboxSub1.addWidget(graficoTab1Izq)
+        tab1BotonHboxSub1.addWidget(viewPixMapItem)
+        tab1BotonHboxSub1.addWidget(graficoTab1Der)
+        sub1WindowTab1Boton.setLayout(tab1BotonHboxSub1)
         #agrego el texto q representa la barra de conexion y la ventana de trending e imagen                                                                               #
         tab1BotonVbox = QVBoxLayout()
         tab1BotonVbox.setContentsMargins(5,5,5,5)
         tab1BotonVbox.addWidget(textEditTab1Boton)
-        tab1BotonVbox.addWidget(subWindowTab1Boton)
+        tab1BotonVbox.addWidget(sub1WindowTab1Boton)
         tab1Boton.setLayout(tab1BotonVbox)
-
+        #creo el contenido de la segunda pestaña
         tab2Boton = QWidget() #defino la pestaña de la 2 camara
         textEditTab2Boton = QLineEdit()
         textEditTab2Boton.setText("Aca va a ir en lugar del texto la barra de conexion")
+        sub1WindowTab2Boton = QWidget() #creo una subventana para mostrar la camara2 y las curvas2        
+        sub2WindowTab2Boton = QWidget() #creo una subventana para mostrar las 2 curvas verticales
         scene2 = QGraphicsScene(0,0,0,0)
         pixmap2 = QPixmap("imageCam2.jpg")
         pixmapitem2 = scene2.addPixmap(pixmap2)
         viewPixMapItem2 = QGraphicsView(scene2)
         viewPixMapItem2.setRenderHint(QPainter.Antialiasing)
+        #agrego grafico 1 izquierda para la camara 2
+        graficoTab2Izq1 = MplCanvas(self, width=2, height=2, dpi=100)
+        #genero una dataframe de prueba para la curva de la izquierda 1
+        dfTab2Izq1 = pd.DataFrame([
+            [0,10],
+            [5,15],
+            [2,20],
+            [15,25],
+            [4,10]
+        ], columns=['A','B'])
+        dfTab2Izq1.plot(ax=graficoTab2Izq1.axes)
+        #agrego grafico 2 a la izquierda para la camara 2
+        graficoTab2Izq2 = MplCanvas(self,width=2, height=2, dpi=100)
+        #genero un data frame de prueba para la curva de la izquierda 2
+        dfTab2Izq2 = pd.DataFrame([
+            [0,10],
+            [5,15],
+            [2,20],
+            [15,25],
+            [4,10]
+        ], columns=['A','B'])
+        dfTab2Izq2.plot(ax=graficoTab2Izq2.axes)
+        tab2BotonVBoxSub2 = QVBoxLayout()
+        tab2BotonVBoxSub2.addWidget(graficoTab2Izq1)
+        tab2BotonVBoxSub2.addWidget(graficoTab2Izq2)
+        sub2WindowTab2Boton.setLayout(tab2BotonVBoxSub2)
+        tab2BotonHBoxSub1 = QHBoxLayout()
+        tab2BotonHBoxSub1.addWidget(sub2WindowTab2Boton)
+        tab2BotonHBoxSub1.addWidget(viewPixMapItem2)
+        sub1WindowTab2Boton.setLayout(tab2BotonHBoxSub1)
+
         tab2BotonVBox = QVBoxLayout()
         tab2BotonVBox.setContentsMargins(5,5,5,5)
         tab2BotonVBox.addWidget(textEditTab2Boton)
-        tab2BotonVBox.addWidget(viewPixMapItem2)
+        tab2BotonVBox.addWidget(sub1WindowTab2Boton)
         tab2Boton.setLayout(tab2BotonVBox)
 
         tab3Boton = QWidget() #defino la pestaña de la 3 camara
