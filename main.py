@@ -155,7 +155,9 @@ class MainWindow(QDialog):
             QSizePolicy.Ignored
         )
         self.bodyTabWidget.setFixedSize(700,500)
+        #***************************************
         #Creo el contenido de la primer pestaña
+        #***************************************
         tab1Boton = QWidget() #defino la pestaña de la tabla asociada al boton 1
         textEditTab1Boton = QLineEdit() #cargo el texto en el label, esto es de ejemplo vamos a reemplazarlo por la imagen
         textEditTab1Boton.setText("Aca va a ir en lugar del texto la barra de conexion") #este texto lo vamos a 
@@ -199,7 +201,9 @@ class MainWindow(QDialog):
         tab1BotonVbox.addWidget(textEditTab1Boton)
         tab1BotonVbox.addWidget(sub1WindowTab1Boton)
         tab1Boton.setLayout(tab1BotonVbox)
+        #******************************************
         #creo el contenido de la segunda pestaña
+        #******************************************
         tab2Boton = QWidget() #defino la pestaña de la 2 camara
         textEditTab2Boton = QLineEdit()
         textEditTab2Boton.setText("Aca va a ir en lugar del texto la barra de conexion")
@@ -240,27 +244,62 @@ class MainWindow(QDialog):
         tab2BotonHBoxSub1.addWidget(sub2WindowTab2Boton)
         tab2BotonHBoxSub1.addWidget(viewPixMapItem2)
         sub1WindowTab2Boton.setLayout(tab2BotonHBoxSub1)
-
+        
         tab2BotonVBox = QVBoxLayout()
         tab2BotonVBox.setContentsMargins(5,5,5,5)
         tab2BotonVBox.addWidget(textEditTab2Boton)
         tab2BotonVBox.addWidget(sub1WindowTab2Boton)
         tab2Boton.setLayout(tab2BotonVBox)
-
+        #******************************************
+        #creo el contenido de la tercer pestaña
+        #******************************************
         tab3Boton = QWidget() #defino la pestaña de la 3 camara
-        textEditTab3Boton = QLineEdit()
+        textEditTab3Boton = QLineEdit() #agrego un texto esta parte la vamos a reemplazar con la barra de conexion
         textEditTab3Boton.setText("Aca va a ir en lugar del texto la barra de conexion")
-        scene3 = QGraphicsScene(0,0,0,0)
-        pixmap3 = QPixmap("imageCam3.jpg")
-        pixmapitem3 = scene3.addPixmap(pixmap3)
-        viewPixMapItem3 = QGraphicsView(scene3)
-        viewPixMapItem3.setRenderHint(QPainter.Antialiasing)        
-        tab3BotonVBox = QVBoxLayout()
-        tab3BotonVBox.setContentsMargins(5,5,5,5)
-        tab3BotonVBox.addWidget(textEditTab3Boton)
-        tab3BotonVBox.addWidget(viewPixMapItem3)
-        tab3Boton.setLayout(tab3BotonVBox)
-
+        sub1WindowTab3Boton = QWidget()
+        sub2WindowTab3Boton = QWidget()
+        scene3 = QGraphicsScene(0,0,0,0) #agrego el contenedor para el grafico
+        pixmap3 = QPixmap("imageCam3.jpg") #leo la imagen que voy a mostrar en el conetenedor de graficos
+        pixmapitem3 = scene3.addPixmap(pixmap3) # cargo la imagen que voy a mostrar en el contenedor de graficos
+        viewPixMapItem3 = QGraphicsView(scene3) # Creo un mostrador de contenedores de graficos
+        viewPixMapItem3.setRenderHint(QPainter.Antialiasing) #acomodo un poco los datos        
+        #agrego grafico 1 izquierda para la camara 3
+        graficoTab3Izq1 = MplCanvas(self, width= 2, height=2, dpi=100)
+        #genero una dataframe de prueba para la curva de la izquierda 1
+        dfTab3Izq1 = pd.DataFrame([
+            [0,10],
+            [5,15],
+            [2,20],
+            [15,25],
+            [4,10],
+        ], columns=['A','B'])
+        dfTab3Izq1.plot(ax=graficoTab3Izq1.axes)
+        #agrego grafico 2 izquierda para la camara 3
+        graficoTab3Izq2 = MplCanvas(self, width=2, height=2, dpi=100)
+        dfTab3Izq2 = pd.DataFrame([
+            [0,10],
+            [5,15],
+            [2,20],
+            [15,25],
+            [4,10],
+        ], columns=['A','B'])
+        dfTab3Izq2.plot(ax=graficoTab3Izq2.axes)
+        tab3BotonVBoxSub2 = QVBoxLayout()
+        tab3BotonVBoxSub2.addWidget(graficoTab3Izq1)
+        tab3BotonVBoxSub2.addWidget(graficoTab3Izq2)
+        sub2WindowTab3Boton.setLayout(tab3BotonVBoxSub2)
+        tab3BotonHBoxSub1 = QHBoxLayout()
+        tab3BotonHBoxSub1.addWidget(sub2WindowTab3Boton)
+        tab3BotonHBoxSub1.addWidget(viewPixMapItem3) 
+        sub1WindowTab3Boton.setLayout(tab3BotonHBoxSub1)
+        tab3BotonVBox = QVBoxLayout() #creo un layout vertical para mostrar los datos del widget principal verticalmente
+        tab3BotonVBox.setContentsMargins(5,5,5,5) #defino los margenes 
+        tab3BotonVBox.addWidget(textEditTab3Boton) #agrego a este layout el texto
+        tab3BotonVBox.addWidget(sub1WindowTab3Boton) #agrego a este layout la imagen
+        tab3Boton.setLayout(tab3BotonVBox) #agrego al widget principal de este tab3 el layout que definimos
+        #******************************************
+        #creo el contenido de la cuarta pestaña
+        #******************************************
         tab4Boton = QWidget() #defino la pestaña de las imagenes de los historicos
         textEditTab4Boton = QTextEdit()
         textEditTab4Boton.setPlainText("Aca va a ir en lugar de texto los registros historicos imagen y curvas")
@@ -269,7 +308,9 @@ class MainWindow(QDialog):
         tab4BotonHBox.setContentsMargins(5,5,5,5)
         tab4BotonHBox.addWidget(textEditTab4Boton)
         tab4Boton.setLayout(tab4BotonHBox)
-
+        #******************************************
+        #creo el contenido de la quinta pestaña
+        #******************************************
         tab5Boton = QWidget() #defino la pestaña de configuracion para las cámaras
         textEditTab5Boton = QTextEdit()
         textEditTab5Boton.setPlainText("Aca va a ir en lugar de texto los controles para configuracion de las camaras")
@@ -278,10 +319,10 @@ class MainWindow(QDialog):
         tab5BotonHBox.setContentsMargins(5,5,5,5)
         tab5BotonHBox.addWidget(textEditTab5Boton)
         tab5Boton.setLayout(tab5BotonHBox)
-        
+        #*******************************************
         #Asignamos nombres a cada uno de los widgets que van a ser los tabs
         #vamos a utilizar estos nombres para referenciar y poder cambiar las pestañas
-
+        #*******************************************
         tab1Boton.setObjectName("tab1")
         tab2Boton.setObjectName("tab2")
         tab3Boton.setObjectName("tab3")
