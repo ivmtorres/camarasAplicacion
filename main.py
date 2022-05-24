@@ -160,7 +160,16 @@ class MainWindow(QDialog):
         #***************************************
         tab1Boton = QWidget() #defino la pestaña de la tabla asociada al boton 1
         textEditTab1Boton = QLineEdit() #cargo el texto en el label, esto es de ejemplo vamos a reemplazarlo por la imagen
-        textEditTab1Boton.setText("Aca va a ir en lugar del texto la barra de conexion") #este texto lo vamos a 
+        textEditTab1Boton.setText("Status: Camara conectando ....") #este texto lo vamos a 
+        #vamos a agregar la barra de conexion para la camara 1
+        self.pbarTab1 = QProgressBar(self)      #creo una instancia al modelo barras y le doy un nombre
+        self.pbarTab1.setGeometry(30,40,200,25) #defino una dimension para la barra creada
+        self.pbarTab1.setValue(0)               #inicializo en un valor
+
+        self.timerPbar1 = QTimer()              #arranco un temporizador para la conexion de la barra de la camara 1
+        self.timerPbar1.timeout.connect(self.handleTimer1) #defino la funcion que maneja el temporizador
+        self.timerPbar1.start(1000)             #le doy una determinada cantidad de tiempo
+ 
         sub1WindowTab1Boton = QWidget() #creo una subventana para mostrar la camara1 y las curvas1
         scene = QGraphicsScene(0, 0, 0, 0)
         pixmap = QPixmap("imageCam1.jpg")                                                                                       #a reemplazar por la imagen
@@ -199,6 +208,7 @@ class MainWindow(QDialog):
         tab1BotonVbox = QVBoxLayout()
         tab1BotonVbox.setContentsMargins(5,5,5,5)
         tab1BotonVbox.addWidget(textEditTab1Boton)
+        tab1BotonVbox.addWidget(self.pbarTab1)
         tab1BotonVbox.addWidget(sub1WindowTab1Boton)
         tab1Boton.setLayout(tab1BotonVbox)
         #******************************************
@@ -206,7 +216,15 @@ class MainWindow(QDialog):
         #******************************************
         tab2Boton = QWidget() #defino la pestaña de la 2 camara
         textEditTab2Boton = QLineEdit()
-        textEditTab2Boton.setText("Aca va a ir en lugar del texto la barra de conexion")
+        textEditTab2Boton.setText("Status: Camaras conectando ....")
+        self.pbarTab2 = QProgressBar(self)
+        self.pbarTab2.setGeometry(30,40,200,25)
+        self.pbarTab2.setValue(0)
+
+        self.timerPbar2 = QTimer()
+        self.timerPbar2.timeout.connect(self.handleTimer2)
+        self.timerPbar2.start(1000)
+
         sub1WindowTab2Boton = QWidget() #creo una subventana para mostrar la camara2 y las curvas2        
         sub2WindowTab2Boton = QWidget() #creo una subventana para mostrar las 2 curvas verticales
         scene2 = QGraphicsScene(0,0,0,0)
@@ -248,14 +266,24 @@ class MainWindow(QDialog):
         tab2BotonVBox = QVBoxLayout()
         tab2BotonVBox.setContentsMargins(5,5,5,5)
         tab2BotonVBox.addWidget(textEditTab2Boton)
+        tab2BotonVBox.addWidget(self.pbarTab2)
         tab2BotonVBox.addWidget(sub1WindowTab2Boton)
+        
         tab2Boton.setLayout(tab2BotonVBox)
         #******************************************
         #creo el contenido de la tercer pestaña
         #******************************************
         tab3Boton = QWidget() #defino la pestaña de la 3 camara
         textEditTab3Boton = QLineEdit() #agrego un texto esta parte la vamos a reemplazar con la barra de conexion
-        textEditTab3Boton.setText("Aca va a ir en lugar del texto la barra de conexion")
+        textEditTab3Boton.setText("Status: Conectando camara ....")
+        self.pbarTab3 = QProgressBar(self)
+        self.pbarTab3.setGeometry(30,40,200,25)
+        self.pbarTab3.setValue(0)
+
+        self.timerPbar3 = QTimer()
+        self.timerPbar3.timeout.connect(self.handleTimer3)
+        self.timerPbar3.start(1000)
+
         sub1WindowTab3Boton = QWidget()
         sub2WindowTab3Boton = QWidget()
         scene3 = QGraphicsScene(0,0,0,0) #agrego el contenedor para el grafico
@@ -295,6 +323,7 @@ class MainWindow(QDialog):
         tab3BotonVBox = QVBoxLayout() #creo un layout vertical para mostrar los datos del widget principal verticalmente
         tab3BotonVBox.setContentsMargins(5,5,5,5) #defino los margenes 
         tab3BotonVBox.addWidget(textEditTab3Boton) #agrego a este layout el texto
+        tab3BotonVBox.addWidget(self.pbarTab3)
         tab3BotonVBox.addWidget(sub1WindowTab3Boton) #agrego a este layout la imagen
         tab3Boton.setLayout(tab3BotonVBox) #agrego al widget principal de este tab3 el layout que definimos
         #******************************************
@@ -403,6 +432,30 @@ class MainWindow(QDialog):
         self.setLayout(mainLayout)
     #***************************************************
     #***************************************************
+    #Defino la funcion asociada a la barra de progreso para la camara 1
+    def handleTimer1(self):
+        value = self.pbarTab1.value()
+        if value < 100:
+            value = value + 1
+            self.pbarTab1.setValue(value)
+        else:
+            self.timerPbar1.stop()
+    #defino la funcion asociada a la barra de progreso para la camara 2
+    def handleTimer2(self):
+        value = self.pbarTab2.value()
+        if value < 100:
+            value = value + 1
+            self.pbarTab2.setValue(value)
+        else:
+            self.timerPbar2.stop()
+    #defino la funcion asociada a la barra de progreso para la camara 3
+    def handleTimer3(self):
+        value = self.pbarTab3.value()
+        if value < 100:
+            value = value + 1
+            self.pbarTab3.setValue(value)
+        else:
+            self.timerPbar3.stop()
     #Defino la función asociada a logear un usuario
     def populateCombo(self):
         #si la cantidad de usuario esta vacia la lleno
