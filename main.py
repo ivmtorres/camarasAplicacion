@@ -332,10 +332,47 @@ class MainWindow(QDialog):
         tab4Boton = QWidget() #defino la pestaña de las imagenes de los historicos
         textEditTab4Boton = QTextEdit()
         textEditTab4Boton.setPlainText("Aca va a ir en lugar de texto los registros historicos imagen y curvas")
+        #genero dos imagenes una a la izquierda y otra a la derecha
+        #la imagen de la izquierda es la seleccion de historico 1 y la de la derecha la seleccion de historico 2
+        #cada unos de los historicos ya sea el 1 o el 2 se pueden seleccionar de la camara 1 - camara 2 - camara 3
+        #asi se pueden analizar imagenes cruzadas. Combinacion de analisis de imagenes historicas
+        #analisis camara 1 vs camara 1
+        #analisis camara 1 vs camara 2
+        #analisis camara 1 vs camara 3
+        #analisis camara 2 vs camara 1
+        #analisis camara 2 vs camara 2
+        #analisis camara 2 vs camara 3
+        #analisis camara 3 vs camara 1
+        #analisis camara 3 vs camara 2
+        #analisis camara 3 vs camara 3
+        subWindowHistory1Cam = QWidget()
+        subWindowHistory2Cam = QWidget()
+        #genero la imagen 1
+        imageHistory1CamScene = QGraphicsScene(0,0,0,0)
+        imageHistory1CamPixmap = QPixmap("imageCam1.jpg")
+        imageHistory1PixmapItem = imageHistory1CamScene.addPixmap(imageHistory1CamPixmap)
+        imageHistory1ViewPixMapItem = QGraphicsView(imageHistory1CamScene)
+        imageHistory1ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
+        #genero la imagen 2
+        imageHistory2CamScene = QGraphicsScene(0,0,0,0)
+        imageHistory2CamPixmap = QPixmap("imageCam2.jpg")
+        imageHistory2PixmapItem = imageHistory2CamScene.addPixmap(imageHistory2CamPixmap)
+        imageHistory2ViewPixMapItem = QGraphicsView(imageHistory2CamScene)
+        imageHistory2ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
+        #adjunto la imagen
+        subHistory1VBox = QVBoxLayout()
+        subHistory2VBox = QVBoxLayout()
+        subHistory1VBox.addWidget(imageHistory1ViewPixMapItem)
+        subHistory2VBox.addWidget(imageHistory2ViewPixMapItem)
+        subWindowHistory1Cam.setLayout(subHistory1VBox)
+        subWindowHistory2Cam.setLayout(subHistory2VBox)
+
 
         tab4BotonHBox = QHBoxLayout()
         tab4BotonHBox.setContentsMargins(5,5,5,5)
-        tab4BotonHBox.addWidget(textEditTab4Boton)
+        #tab4BotonHBox.addWidget(textEditTab4Boton)
+        tab4BotonHBox.addWidget(subWindowHistory1Cam)
+        tab4BotonHBox.addWidget(subWindowHistory2Cam)
         tab4Boton.setLayout(tab4BotonHBox)
         #******************************************
         #creo el contenido de la quinta pestaña
