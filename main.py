@@ -330,8 +330,10 @@ class MainWindow(QDialog):
         #creo el contenido de la cuarta pestaña
         #******************************************
         tab4Boton = QWidget() #defino la pestaña de las imagenes de los historicos
-        textEditTab4Boton = QTextEdit()
-        textEditTab4Boton.setPlainText("Aca va a ir en lugar de texto los registros historicos imagen y curvas")
+        textEditTab4BotonSelCam1 = QTextEdit()
+        textEditTab4BotonSelCam1.setPlainText("Seleccione historicos de la camara: ")
+        textEditTab4BotonSelCam2 = QTextEdit()
+        textEditTab4BotonSelCam2.setPlainText("Seleccione historicos de la camara: ")
         #genero dos imagenes una a la izquierda y otra a la derecha
         #la imagen de la izquierda es la seleccion de historico 1 y la de la derecha la seleccion de historico 2
         #cada unos de los historicos ya sea el 1 o el 2 se pueden seleccionar de la camara 1 - camara 2 - camara 3
@@ -345,8 +347,8 @@ class MainWindow(QDialog):
         #analisis camara 3 vs camara 1
         #analisis camara 3 vs camara 2
         #analisis camara 3 vs camara 3
-        subWindowHistory1Cam = QWidget()
-        subWindowHistory2Cam = QWidget()
+        subWindowHistory1Cam = QWidget()#aca va a ir todo lo del registro historico de la camara 1
+        subWindowHistory2Cam = QWidget()#aca va a ir todo lo del registro historico de la camara 2
         #genero la imagen 1
         imageHistory1CamScene = QGraphicsScene(0,0,0,0)
         imageHistory1CamPixmap = QPixmap("imageCam1.jpg")
@@ -361,16 +363,15 @@ class MainWindow(QDialog):
         imageHistory2ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
         #adjunto la imagen
         subHistory1VBox = QVBoxLayout()
-        subHistory2VBox = QVBoxLayout()
-        subHistory1VBox.addWidget(imageHistory1ViewPixMapItem)
-        subHistory2VBox.addWidget(imageHistory2ViewPixMapItem)
-        subWindowHistory1Cam.setLayout(subHistory1VBox)
-        subWindowHistory2Cam.setLayout(subHistory2VBox)
-
-
+        subHistory2VBox = QVBoxLayout()  
         tab4BotonHBox = QHBoxLayout()
-        tab4BotonHBox.setContentsMargins(5,5,5,5)
-        #tab4BotonHBox.addWidget(textEditTab4Boton)
+        tab4BotonHBox.setContentsMargins(5,5,5,5)        
+        subHistory1VBox.addWidget(textEditTab4BotonSelCam1)
+        subHistory1VBox.addWidget(imageHistory1ViewPixMapItem)        
+        subHistory2VBox.addWidget(textEditTab4BotonSelCam2)
+        subHistory2VBox.addWidget(imageHistory2ViewPixMapItem)        
+        subWindowHistory1Cam.setLayout(subHistory1VBox)
+        subWindowHistory2Cam.setLayout(subHistory2VBox)        
         tab4BotonHBox.addWidget(subWindowHistory1Cam)
         tab4BotonHBox.addWidget(subWindowHistory2Cam)
         tab4Boton.setLayout(tab4BotonHBox)
