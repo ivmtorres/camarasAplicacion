@@ -52,7 +52,45 @@ class MplCanvas(FigureCanvasQTAgg):
         fig = Figure(figsize=(width,height), dpi=dpi)
         self.axes = fig.add_subplot(111)
         super(MplCanvas,self).__init__(fig)
+#Clase modelo generico de seleccion de fecha
+class PopUpDateSelected(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Request initial date and final date")
+        layoutV = QVBoxLayout()
+        self.inputInitialDate = QLabel("Initial Date")        
+        self.dateTimeStart = QDateTimeEdit()
+        self.dateTimeStart.setDateTime(QDateTime.currentDateTime())
+        self.inputInitialDate.setBuddy(self.dateTimeStart)
+        self.dateTimeStart.setCalendarPopup(True)
+        self.inputFinalDate = QLabel("Final Date")
+        self.dateTimeEnd = QDateTimeEdit()
+        self.dateTimeEnd.setDateTime(QDateTime.currentDateTime())
+        self.inputFinalDate.setBuddy(self.dateTimeEnd)
+        self.dateTimeEnd.setCalendarPopup(True)
+        layoutV = QVBoxLayout()
+        layoutV.addWidget(self.inputInitialDate)
+        layoutV.addWidget(self.dateTimeStart)
+        layoutV.addWidget(self.inputFinalDate)
+        layoutV.addWidget(self.dateTimeEnd)
 
+        self.okSearchButton = QPushButton("Search")
+        self.okSearchButton.clicked.connect(self.realizarBusquedaOk)
+        self.cancelSearchButton = QPushButton("Cancel")
+        self.cancelSearchButton.clicked.connect(self.realizarBusquedaCancel)
+        layoutH = QHBoxLayout()
+        layoutH.addWidget(self.okSearchButton)
+        layoutH.addWidget(self.cancelSearchButton)
+
+        layoutV.addLayout(layoutH)
+        self.setLayout(layoutV)
+        self.resize(400,20)
+        self.dateTimeStart.setFocus(Qt.NoFocusReason)
+    def realizarBusquedaOk(self):
+        print("Buscando ...")
+    def realizarBusquedaCancel(self):
+        print("Cancelar busqueda")
+        self.close()
 #Clase modelo generico de loggin 
 class PopUpLoggin(QWidget):
     def __init__(self):
@@ -100,14 +138,54 @@ class UserComboBox(QComboBox):
     def showPopup(self):
         self.popupAboutToBeShown.emit()
         super(UserComboBox,self).showPopup()
+
+class CamComboBox(QComboBox):
+    popupAboutToBeShown = pyqtSignal()
+    def showPopup(self):
+        self.popupAboutToBeShown.emit()
+        super(CamComboBox,self).showPopup()
+
 #Clase principal
 class MainWindow(QDialog):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         #hago una instancia a mi combobox ==> userComboBox
-        self.userCombo = UserComboBox(self)
-        self.userCombo.popupAboutToBeShown.connect(self.populateCombo)
+        self.userCombo = UserComboBox(self) #combo box de usuarios
+        self.userCombo.popupAboutToBeShown.connect(self.populateUserCombo)
 
+        self.camCombo1 = CamComboBox(self) #combo box de camaras para los historicos de la izquierda
+        self.camCombo1.popupAboutToBeShown.connect(self.populateCamCombo1)
+
+        self.dateCam1Image = QPushButton("Date Select") #apertura de popup para la seleccion con fecha inicial y final 
+                                                        #para los historicos de la izquierda 
+        self.dateCam1Image.clicked.connect(self.popUpSearchDateToHistory)
+        self.dateCam1Image.setIcon(QIcon(os.path.join(basedir, "appIcons","calendar-day.png")))
+        
+        self.img1ComboBoxReading = QComboBox(self)
+        self.imag1_icon = QIcon(os.path.join(basedir,"appIcons","image.png"))
+        self.img1ComboBoxReading.addItem(self.imag1_icon,"image_1") #despues de realizar la consulta a los registros
+        self.img1ComboBoxReading.addItem(self.imag1_icon,"image_2") #de imagenes vamos a llenar estos datos con las 
+        self.img1ComboBoxReading.addItem(self.imag1_icon,"image_3") #imagenes que nos devuelva la busqueda.
+        self.img1ComboBoxReading.addItem(self.imag1_icon,"image_4") #por ahora lo dejamos hardcodeado
+
+        
+        self.camCombo2 = CamComboBox(self) #combo box de camaras para los historicos de la derecha
+        self.camCombo2.popupAboutToBeShown.connect(self.populateCamCombo2)
+
+        self.dateCam2Image = QPushButton("Date Select") #apertura de popup para la seleccion con fecha incial y final
+        
+        self.dateCam2Image.clicked.connect(self.popUpSearchDateToHistory)                                                #para los historicos de la derecha
+        self.dateCam2Image.setIcon(QIcon(os.path.join(basedir,"appIcons","calendar-day.png")))
+        
+        #agrego el combobox de las imagenes cargadas despues de la busqueda
+        self.img2ComboBoxReading = QComboBox(self)
+        self.imag2_icon = QIcon(os.path.join(basedir,"appIcons","image.png"))
+        self.img2ComboBoxReading.addItem(self.imag2_icon,"image_1") #despues de realizar la consulta a los registros
+        self.img2ComboBoxReading.addItem(self.imag2_icon,"image_2") #de imagenes vamos a llenar estos datos con las 
+        self.img2ComboBoxReading.addItem(self.imag2_icon,"image_3") #imagenes que nos devuelva la busqueda.
+        self.img2ComboBoxReading.addItem(self.imag2_icon,"image_4") #por ahora lo dejamos hardcodeado
+
+        
         self.setWindowTitle("Camera Applications")
         #***********************************************
         #***********************************************
@@ -330,10 +408,12 @@ class MainWindow(QDialog):
         #creo el contenido de la cuarta pestaña
         #******************************************
         tab4Boton = QWidget() #defino la pestaña de las imagenes de los historicos
-        textEditTab4BotonSelCam1 = QTextEdit()
-        textEditTab4BotonSelCam1.setPlainText("Seleccione historicos de la camara: ")
-        textEditTab4BotonSelCam2 = QTextEdit()
-        textEditTab4BotonSelCam2.setPlainText("Seleccione historicos de la camara: ")
+        textEditTab4BotonSelCam1 = QLabel()
+        textEditTab4BotonSelCam1.setText("Sel Cam: ")
+        textEditTab4BotonSelCam1.setBuddy(self.camCombo1)
+        textEditTab4BotonSelCam2 = QLabel()
+        textEditTab4BotonSelCam2.setText("Sel Cam: ")
+        textEditTab4BotonSelCam2.setBuddy(self.camCombo2)
         #genero dos imagenes una a la izquierda y otra a la derecha
         #la imagen de la izquierda es la seleccion de historico 1 y la de la derecha la seleccion de historico 2
         #cada unos de los historicos ya sea el 1 o el 2 se pueden seleccionar de la camara 1 - camara 2 - camara 3
@@ -347,8 +427,25 @@ class MainWindow(QDialog):
         #analisis camara 3 vs camara 1
         #analisis camara 3 vs camara 2
         #analisis camara 3 vs camara 3
+        
         subWindowHistory1Cam = QWidget()#aca va a ir todo lo del registro historico de la camara 1
         subWindowHistory2Cam = QWidget()#aca va a ir todo lo del registro historico de la camara 2
+        subWindowHistory1CamBanner = QWidget()#aca va a ir el banner del label del combobox el combobox para la seleccion de camara 1
+        subWindowHistory2CamBanner = QWidget()#aca va a ir el banner del label del combobox el combobox para la seleccion de camara 2
+        #
+        bannerSelCam1 = QHBoxLayout()
+        bannerSelCam2 = QHBoxLayout()
+        bannerSelCam1.addWidget(textEditTab4BotonSelCam1)
+        bannerSelCam1.addWidget(self.camCombo1)
+        bannerSelCam1.addWidget(self.dateCam1Image)
+        bannerSelCam1.addWidget(self.img1ComboBoxReading)
+        bannerSelCam2.addWidget(textEditTab4BotonSelCam2)
+        bannerSelCam2.addWidget(self.camCombo2)
+        bannerSelCam2.addWidget(self.dateCam2Image)
+        bannerSelCam2.addWidget(self.img2ComboBoxReading)
+        subWindowHistory1CamBanner.setLayout(bannerSelCam1)
+        subWindowHistory2CamBanner.setLayout(bannerSelCam2)
+
         #genero la imagen 1
         imageHistory1CamScene = QGraphicsScene(0,0,0,0)
         imageHistory1CamPixmap = QPixmap("imageCam1.jpg")
@@ -362,19 +459,19 @@ class MainWindow(QDialog):
         imageHistory2ViewPixMapItem = QGraphicsView(imageHistory2CamScene)
         imageHistory2ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
         #adjunto la imagen
-        subHistory1VBox = QVBoxLayout()
-        subHistory2VBox = QVBoxLayout()  
-        tab4BotonHBox = QHBoxLayout()
+        subHistory1VBox = QVBoxLayout() #creo un layout vertical para los historicos de la camara 1
+        subHistory2VBox = QVBoxLayout() #creo un layout vertical para los historicos de la camara 2 
+        tab4BotonHBox = QHBoxLayout() #creo un layou horizontal para contener los dos historicos el de la camara 1 y 2
         tab4BotonHBox.setContentsMargins(5,5,5,5)        
-        subHistory1VBox.addWidget(textEditTab4BotonSelCam1)
-        subHistory1VBox.addWidget(imageHistory1ViewPixMapItem)        
-        subHistory2VBox.addWidget(textEditTab4BotonSelCam2)
-        subHistory2VBox.addWidget(imageHistory2ViewPixMapItem)        
-        subWindowHistory1Cam.setLayout(subHistory1VBox)
-        subWindowHistory2Cam.setLayout(subHistory2VBox)        
-        tab4BotonHBox.addWidget(subWindowHistory1Cam)
-        tab4BotonHBox.addWidget(subWindowHistory2Cam)
-        tab4Boton.setLayout(tab4BotonHBox)
+        subHistory1VBox.addWidget(subWindowHistory1CamBanner) #agrego al historico vertical el banner de la camara 1
+        subHistory1VBox.addWidget(imageHistory1ViewPixMapItem) #agrego al historico vertical 1 la imagen registrada       
+        subHistory2VBox.addWidget(subWindowHistory2CamBanner) #agrego al historico vertical el banner de la camara 2
+        subHistory2VBox.addWidget(imageHistory2ViewPixMapItem) #agrego al historico vertical 2 la imagen registrada        
+        subWindowHistory1Cam.setLayout(subHistory1VBox) #selecciono el layout vertical 1 para el widget history cam 1
+        subWindowHistory2Cam.setLayout(subHistory2VBox) #selecciono el layout vertical 2 para el widget history cam 2       
+        tab4BotonHBox.addWidget(subWindowHistory1Cam) #agrego al layout horizontal pricipal el widget vertical 1
+        tab4BotonHBox.addWidget(subWindowHistory2Cam) #agrego al layout horizontal principal el widget vertical 2
+        tab4Boton.setLayout(tab4BotonHBox) #selecciono el layout horizontal principal para el widget del tab historicos
         #******************************************
         #creo el contenido de la quinta pestaña
         #******************************************
@@ -470,6 +567,7 @@ class MainWindow(QDialog):
         self.setLayout(mainLayout)
     #***************************************************
     #***************************************************
+   
     #Defino la funcion asociada a la barra de progreso para la camara 1
     def handleTimer1(self):
         value = self.pbarTab1.value()
@@ -494,8 +592,26 @@ class MainWindow(QDialog):
             self.pbarTab3.setValue(value)
         else:
             self.timerPbar3.stop()
+    #Defino la funcion asociada a la seleccion de camaras 1
+    def populateCamCombo1(self):
+        
+        if not self.camCombo1.count():
+            self.camCombo1.addItems(['cam1', 'cam2', 'cam3'])
+        #agregamos los iconos para cada camara
+        self.camCombo1.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons", "camera-lens.png")))
+        self.camCombo1.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons", "camera-lens.png")))
+        self.camCombo1.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons", "camera-lens.png")))
+    #Defino la funcion asociada a la seleccion de camaras 2
+    def populateCamCombo2(self):
+        
+        if not self.camCombo2.count():
+            self.camCombo2.addItems(['cam1', 'cam2', 'cam3'])
+        #agregamos los iconos para cada camara
+        self.camCombo2.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons", "camera-lens.png")))
+        self.camCombo2.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons", "camera-lens.png")))
+        self.camCombo2.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons", "camera-lens.png")))
     #Defino la función asociada a logear un usuario
-    def populateCombo(self):
+    def populateUserCombo(self):
         #si la cantidad de usuario esta vacia la lleno
         if not self.userCombo.count():
             self.userCombo.addItems('Iñaki Lucho Polaco'.split()) #Aca podría consultar los usuarios 
@@ -517,6 +633,10 @@ class MainWindow(QDialog):
             #Se va a abrir la ventana para realizar la carga de usuario y password
             self.dlgRequestUser = PopUpLoggin()
             self.dlgRequestUser.show()
+
+    def popUpSearchDateToHistory(self):
+        self.dlgDateSearch = PopUpDateSelected()
+        self.dlgDateSearch.show()
 
     #Defino la funcion asociada a cerrar la aplicación
     def closeApp(self):
