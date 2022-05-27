@@ -418,21 +418,97 @@ class MainWindow(QDialog):
         #la imagen de la izquierda es la seleccion de historico 1 y la de la derecha la seleccion de historico 2
         #cada unos de los historicos ya sea el 1 o el 2 se pueden seleccionar de la camara 1 - camara 2 - camara 3
         #asi se pueden analizar imagenes cruzadas. Combinacion de analisis de imagenes historicas
-        #analisis camara 1 vs camara 1
-        #analisis camara 1 vs camara 2
-        #analisis camara 1 vs camara 3
-        #analisis camara 2 vs camara 1
-        #analisis camara 2 vs camara 2
-        #analisis camara 2 vs camara 3
-        #analisis camara 3 vs camara 1
-        #analisis camara 3 vs camara 2
-        #analisis camara 3 vs camara 3
+        #agrego la grafica para la ventana de historicos de la izquierda el grafico de curvas
+        graficoHistoricoIzq = MplCanvas(self, width=2, height=2, dpi=100)
+        #genero un dataframe de prueba para los historicos de la izquierda
+        dfHistoricoIzq = pd.DataFrame([
+            [0,10],
+            [5,15],
+            [2,20],
+            [15,25],
+            [4,10]
+        ], columns=['A','B'])
+        dfHistoricoIzq.plot(ax=graficoHistoricoIzq.axes)
+        #agrego la grafica para la ventana de historicos de la derecha
+        graficoHistoricoDer = MplCanvas(self, width=2, height=2, dpi=100)
+        #genero un dataframe de prueba para los historicos de la derecha
+        dfHistoricoDer = pd.DataFrame([
+            [0,10],
+            [5,15],
+            [2,20],
+            [15,25],
+            [4,10]
+        ], columns=['A','B'])
+        dfHistoricoDer.plot(ax=graficoHistoricoDer.axes)
+        #agrego los indicadores de las mediciones 
+        #vamos a tener dos para los historicos a la izquierda
+        #agregamos el label 1 de la izquierda
+        self.label1MessurementRoi = QLabel("Show Mess 1")        
+        #agregamos el indicador 1 de la izquierda
+        self.valorMessurement1 = "10.52" #este valor va a ser el resultado de la roi 1
+        self.output1MessurementRoi = QLabel(self.valorMessurement1)             
+        self.label1MessurementRoi.setBuddy(self.output1MessurementRoi)
+        #agregamos el label 2 de la izquierda
+        self.label2MessurementRoi = QLabel("Show Mess 2")        
+        #agregamos el indicador 2 de la izquierda
+        self.valorMessurement2 = "105.2" #este valor va a ser el resultado de la roi 2 
+        self.output2MessurementRoi = QLabel(self.valorMessurement2)
+        self.label2MessurementRoi.setBuddy(self.output2MessurementRoi)
+        #genero un widget para mostrar la curva  y en 
+        #horizontal un widget vertical con los indicadores
+        #de ROI de medicion
+        #creo el widget horizontal
+        subWindowHistory1CamSubH = QWidget()
+        #creo el widget vertical
+        subWindowHistory1CamSubV = QWidget()
+        #creo el layout vertical
+        subWindowHistory1CamSubVLayout = QVBoxLayout()
+        subWindowHistory1CamSubVLayout.addWidget(self.label1MessurementRoi)
+        subWindowHistory1CamSubVLayout.addWidget(self.output1MessurementRoi)
+        subWindowHistory1CamSubVLayout.addWidget(self.label2MessurementRoi)
+        subWindowHistory1CamSubVLayout.addWidget(self.output2MessurementRoi)
+        subWindowHistory1CamSubV.setLayout(subWindowHistory1CamSubVLayout)
+        #creo el layout horizontal
+        subWindowHistory1CamSubHLayout = QHBoxLayout()
+        subWindowHistory1CamSubHLayout.addWidget(graficoHistoricoIzq)
+        subWindowHistory1CamSubHLayout.addWidget(subWindowHistory1CamSubV)
+        subWindowHistory1CamSubH.setLayout(subWindowHistory1CamSubHLayout)
+        #agrego en la ventana a la derecha el grafico y los indicadores
+        self.label1MessurementRoiDer = QLabel("Show Mess 1")
+        #agregamos el indicador 1 de la derecha
+        self.valorMessurement1Der = "10.52"
+        self.output1MessurementRoiDer = QLabel(self.valorMessurement1Der)
+        self.label1MessurementRoiDer.setBuddy(self.output1MessurementRoiDer)        
+        #agregamos el label 2 de la derecha
+        self.label2MessurementRoiDer = QLabel("Show Mess 2")
+        #agregamos el indicador 2 de la derecha
+        self.valorMessurement2 = "105.2"
+        self.output2MessurementRoiDer = QLabel(self.valorMessurement2)
+        self.label2MessurementRoiDer.setBuddy(self.output2MessurementRoiDer)        
+        #agregamos el widget para el contenedor de la der
+        #agregamos el widget para el contenedor de los
+        #indicadores de medicion
+        subWindowHistory2CamSubH = QWidget()
+        subWindowHistory2CamSubV = QWidget()
+        #creamos el layout vertical
+        subWindowHistory2CamSubVlayout = QVBoxLayout()
+        subWindowHistory2CamSubVlayout.addWidget(self.label1MessurementRoiDer)
+        subWindowHistory2CamSubVlayout.addWidget(self.output1MessurementRoiDer)
+        subWindowHistory2CamSubVlayout.addWidget(self.label2MessurementRoiDer)
+        subWindowHistory2CamSubVlayout.addWidget(self.output2MessurementRoiDer)
+        subWindowHistory2CamSubV.setLayout(subWindowHistory2CamSubVlayout)
+        #creamos el layout horizontal
+        subWindowHistory2CamSubHLayout = QHBoxLayout()
+        subWindowHistory2CamSubHLayout.addWidget(graficoHistoricoDer)
+        subWindowHistory2CamSubHLayout.addWidget(subWindowHistory2CamSubV)
+        subWindowHistory2CamSubH.setLayout(subWindowHistory2CamSubHLayout)
+        
         
         subWindowHistory1Cam = QWidget()#aca va a ir todo lo del registro historico de la camara 1
         subWindowHistory2Cam = QWidget()#aca va a ir todo lo del registro historico de la camara 2
         subWindowHistory1CamBanner = QWidget()#aca va a ir el banner del label del combobox el combobox para la seleccion de camara 1
         subWindowHistory2CamBanner = QWidget()#aca va a ir el banner del label del combobox el combobox para la seleccion de camara 2
-        #
+        #agrego al banner la seleccion de camara seleccion de dia y la seleccion de imagen
         bannerSelCam1 = QHBoxLayout()
         bannerSelCam2 = QHBoxLayout()
         bannerSelCam1.addWidget(textEditTab4BotonSelCam1)
@@ -465,8 +541,10 @@ class MainWindow(QDialog):
         tab4BotonHBox.setContentsMargins(5,5,5,5)        
         subHistory1VBox.addWidget(subWindowHistory1CamBanner) #agrego al historico vertical el banner de la camara 1
         subHistory1VBox.addWidget(imageHistory1ViewPixMapItem) #agrego al historico vertical 1 la imagen registrada       
+        subHistory1VBox.addWidget(subWindowHistory1CamSubH)
         subHistory2VBox.addWidget(subWindowHistory2CamBanner) #agrego al historico vertical el banner de la camara 2
         subHistory2VBox.addWidget(imageHistory2ViewPixMapItem) #agrego al historico vertical 2 la imagen registrada        
+        subHistory2VBox.addWidget(subWindowHistory2CamSubH)
         subWindowHistory1Cam.setLayout(subHistory1VBox) #selecciono el layout vertical 1 para el widget history cam 1
         subWindowHistory2Cam.setLayout(subHistory2VBox) #selecciono el layout vertical 2 para el widget history cam 2       
         tab4BotonHBox.addWidget(subWindowHistory1Cam) #agrego al layout horizontal pricipal el widget vertical 1
