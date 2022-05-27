@@ -1,6 +1,7 @@
+from email.mime import base
 from PyQt5 import QtGui, QtCore
 from PyQt5.QtGui import QPixmap, QPainter
-from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal
+from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -28,7 +29,9 @@ from PyQt5.QtWidgets import (
     QWidget,
     QMessageBox,
     QGraphicsScene,
-    QGraphicsView   
+    QGraphicsView,
+    QToolBar,
+    QAction   
 )
 from PyQt5.QtGui import QIcon
 import matplotlib
@@ -158,6 +161,7 @@ class MainWindow(QDialog):
 
         self.dateCam1Image = QPushButton("Date Select") #apertura de popup para la seleccion con fecha inicial y final 
                                                         #para los historicos de la izquierda 
+        self.dateCam1Image.setToolTip("Select the dates range of images to show")
         self.dateCam1Image.clicked.connect(self.popUpSearchDateToHistory)
         self.dateCam1Image.setIcon(QIcon(os.path.join(basedir, "appIcons","calendar-day.png")))
         
@@ -167,13 +171,13 @@ class MainWindow(QDialog):
         self.img1ComboBoxReading.addItem(self.imag1_icon,"image_2") #de imagenes vamos a llenar estos datos con las 
         self.img1ComboBoxReading.addItem(self.imag1_icon,"image_3") #imagenes que nos devuelva la busqueda.
         self.img1ComboBoxReading.addItem(self.imag1_icon,"image_4") #por ahora lo dejamos hardcodeado
-
+        self.img1ComboBoxReading.setToolTip("Push for select the image to show")
         
         self.camCombo2 = CamComboBox(self) #combo box de camaras para los historicos de la derecha
         self.camCombo2.popupAboutToBeShown.connect(self.populateCamCombo2)
 
         self.dateCam2Image = QPushButton("Date Select") #apertura de popup para la seleccion con fecha incial y final
-        
+        self.dateCam2Image.setToolTip("Select the dates range of images to show")
         self.dateCam2Image.clicked.connect(self.popUpSearchDateToHistory)                                                #para los historicos de la derecha
         self.dateCam2Image.setIcon(QIcon(os.path.join(basedir,"appIcons","calendar-day.png")))
         
@@ -184,7 +188,7 @@ class MainWindow(QDialog):
         self.img2ComboBoxReading.addItem(self.imag2_icon,"image_2") #de imagenes vamos a llenar estos datos con las 
         self.img2ComboBoxReading.addItem(self.imag2_icon,"image_3") #imagenes que nos devuelva la busqueda.
         self.img2ComboBoxReading.addItem(self.imag2_icon,"image_4") #por ahora lo dejamos hardcodeado
-
+        self.img2ComboBoxReading.setToolTip("Push for select the image to show")
         
         self.setWindowTitle("Camera Applications")
         #***********************************************
@@ -411,9 +415,11 @@ class MainWindow(QDialog):
         textEditTab4BotonSelCam1 = QLabel()
         textEditTab4BotonSelCam1.setText("Sel Cam: ")
         textEditTab4BotonSelCam1.setBuddy(self.camCombo1)
+        self.camCombo1.setToolTip("selection the camera to show")
         textEditTab4BotonSelCam2 = QLabel()
         textEditTab4BotonSelCam2.setText("Sel Cam: ")
         textEditTab4BotonSelCam2.setBuddy(self.camCombo2)
+        self.camCombo2.setToolTip("selection the camera to show")
         #genero dos imagenes una a la izquierda y otra a la derecha
         #la imagen de la izquierda es la seleccion de historico 1 y la de la derecha la seleccion de historico 2
         #cada unos de los historicos ya sea el 1 o el 2 se pueden seleccionar de la camara 1 - camara 2 - camara 3
@@ -443,16 +449,20 @@ class MainWindow(QDialog):
         #agrego los indicadores de las mediciones 
         #vamos a tener dos para los historicos a la izquierda
         #agregamos el label 1 de la izquierda
-        self.label1MessurementRoi = QLabel("Show Mess 1")        
+        self.label1MessurementRoi = QLabel("Show ROI 1:")        
+        self.label1MessurementRoi.setToolTip("Messurement to region of interest 1")
         #agregamos el indicador 1 de la izquierda
         self.valorMessurement1 = "10.52" #este valor va a ser el resultado de la roi 1
-        self.output1MessurementRoi = QLabel(self.valorMessurement1)             
+        self.output1MessurementRoi = QLabel(self.valorMessurement1)        
+        self.output1MessurementRoi.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
         self.label1MessurementRoi.setBuddy(self.output1MessurementRoi)
         #agregamos el label 2 de la izquierda
-        self.label2MessurementRoi = QLabel("Show Mess 2")        
+        self.label2MessurementRoi = QLabel("Show ROI 2:")        
+        self.label2MessurementRoi.setToolTip("Messurement to region of interest 2")
         #agregamos el indicador 2 de la izquierda
         self.valorMessurement2 = "105.2" #este valor va a ser el resultado de la roi 2 
         self.output2MessurementRoi = QLabel(self.valorMessurement2)
+        self.output2MessurementRoi.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
         self.label2MessurementRoi.setBuddy(self.output2MessurementRoi)
         #genero un widget para mostrar la curva  y en 
         #horizontal un widget vertical con los indicadores
@@ -474,16 +484,20 @@ class MainWindow(QDialog):
         subWindowHistory1CamSubHLayout.addWidget(subWindowHistory1CamSubV)
         subWindowHistory1CamSubH.setLayout(subWindowHistory1CamSubHLayout)
         #agrego en la ventana a la derecha el grafico y los indicadores
-        self.label1MessurementRoiDer = QLabel("Show Mess 1")
+        self.label1MessurementRoiDer = QLabel("Show ROI 1:")
+        self.label1MessurementRoiDer.setToolTip("Messurement to region of interest 1")
         #agregamos el indicador 1 de la derecha
         self.valorMessurement1Der = "10.52"
         self.output1MessurementRoiDer = QLabel(self.valorMessurement1Der)
+        self.output1MessurementRoiDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
         self.label1MessurementRoiDer.setBuddy(self.output1MessurementRoiDer)        
         #agregamos el label 2 de la derecha
-        self.label2MessurementRoiDer = QLabel("Show Mess 2")
+        self.label2MessurementRoiDer = QLabel("Show ROI 2:")
+        self.label2MessurementRoiDer.setToolTip("Messurement to region of interest 2")
         #agregamos el indicador 2 de la derecha
         self.valorMessurement2 = "105.2"
         self.output2MessurementRoiDer = QLabel(self.valorMessurement2)
+        self.output2MessurementRoiDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
         self.label2MessurementRoiDer.setBuddy(self.output2MessurementRoiDer)        
         #agregamos el widget para el contenedor de la der
         #agregamos el widget para el contenedor de los
@@ -522,28 +536,140 @@ class MainWindow(QDialog):
         subWindowHistory1CamBanner.setLayout(bannerSelCam1)
         subWindowHistory2CamBanner.setLayout(bannerSelCam2)
 
-        #genero la imagen 1
+        #genero la imagen 1 a la izquierda en la pantalla de historicos
         imageHistory1CamScene = QGraphicsScene(0,0,0,0)
         imageHistory1CamPixmap = QPixmap("imageCam1.jpg")
         imageHistory1PixmapItem = imageHistory1CamScene.addPixmap(imageHistory1CamPixmap)
         imageHistory1ViewPixMapItem = QGraphicsView(imageHistory1CamScene)
         imageHistory1ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
+        #genero un toolbar para la imagen de la izquierda en la pantalla de historicos
+        toolBarImageHistoryIzq = QToolBar("Toolbar Image History 1")
+        toolBarImageHistoryIzq.setIconSize(QSize(16,16))
+        #cargo los iconos en la barra del toolbar
+        #button Fit
+        buttonZoomFitActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-fit.png")),"zoom fit",self)
+        buttonZoomFitActionHistoryIzq.setStatusTip("Zoom fit to full image")
+        buttonZoomFitActionHistoryIzq.triggered.connect(self.zoomFitImage)
+        buttonZoomFitActionHistoryIzq.setCheckable(True)
+        #button in
+        buttonZoomInActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
+        buttonZoomInActionHistoryIzq.setStatusTip("Zoom In")
+        buttonZoomInActionHistoryIzq.triggered.connect(self.zoomInImage)
+        buttonZoomInActionHistoryIzq.setCheckable(True)
+        #button out
+        buttonZoomOutActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
+        buttonZoomOutActionHistoryIzq.setStatusTip("Zoom Out")
+        buttonZoomOutActionHistoryIzq.triggered.connect(self.zoomOutImage)
+        buttonZoomOutActionHistoryIzq.setCheckable(True)
+        #button roi rectangle
+        buttonRectRoiActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
+        buttonRectRoiActionHistoryIzq.setStatusTip("Rectangle Roi")
+        buttonRectRoiActionHistoryIzq.triggered.connect(self.roiRectImage)
+        buttonRectRoiActionHistoryIzq.setCheckable(True)
+        #button roi ellipse
+        buttonEllipRoiActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
+        buttonEllipRoiActionHistoryIzq.setStatusTip("Ellipse Roi")
+        buttonEllipRoiActionHistoryIzq.triggered.connect(self.roiEllipImage)
+        buttonEllipRoiActionHistoryIzq.setCheckable(True)
+        #button roi line
+        buttonLineRoiActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
+        buttonLineRoiActionHistoryIzq.setStatusTip("Line Roi")
+        buttonLineRoiActionHistoryIzq.triggered.connect(self.roiLineImage)
+        buttonLineRoiActionHistoryIzq.setCheckable(True)
+        #button roi pollygon
+        buttonPoliRoiActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-polygon.png")),"Roi Pollygon", self)
+        buttonPoliRoiActionHistoryIzq.setStatusTip("Pollygon Roi")
+        buttonPoliRoiActionHistoryIzq.triggered.connect(self.roiPollyImage)
+        buttonPoliRoiActionHistoryIzq.setCheckable(True)
+        #agrego los botones al toolbar
+        toolBarImageHistoryIzq.addAction(buttonZoomFitActionHistoryIzq)
+        toolBarImageHistoryIzq.addAction(buttonZoomInActionHistoryIzq)
+        toolBarImageHistoryIzq.addAction(buttonZoomOutActionHistoryIzq)
+        toolBarImageHistoryIzq.addAction(buttonRectRoiActionHistoryIzq)
+        toolBarImageHistoryIzq.addAction(buttonEllipRoiActionHistoryIzq)
+        toolBarImageHistoryIzq.addAction(buttonLineRoiActionHistoryIzq)
+        toolBarImageHistoryIzq.addAction(buttonPoliRoiActionHistoryIzq)
+
+        self.imgHistIzqWidget = QWidget() #contenedor para el toolbar y la imagen
+
+                
+        self.imgHistIzqWidgetLayout = QVBoxLayout() #defino el layout del toolbar y de la imagen
+        self.imgHistIzqWidgetLayout.addWidget(toolBarImageHistoryIzq) #cargo el toolbar
+        self.imgHistIzqWidgetLayout.addWidget(imageHistory1ViewPixMapItem) #cargo la imagen
+        self.imgHistIzqWidget.setLayout(self.imgHistIzqWidgetLayout) #seteo el layout en el contenedor
+
+        
         #genero la imagen 2
         imageHistory2CamScene = QGraphicsScene(0,0,0,0)
         imageHistory2CamPixmap = QPixmap("imageCam2.jpg")
         imageHistory2PixmapItem = imageHistory2CamScene.addPixmap(imageHistory2CamPixmap)
         imageHistory2ViewPixMapItem = QGraphicsView(imageHistory2CamScene)
         imageHistory2ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
+        #genero un toolbar para la imagen de la derecha en la pantalla de historicos
+        toolBarImageHistoryDer = QToolBar("Toolbar Image History 2")
+        toolBarImageHistoryDer.setIconSize(QSize(16,16))
+        #cargo los iconos en la barra del toolbar
+        #button Fit
+        buttonZoomFitActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-fit.png")),"zoom fit",self)
+        buttonZoomFitActionHistoryDer.setStatusTip("Zoom fit to full image")
+        buttonZoomFitActionHistoryDer.triggered.connect(self.zoomFitImage)
+        buttonZoomFitActionHistoryDer.setCheckable(True)
+        #button In
+        buttonZoomInActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
+        buttonZoomInActionHistoryDer.setStatusTip("Zoom In")
+        buttonZoomInActionHistoryDer.triggered.connect(self.zoomInImage)
+        buttonZoomInActionHistoryDer.setCheckable(True)
+        #button Out
+        buttonZoomOutActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out", self)
+        buttonZoomOutActionHistoryDer.setStatusTip("Zoom Out")
+        buttonZoomOutActionHistoryDer.triggered.connect(self.zoomOutImage)
+        buttonZoomOutActionHistoryDer.setCheckable(True)
+        #button Roi Rectangle 
+        buttonRectRoiActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
+        buttonRectRoiActionHistoryDer.setStatusTip("Rectangle Roi")
+        buttonRectRoiActionHistoryDer.triggered.connect(self.roiRectImage)
+        buttonRectRoiActionHistoryDer.setCheckable(True)
+        #button Roi Ellipse
+        buttonEllipRoiActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
+        buttonEllipRoiActionHistoryDer.setStatusTip("Ellipse Roi")
+        buttonEllipRoiActionHistoryDer.triggered.connect(self.roiEllipImage)
+        buttonEllipRoiActionHistoryDer.setCheckable(True)
+        #button Roi Line
+        buttonLineRoiActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line",self)
+        buttonLineRoiActionHistoryDer.setStatusTip("Line Roi")
+        buttonLineRoiActionHistoryDer.triggered.connect(self.roiLineImage)
+        buttonLineRoiActionHistoryDer.setCheckable(True)
+        #button Roi Pollygon
+        buttonPoliRoiActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-polygon.png")),"Roi Pollygon",self)
+        buttonPoliRoiActionHistoryDer.setStatusTip("Pollygon Roi")
+        buttonPoliRoiActionHistoryDer.triggered.connect(self.roiPollyImage)
+        buttonPoliRoiActionHistoryDer.setCheckable(True)
+        #agrego los botones al toolbar
+        toolBarImageHistoryDer.addAction(buttonZoomFitActionHistoryDer)
+        toolBarImageHistoryDer.addAction(buttonZoomInActionHistoryDer)
+        toolBarImageHistoryDer.addAction(buttonZoomOutActionHistoryDer)
+        toolBarImageHistoryDer.addAction(buttonRectRoiActionHistoryDer)
+        toolBarImageHistoryDer.addAction(buttonEllipRoiActionHistoryDer)
+        toolBarImageHistoryDer.addAction(buttonLineRoiActionHistoryDer)
+        toolBarImageHistoryDer.addAction(buttonPoliRoiActionHistoryDer)
+
+        self.imgHistDerWidget = QWidget() #contenedor para el toolbar y la imagen a la derecha del historico
+
+        self.imgHistDerWidgetLayout = QVBoxLayout() #defino el layout del contenedor de toolbar e imagen a derecha
+        self.imgHistDerWidgetLayout.addWidget(toolBarImageHistoryDer)
+        self.imgHistDerWidgetLayout.addWidget(imageHistory2ViewPixMapItem)
+        self.imgHistDerWidget.setLayout(self.imgHistDerWidgetLayout)
+
         #adjunto la imagen
         subHistory1VBox = QVBoxLayout() #creo un layout vertical para los historicos de la camara 1
         subHistory2VBox = QVBoxLayout() #creo un layout vertical para los historicos de la camara 2 
         tab4BotonHBox = QHBoxLayout() #creo un layou horizontal para contener los dos historicos el de la camara 1 y 2
         tab4BotonHBox.setContentsMargins(5,5,5,5)        
         subHistory1VBox.addWidget(subWindowHistory1CamBanner) #agrego al historico vertical el banner de la camara 1
-        subHistory1VBox.addWidget(imageHistory1ViewPixMapItem) #agrego al historico vertical 1 la imagen registrada       
+        subHistory1VBox.addWidget(self.imgHistIzqWidget)#imageHistory1ViewPixMapItem) #agrego al historico vertical 1 la imagen registrada       
         subHistory1VBox.addWidget(subWindowHistory1CamSubH)
         subHistory2VBox.addWidget(subWindowHistory2CamBanner) #agrego al historico vertical el banner de la camara 2
-        subHistory2VBox.addWidget(imageHistory2ViewPixMapItem) #agrego al historico vertical 2 la imagen registrada        
+        subHistory2VBox.addWidget(self.imgHistDerWidget) #agrego al historico vertical 2 la imagen registrada        
         subHistory2VBox.addWidget(subWindowHistory2CamSubH)
         subWindowHistory1Cam.setLayout(subHistory1VBox) #selecciono el layout vertical 1 para el widget history cam 1
         subWindowHistory2Cam.setLayout(subHistory2VBox) #selecciono el layout vertical 2 para el widget history cam 2       
@@ -645,7 +771,31 @@ class MainWindow(QDialog):
         self.setLayout(mainLayout)
     #***************************************************
     #***************************************************
-   
+    #defino la funcion asociada a los zoom de imagen
+    def zoomFitImage(self):
+        print("Zoom Fit to the full image") #ajusto el zoom al tama;o de la imagen
+                                            #la logica va a ir aca para la selccion 
+                                            # de la herramienta de forma que al hacer
+                                            # un click en la imagen se capture y se
+                                            # magnifique en esa zona 
+    def zoomInImage(self):
+        print("Zoom In to the image")
+
+    def zoomOutImage(self):
+        print("Zoom Out to the image") 
+    
+    def roiRectImage(self):
+        print("Dibujar Roi Rectangulo")
+    
+    def roiEllipImage(self):
+        print("Dibujar Roi Ellipse")
+    
+    def roiLineImage(self):
+        print("Dibujar Roi Linea")
+    
+    def roiPollyImage(self):
+        print("Dibujar Roi Poligono")
+    
     #Defino la funcion asociada a la barra de progreso para la camara 1
     def handleTimer1(self):
         value = self.pbarTab1.value()
