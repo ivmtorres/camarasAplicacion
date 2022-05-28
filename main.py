@@ -1,7 +1,7 @@
 from email.mime import base
 from PyQt5 import QtGui, QtCore
-from PyQt5.QtGui import QPixmap, QPainter
-from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen
+from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -33,7 +33,7 @@ from PyQt5.QtWidgets import (
     QToolBar,
     QAction   
 )
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QPaintEvent
 import matplotlib
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
@@ -49,6 +49,123 @@ try:
     winddl.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
+
+#Clase boton para checkear
+class AnimatedToggle(QCheckBox):
+
+    _transparent_pen = QPen(Qt.transparent)
+    _light_grey_pen = QPen(Qt.lightGray)
+
+    def __init__(
+        self,
+        parent =None,
+        bar_color = Qt.gray,
+        checked_color = "#00B0FF",
+        handle_color = Qt.white,
+        pulse_unchecked_color = "#44999999",
+        pulse_checked_color = "#4400B0EE"
+        ):
+        super().__init__(parent)
+
+        self._bar_brush = QBrush(bar_color)
+        self._bar_checked_brush = QBrush(QColor(checked_color).lighter())
+
+        self._handle_brush = QBrush(handle_color)
+        self._handle_checked_brush = QBrush(QColor(checked_color))
+
+        self._pulse_unchecked_animation = QBrush(QColor(pulse_unchecked_color))
+        self._pulse_checked_animation = QBrush(QColor(pulse_checked_color))
+
+        self.setContentsMargins(8, 0, 8, 0)
+        self._handle_position = 0
+        
+        self._pulse_radius = 0
+
+        self.animation = QPropertyAnimation(self, b"handle_position", self)
+        self.animation.setEasingCurve(QEasingCurve.InOutCubic)
+        self.animation.setDuration(200)
+
+        self.pulse_anim = QPropertyAnimation(self, b"pulse_radius", self)
+        self.pulse_anim.setDuration(350)
+        self.pulse_anim.setStartValue(10)
+        self.pulse_anim.setEndValue(20)
+
+        self.animations_group = QSequentialAnimationGroup()
+        self.animations_group.addAnimation(self.animation)
+        self.animations_group.addAnimation(self.pulse_anim)
+
+        self.stateChanged.connect(self.setup_animation)
+
+    def sizeHint(self):
+        return QSize(58,45)
+    
+    def hitButton(self, pos:QPoint):
+        return self.contentsRect().contains(pos)
+    
+    @pyqtSlot(int)
+    def setup_animation(self, value):
+        self.animations_group.stop()
+        if value:
+            self.animation.setEndValue(1)
+        else:
+            self.animation.setEndValue(0)
+        self.animations_group.start()
+    
+    def paintEvent(self, e:QPaintEvent):
+        contRect = self.contentsRect()
+        handleRadius = round(0.24 * contRect.height())
+
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        p.setPen(self._transparent_pen)
+        barRect = QRectF(
+            0,
+            0,
+            contRect.width() - handleRadius,
+            0.4 * contRect.height()
+        )
+        barRect.moveCenter(contRect.center())
+        rounding = barRect.height() / 2
+
+        trailLength = contRect.width() -2 * handleRadius
+
+        xPos = contRect.x() + handleRadius + trailLength * self._handle_position
+
+        if self.pulse_anim.state() == QPropertyAnimation.Running:
+            p.setBrush(self._bar_checked_brush)
+            p.drawRoundedRect(barRect, rounding, rounding)
+            p.setBrush(self._handle_checked_brush)
+        else:
+            p.setBrush(self._bar_brush)
+            p.drawRoundedRect(barRect, rounding, rounding)
+            p.setBrush(self._handle_checked_brush)
+        
+        p.drawEllipse(
+            QPointF(xPos, 
+            barRect.center().y()),
+            handleRadius,
+            handleRadius
+        )
+        p.end()
+
+    @pyqtProperty(float)
+    def handle_position(self):
+        return self._handle_position
+    
+    @handle_position.setter
+    def handle_position(self,pos):
+        self._handle_position = pos
+        self.update()
+    
+    @pyqtProperty(float)
+    def pulse_radius(self):
+        return self._pulse_radius
+    
+    @pulse_radius.setter
+    def pulse_radius(self, pos):
+        self._pulse_radius = pos
+        self.update()
 #Clase para graficar curvas
 class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
@@ -680,12 +797,328 @@ class MainWindow(QDialog):
         #creo el contenido de la quinta pestaña
         #******************************************
         tab5Boton = QWidget() #defino la pestaña de configuracion para las cámaras
-        textEditTab5Boton = QTextEdit()
-        textEditTab5Boton.setPlainText("Aca va a ir en lugar de texto los controles para configuracion de las camaras")
+        contenedorPresetCam1 = QWidget()
+        layoutContenedorPresetCam1 = QVBoxLayout()
+        textEditCam1Configuration = QLabel("Configuration of camera 1")
+        textEditCam1Configuration.setStyleSheet("border: 2px solid orange;border-radius: 10px;padding: 2px; text-align:center; background-color: lightyellow;")
+        textEditCam1Configuration.setFixedSize(QSize(205,24))
+        contenedorGrupoPresetCam1 = QGroupBox()
+        contenedorGrupoPresetCam1.setStyleSheet("border: 2px solid lightblue;border-radius: 10px;")
+        #zona declaracion controles de preset
+        contenedorValuePreset1Cam1Layout = QHBoxLayout()
+        labelValuePreset1Cam1 = QLabel("Preset 1")
+        labelValuePreset1Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset1Cam1.setStyleSheet("border-style: none;")
+        valuePreset1Cam1 = AnimatedToggle()
+        valuePreset1Cam1.setFixedSize(valuePreset1Cam1.sizeHint())
+        valuePreset1Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        contenedorValuePreset1Cam1Layout.addWidget(labelValuePreset1Cam1)
+        contenedorValuePreset1Cam1Layout.addWidget(valuePreset1Cam1)
+        #
+        contenedorValuePreset2Cam1Layout = QHBoxLayout()
+        labelValuePreset2Cam1 = QLabel("Preset 2")
+        labelValuePreset2Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset2Cam1.setStyleSheet("border-style: none;")
+        valuePreset2Cam1 = AnimatedToggle()
+        valuePreset2Cam1.setFixedSize(valuePreset2Cam1.sizeHint())
+        valuePreset2Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        contenedorValuePreset2Cam1Layout.addWidget(labelValuePreset2Cam1)
+        contenedorValuePreset2Cam1Layout.addWidget(valuePreset2Cam1)    
+        #
+        contenedorValuePreset3Cam1Layout = QHBoxLayout()
+        labelValuePreset3Cam1 = QLabel("Preset 3")
+        labelValuePreset3Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset3Cam1.setStyleSheet("border-style: none;")
+        valuePreset3Cam1 = AnimatedToggle()
+        valuePreset3Cam1.setFixedSize(valuePreset3Cam1.sizeHint())
+        valuePreset3Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        contenedorValuePreset3Cam1Layout.addWidget(labelValuePreset3Cam1)
+        contenedorValuePreset3Cam1Layout.addWidget(valuePreset3Cam1)
+        #
+        contenedorValuePreset4Cam1Layout = QHBoxLayout()
+        labelValuePreset4Cam1 = QLabel("Preset 4")
+        labelValuePreset4Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset4Cam1.setStyleSheet("border-style: none;")
+        valuePreset4Cam1 = AnimatedToggle()
+        valuePreset4Cam1.setFixedSize(valuePreset4Cam1.sizeHint())
+        valuePreset4Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        contenedorValuePreset4Cam1Layout.addWidget(labelValuePreset4Cam1)
+        contenedorValuePreset4Cam1Layout.addWidget(valuePreset4Cam1)
+        #
+        contenedorValuePreset5Cam1Layout = QHBoxLayout()
+        labelValuePreset5Cam1 = QLabel("Preset 5")
+        labelValuePreset5Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset5Cam1.setStyleSheet("border-style: none;")
+        valuePreset5Cam1 = AnimatedToggle()
+        valuePreset5Cam1.setFixedSize(valuePreset5Cam1.sizeHint())
+        valuePreset5Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        contenedorValuePreset5Cam1Layout.addWidget(labelValuePreset5Cam1)
+        contenedorValuePreset5Cam1Layout.addWidget(valuePreset5Cam1)
+        #
+        contenedorValuePreset6Cam1Layout = QHBoxLayout()
+        labelValuePreset6Cam1 = QLabel("Preset 6")
+        labelValuePreset6Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset6Cam1.setStyleSheet("border-style: none;")
+        valuePreset6Cam1 = AnimatedToggle()
+        valuePreset6Cam1.setFixedSize(valuePreset6Cam1.sizeHint())
+        valuePreset6Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        contenedorValuePreset6Cam1Layout.addWidget(labelValuePreset6Cam1)
+        contenedorValuePreset6Cam1Layout.addWidget(valuePreset6Cam1)
+        #
+        contenedorValuePreset7Cam1Layout = QHBoxLayout()
+        labelValuePreset7Cam1 = QLabel("Preset 7")
+        labelValuePreset7Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset7Cam1.setStyleSheet("border-style: none;")
+        valuePreset7Cam1 = AnimatedToggle()
+        valuePreset7Cam1.setFixedSize(valuePreset7Cam1.sizeHint())
+        valuePreset7Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        contenedorValuePreset7Cam1Layout.addWidget(labelValuePreset7Cam1)
+        contenedorValuePreset7Cam1Layout.addWidget(valuePreset7Cam1)
+        #
+        contenedorValuePreset8Cam1Layout = QHBoxLayout()
+        labelValuePreset8Cam1 = QLabel("Preset 8")
+        labelValuePreset8Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset8Cam1.setStyleSheet("border-style: none;")
+        valuePreset8Cam1 = AnimatedToggle()
+        valuePreset8Cam1.setFixedSize(valuePreset8Cam1.sizeHint())
+        valuePreset8Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        contenedorValuePreset8Cam1Layout.addWidget(labelValuePreset8Cam1)
+        contenedorValuePreset8Cam1Layout.addWidget(valuePreset8Cam1)
+        #
+        contenedorPresetCam1Layout = QVBoxLayout()
+        contenedorPresetCam1Layout.addLayout(contenedorValuePreset1Cam1Layout)
+        contenedorPresetCam1Layout.addLayout(contenedorValuePreset2Cam1Layout)
+        contenedorPresetCam1Layout.addLayout(contenedorValuePreset3Cam1Layout)
+        contenedorPresetCam1Layout.addLayout(contenedorValuePreset4Cam1Layout)
+        contenedorPresetCam1Layout.addLayout(contenedorValuePreset5Cam1Layout)
+        contenedorPresetCam1Layout.addLayout(contenedorValuePreset6Cam1Layout)
+        contenedorPresetCam1Layout.addLayout(contenedorValuePreset7Cam1Layout)
+        contenedorPresetCam1Layout.addLayout(contenedorValuePreset8Cam1Layout)
+        contenedorGrupoPresetCam1.setLayout(contenedorPresetCam1Layout)
+        #************
+        textEditCam1Configuration.setBuddy(contenedorGrupoPresetCam1)
+        #configuramos el layout de la camara 1 con el label y el grupo
+        layoutContenedorPresetCam1.addWidget(textEditCam1Configuration)
+        layoutContenedorPresetCam1.addWidget(contenedorGrupoPresetCam1)
+        contenedorPresetCam1.setLayout(layoutContenedorPresetCam1)
+        
+        contenedorPresetCam2 = QWidget()
+        layoutContenedorPresetCam2 = QVBoxLayout()
+        textEditCam2Configuration = QLabel("Configuration of camera 2")
+        textEditCam2Configuration.setStyleSheet("border: 2px solid orange;border-radius: 10px;padding: 2px; text-align:center; background-color: lightyellow;")
+        textEditCam2Configuration.setFixedSize(QSize(205,24))
+        contenedorGrupoPresetCam2 = QGroupBox()        
+        contenedorGrupoPresetCam2.setStyleSheet("border: 2px solid lightblue;border-radius: 10px;")
+        ##
+        #zona declaracion controles de preset
+        contenedorValuePreset1Cam2Layout = QHBoxLayout()
+        labelValuePreset1Cam2 = QLabel("Preset 1")
+        labelValuePreset1Cam2.setFixedSize(QSize(64,16))
+        labelValuePreset1Cam2.setStyleSheet("border-style: none;")
+        valuePreset1Cam2 = AnimatedToggle()
+        valuePreset1Cam2.setFixedSize(valuePreset1Cam2.sizeHint())
+        valuePreset1Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        contenedorValuePreset1Cam2Layout.addWidget(labelValuePreset1Cam2)
+        contenedorValuePreset1Cam2Layout.addWidget(valuePreset1Cam2)
+        #
+        contenedorValuePreset2Cam2Layout = QHBoxLayout()
+        labelValuePreset2Cam2 = QLabel("Preset 2")
+        labelValuePreset2Cam2.setFixedSize(QSize(64,16))
+        labelValuePreset2Cam2.setStyleSheet("border-style: none;")
+        valuePreset2Cam2 = AnimatedToggle()
+        valuePreset2Cam2.setFixedSize(valuePreset2Cam2.sizeHint())
+        valuePreset2Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        contenedorValuePreset2Cam2Layout.addWidget(labelValuePreset2Cam2)
+        contenedorValuePreset2Cam2Layout.addWidget(valuePreset2Cam2)    
+        #
+        contenedorValuePreset3Cam2Layout = QHBoxLayout()
+        labelValuePreset3Cam2 = QLabel("Preset 3")
+        labelValuePreset3Cam2.setFixedSize(QSize(64,16))
+        labelValuePreset3Cam2.setStyleSheet("border-style: none;")
+        valuePreset3Cam2 = AnimatedToggle()
+        valuePreset3Cam2.setFixedSize(valuePreset3Cam2.sizeHint())
+        valuePreset3Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        contenedorValuePreset3Cam2Layout.addWidget(labelValuePreset3Cam2)
+        contenedorValuePreset3Cam2Layout.addWidget(valuePreset3Cam2)
+        #
+        contenedorValuePreset4Cam2Layout = QHBoxLayout()
+        labelValuePreset4Cam2 = QLabel("Preset 4")
+        labelValuePreset4Cam2.setFixedSize(QSize(64,16))
+        labelValuePreset4Cam2.setStyleSheet("border-style: none;")
+        valuePreset4Cam2 = AnimatedToggle()
+        valuePreset4Cam2.setFixedSize(valuePreset4Cam2.sizeHint())
+        valuePreset4Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        contenedorValuePreset4Cam2Layout.addWidget(labelValuePreset4Cam2)
+        contenedorValuePreset4Cam2Layout.addWidget(valuePreset4Cam2)
+        #
+        contenedorValuePreset5Cam2Layout = QHBoxLayout()
+        labelValuePreset5Cam2 = QLabel("Preset 5")
+        labelValuePreset5Cam2.setFixedSize(QSize(64,16))
+        labelValuePreset5Cam2.setStyleSheet("border-style: none;")
+        valuePreset5Cam2 = AnimatedToggle()
+        valuePreset5Cam2.setFixedSize(valuePreset5Cam2.sizeHint())
+        valuePreset5Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        contenedorValuePreset5Cam2Layout.addWidget(labelValuePreset5Cam2)
+        contenedorValuePreset5Cam2Layout.addWidget(valuePreset5Cam2)
+        #
+        contenedorValuePreset6Cam2Layout = QHBoxLayout()
+        labelValuePreset6Cam2 = QLabel("Preset 6")
+        labelValuePreset6Cam2.setFixedSize(QSize(64,16))
+        labelValuePreset6Cam2.setStyleSheet("border-style: none;")
+        valuePreset6Cam2 = AnimatedToggle()
+        valuePreset6Cam2.setFixedSize(valuePreset6Cam2.sizeHint())
+        valuePreset6Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        contenedorValuePreset6Cam2Layout.addWidget(labelValuePreset6Cam2)
+        contenedorValuePreset6Cam2Layout.addWidget(valuePreset6Cam2)
+        #
+        contenedorValuePreset7Cam2Layout = QHBoxLayout()
+        labelValuePreset7Cam2 = QLabel("Preset 7")
+        labelValuePreset7Cam2.setFixedSize(QSize(64,16))
+        labelValuePreset7Cam2.setStyleSheet("border-style: none;")
+        valuePreset7Cam2 = AnimatedToggle()
+        valuePreset7Cam2.setFixedSize(valuePreset7Cam2.sizeHint())
+        valuePreset7Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        contenedorValuePreset7Cam2Layout.addWidget(labelValuePreset7Cam2)
+        contenedorValuePreset7Cam2Layout.addWidget(valuePreset7Cam2)
+        #
+        contenedorValuePreset8Cam2Layout = QHBoxLayout()
+        labelValuePreset8Cam2 = QLabel("Preset 8")
+        labelValuePreset8Cam2.setFixedSize(QSize(64,16))
+        labelValuePreset8Cam2.setStyleSheet("border-style: none;")
+        valuePreset8Cam2 = AnimatedToggle()
+        valuePreset8Cam2.setFixedSize(valuePreset8Cam2.sizeHint())
+        valuePreset8Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        contenedorValuePreset8Cam2Layout.addWidget(labelValuePreset8Cam2)
+        contenedorValuePreset8Cam2Layout.addWidget(valuePreset8Cam2)
+        #
+        contenedorPresetCam2Layout = QVBoxLayout()
+        contenedorPresetCam2Layout.addLayout(contenedorValuePreset1Cam2Layout)
+        contenedorPresetCam2Layout.addLayout(contenedorValuePreset2Cam2Layout)
+        contenedorPresetCam2Layout.addLayout(contenedorValuePreset3Cam2Layout)
+        contenedorPresetCam2Layout.addLayout(contenedorValuePreset4Cam2Layout)
+        contenedorPresetCam2Layout.addLayout(contenedorValuePreset5Cam2Layout)
+        contenedorPresetCam2Layout.addLayout(contenedorValuePreset6Cam2Layout)
+        contenedorPresetCam2Layout.addLayout(contenedorValuePreset7Cam2Layout)
+        contenedorPresetCam2Layout.addLayout(contenedorValuePreset8Cam2Layout)
+        contenedorGrupoPresetCam2.setLayout(contenedorPresetCam2Layout)
+        ##
+        textEditCam2Configuration.setBuddy(contenedorGrupoPresetCam2)
+        #configuramos el layout de la camara 2 con el label y el grupo
+        layoutContenedorPresetCam2.addWidget(textEditCam2Configuration)
+        layoutContenedorPresetCam2.addWidget(contenedorGrupoPresetCam2)
+        contenedorPresetCam2.setLayout(layoutContenedorPresetCam2)
 
-        tab5BotonHBox = QHBoxLayout()
+        contenedorPresetCam3 = QWidget()
+        layoutContenedorPresetCam3 = QVBoxLayout()
+        textEditCam3Configuration = QLabel("Configuration of camera 3")
+        textEditCam3Configuration.setStyleSheet("border: 2px solid orange;border-radius: 10px;padding: 2px; text-align:center; background-color: lightyellow;")
+        textEditCam3Configuration.setFixedSize(QSize(205,24))
+        contenedorGrupoPresetCam3 = QGroupBox()
+        contenedorGrupoPresetCam3.setStyleSheet("border: 2px solid lightblue;border-radius: 10px;")
+        ##
+        #zona declaracion controles de preset
+        contenedorValuePreset1Cam3Layout = QHBoxLayout()
+        labelValuePreset1Cam3 = QLabel("Preset 1")
+        labelValuePreset1Cam3.setFixedSize(QSize(64,16))
+        labelValuePreset1Cam3.setStyleSheet("border-style: none;")
+        valuePreset1Cam3 = AnimatedToggle()
+        valuePreset1Cam3.setFixedSize(valuePreset1Cam3.sizeHint())
+        valuePreset1Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        contenedorValuePreset1Cam3Layout.addWidget(labelValuePreset1Cam3)
+        contenedorValuePreset1Cam3Layout.addWidget(valuePreset1Cam3)
+        #
+        contenedorValuePreset2Cam3Layout = QHBoxLayout()
+        labelValuePreset2Cam3 = QLabel("Preset 2")
+        labelValuePreset2Cam3.setFixedSize(QSize(64,16))
+        labelValuePreset2Cam3.setStyleSheet("border-style: none;")
+        valuePreset2Cam3 = AnimatedToggle()
+        valuePreset2Cam3.setFixedSize(valuePreset2Cam3.sizeHint())
+        valuePreset2Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        contenedorValuePreset2Cam3Layout.addWidget(labelValuePreset2Cam3)
+        contenedorValuePreset2Cam3Layout.addWidget(valuePreset2Cam3)    
+        #
+        contenedorValuePreset3Cam3Layout = QHBoxLayout()
+        labelValuePreset3Cam3 = QLabel("Preset 3")
+        labelValuePreset3Cam3.setFixedSize(QSize(64,16))
+        labelValuePreset3Cam3.setStyleSheet("border-style: none;")
+        valuePreset3Cam3 = AnimatedToggle()
+        valuePreset3Cam3.setFixedSize(valuePreset3Cam3.sizeHint())
+        valuePreset3Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        contenedorValuePreset3Cam3Layout.addWidget(labelValuePreset3Cam3)
+        contenedorValuePreset3Cam3Layout.addWidget(valuePreset3Cam3)
+        #
+        contenedorValuePreset4Cam3Layout = QHBoxLayout()
+        labelValuePreset4Cam3 = QLabel("Preset 4")
+        labelValuePreset4Cam3.setFixedSize(QSize(64,16))
+        labelValuePreset4Cam3.setStyleSheet("border-style: none;")
+        valuePreset4Cam3 = AnimatedToggle()
+        valuePreset4Cam3.setFixedSize(valuePreset4Cam3.sizeHint())
+        valuePreset4Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        contenedorValuePreset4Cam3Layout.addWidget(labelValuePreset4Cam3)
+        contenedorValuePreset4Cam3Layout.addWidget(valuePreset4Cam3)
+        #
+        contenedorValuePreset5Cam3Layout = QHBoxLayout()
+        labelValuePreset5Cam3 = QLabel("Preset 5")
+        labelValuePreset5Cam3.setFixedSize(QSize(64,16))
+        labelValuePreset5Cam3.setStyleSheet("border-style: none;")
+        valuePreset5Cam3 = AnimatedToggle()
+        valuePreset5Cam3.setFixedSize(valuePreset5Cam3.sizeHint())
+        valuePreset5Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        contenedorValuePreset5Cam3Layout.addWidget(labelValuePreset5Cam3)
+        contenedorValuePreset5Cam3Layout.addWidget(valuePreset5Cam3)
+        #
+        contenedorValuePreset6Cam3Layout = QHBoxLayout()
+        labelValuePreset6Cam3 = QLabel("Preset 6")
+        labelValuePreset6Cam3.setFixedSize(QSize(64,16))
+        labelValuePreset6Cam3.setStyleSheet("border-style: none;")
+        valuePreset6Cam3 = AnimatedToggle()
+        valuePreset6Cam3.setFixedSize(valuePreset6Cam3.sizeHint())
+        valuePreset6Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        contenedorValuePreset6Cam3Layout.addWidget(labelValuePreset6Cam3)
+        contenedorValuePreset6Cam3Layout.addWidget(valuePreset6Cam3)
+        #
+        contenedorValuePreset7Cam3Layout = QHBoxLayout()
+        labelValuePreset7Cam3 = QLabel("Preset 7")
+        labelValuePreset7Cam3.setFixedSize(QSize(64,16))
+        labelValuePreset7Cam3.setStyleSheet("border-style: none;")
+        valuePreset7Cam3 = AnimatedToggle()
+        valuePreset7Cam3.setFixedSize(valuePreset7Cam3.sizeHint())
+        valuePreset7Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        contenedorValuePreset7Cam3Layout.addWidget(labelValuePreset7Cam3)
+        contenedorValuePreset7Cam3Layout.addWidget(valuePreset7Cam3)
+        #
+        contenedorValuePreset8Cam3Layout = QHBoxLayout()
+        labelValuePreset8Cam3 = QLabel("Preset 8")
+        labelValuePreset8Cam3.setFixedSize(QSize(64,16))
+        labelValuePreset8Cam3.setStyleSheet("border-style: none;")
+        valuePreset8Cam3 = AnimatedToggle()
+        valuePreset8Cam3.setFixedSize(valuePreset8Cam3.sizeHint())
+        valuePreset8Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        contenedorValuePreset8Cam3Layout.addWidget(labelValuePreset8Cam3)
+        contenedorValuePreset8Cam3Layout.addWidget(valuePreset8Cam3)
+        #
+        contenedorPresetCam3Layout = QVBoxLayout()
+        contenedorPresetCam3Layout.addLayout(contenedorValuePreset1Cam3Layout)
+        contenedorPresetCam3Layout.addLayout(contenedorValuePreset2Cam3Layout)
+        contenedorPresetCam3Layout.addLayout(contenedorValuePreset3Cam3Layout)
+        contenedorPresetCam3Layout.addLayout(contenedorValuePreset4Cam3Layout)
+        contenedorPresetCam3Layout.addLayout(contenedorValuePreset5Cam3Layout)
+        contenedorPresetCam3Layout.addLayout(contenedorValuePreset6Cam3Layout)
+        contenedorPresetCam3Layout.addLayout(contenedorValuePreset7Cam3Layout)
+        contenedorPresetCam3Layout.addLayout(contenedorValuePreset8Cam3Layout)
+        contenedorGrupoPresetCam3.setLayout(contenedorPresetCam3Layout)
+        ##
+        textEditCam3Configuration.setBuddy(contenedorGrupoPresetCam3)
+        #configuramos el layout de la camara 3 con el label y el grupo        
+        layoutContenedorPresetCam3.addWidget(textEditCam3Configuration)
+        layoutContenedorPresetCam3.addWidget(contenedorGrupoPresetCam3)
+        contenedorPresetCam3.setLayout(layoutContenedorPresetCam3)
+
+        tab5BotonHBox = QHBoxLayout() 
         tab5BotonHBox.setContentsMargins(5,5,5,5)
-        tab5BotonHBox.addWidget(textEditTab5Boton)
+        tab5BotonHBox.addWidget(contenedorPresetCam1)
+        tab5BotonHBox.addWidget(contenedorPresetCam2)
+        tab5BotonHBox.addWidget(contenedorPresetCam3)
         tab5Boton.setLayout(tab5BotonHBox)
         #*******************************************
         #Asignamos nombres a cada uno de los widgets que van a ser los tabs
@@ -771,6 +1204,18 @@ class MainWindow(QDialog):
         self.setLayout(mainLayout)
     #***************************************************
     #***************************************************
+    #defino la funcion asociada con el cambio de preset de la camara 1
+    def popUpConfiguracionPresetCam1(self):
+        print("cambiar preset seleccionado en camara 1")
+    
+    #defino la funcion asociada con el cambio de preset de la camara 2
+    def popUpConfiguracionPresetCam2(self):
+        print("cambiar preset seleccionado en camara 2")
+
+    #defino la funcion asociada con el cambio de preset de la camara 2
+    def popUpConfiguracionPresetCam3(self):
+        print("cambiar preset seleccionado en camara 3")
+
     #defino la funcion asociada a los zoom de imagen
     def zoomFitImage(self):
         print("Zoom Fit to the full image") #ajusto el zoom al tama;o de la imagen
