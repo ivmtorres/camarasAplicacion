@@ -1,4 +1,7 @@
-from email.mime import base
+from faulthandler import disable
+from functools import partial
+from msilib.schema import CheckBox
+from typing import ValuesView
 from PyQt5 import QtGui, QtCore
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen
 from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty
@@ -35,6 +38,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QIcon, QPaintEvent
 import matplotlib
+from matplotlib.widgets import Widget
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -211,6 +215,97 @@ class PopUpDateSelected(QWidget):
     def realizarBusquedaCancel(self):
         print("Cancelar busqueda")
         self.close()
+#Clase modelo generico de reset preset camara
+class PopUpResetPresetCam(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Reset Preset Of Camera")
+        layoutPresetCurrentReset = QVBoxLayout()
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelDefaultPreset = QLabel("Default Preset")
+        self.valueDefaultPreset = QLineEdit("....")
+        self.valueDefaultPreset.setStyleSheet("border: 2px solid black;")
+        self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentReset.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.labelDefaultPreset)
+        layoutPresetCurrentReset.addWidget(self.valueDefaultPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentDefaultBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okDefaultPreset = QPushButton("Reset")
+        self.okDefaultPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelDefaultPreset = QPushButton("Cancel")
+        self.cancelDefaultPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentDefaultBotones.addWidget(self.okDefaultPreset)
+        layoutPresetCurrentDefaultBotones.addWidget(self.cancelDefaultPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentReset.addLayout(layoutPresetCurrentDefaultBotones)
+        self.setLayout(layoutPresetCurrentReset)
+        self.resize(400,20)
+        self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetCam(self):
+        print("Bajando default value a camara")
+    
+    def cancelUpDatePresetCam(self):
+        print("Cancelar default value a camara")
+        self.close()
+#Clase modelo generico de cambio preset camara
+class PopUPWritePresetCam(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Write Preset Of Camera")
+        layoutPresetCurrentNew = QVBoxLayout()
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelNewPreset = QLabel("New Preset")
+        self.valueNewPreset = QLineEdit("....")
+        self.valueNewPreset.setStyleSheet("border: 2px solid black;")
+        self.labelNewPreset.setBuddy(self.valueNewPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentNew.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.labelNewPreset)
+        layoutPresetCurrentNew.addWidget(self.valueNewPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentNewBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okNewPreset = QPushButton("Update")
+        self.okNewPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelNewPreset = QPushButton("Cancel")
+        self.cancelNewPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentNewBotones.addWidget(self.okNewPreset)
+        layoutPresetCurrentNewBotones.addWidget(self.cancelNewPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentNew.addLayout(layoutPresetCurrentNewBotones)
+        self.setLayout(layoutPresetCurrentNew)
+        self.resize(400,20)
+        self.labelNewPreset.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetCam(self):
+        print("Bajando preset a camara")
+    
+    def cancelUpDatePresetCam(self):
+        print("Cancelar preset a camara")
+        self.close()
+
 #Clase modelo generico de loggin 
 class PopUpLoggin(QWidget):
     def __init__(self):
@@ -811,80 +906,134 @@ class MainWindow(QDialog):
         labelValuePreset1Cam1.setStyleSheet("border-style: none;")
         valuePreset1Cam1 = AnimatedToggle()
         valuePreset1Cam1.setFixedSize(valuePreset1Cam1.sizeHint())
-        valuePreset1Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        valuePreset1Cam1.setToolTip("Toggle to change preset 1")
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset1Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset1Cam1)
+        disablePreset1Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset1Cam1)
+        valuePreset1Cam1.stateChanged.connect(lambda x: enablePreset1Cam1() if x else disablePreset1Cam1())
+        #        
         contenedorValuePreset1Cam1Layout.addWidget(labelValuePreset1Cam1)
         contenedorValuePreset1Cam1Layout.addWidget(valuePreset1Cam1)
-        #
+        #preset 2
         contenedorValuePreset2Cam1Layout = QHBoxLayout()
         labelValuePreset2Cam1 = QLabel("Preset 2")
         labelValuePreset2Cam1.setFixedSize(QSize(64,16))
         labelValuePreset2Cam1.setStyleSheet("border-style: none;")
         valuePreset2Cam1 = AnimatedToggle()
         valuePreset2Cam1.setFixedSize(valuePreset2Cam1.sizeHint())
-        valuePreset2Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        valuePreset2Cam1.setToolTip("Toggle to change preset 2")
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset2Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset2Cam1)
+        disablePreset2Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset2Cam1)
+        valuePreset2Cam1.stateChanged.connect(lambda x: enablePreset2Cam1() if x else disablePreset2Cam1())
+        #  
+        #
         contenedorValuePreset2Cam1Layout.addWidget(labelValuePreset2Cam1)
         contenedorValuePreset2Cam1Layout.addWidget(valuePreset2Cam1)    
-        #
+        #preset 3
         contenedorValuePreset3Cam1Layout = QHBoxLayout()
         labelValuePreset3Cam1 = QLabel("Preset 3")
-        labelValuePreset3Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset3Cam1.setFixedSize(QSize(64,16))        
         labelValuePreset3Cam1.setStyleSheet("border-style: none;")
         valuePreset3Cam1 = AnimatedToggle()
         valuePreset3Cam1.setFixedSize(valuePreset3Cam1.sizeHint())
-        valuePreset3Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        valuePreset3Cam1.setToolTip("Toggle to change preset 3")
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset3Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset3Cam1)
+        disablePreset3Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset3Cam1)
+        valuePreset3Cam1.stateChanged.connect(lambda x: enablePreset3Cam1() if x else disablePreset3Cam1())
+        # 
+        #
         contenedorValuePreset3Cam1Layout.addWidget(labelValuePreset3Cam1)
         contenedorValuePreset3Cam1Layout.addWidget(valuePreset3Cam1)
-        #
+        #preset 4
         contenedorValuePreset4Cam1Layout = QHBoxLayout()
         labelValuePreset4Cam1 = QLabel("Preset 4")
         labelValuePreset4Cam1.setFixedSize(QSize(64,16))
         labelValuePreset4Cam1.setStyleSheet("border-style: none;")
         valuePreset4Cam1 = AnimatedToggle()
         valuePreset4Cam1.setFixedSize(valuePreset4Cam1.sizeHint())
-        valuePreset4Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        valuePreset4Cam1.setToolTip("Toggle to change preset 4")
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset4Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset4Cam1)
+        disablePreset4Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset4Cam1)
+        valuePreset4Cam1.stateChanged.connect(lambda x: enablePreset4Cam1() if x else disablePreset4Cam1())
+        # 
+        #
         contenedorValuePreset4Cam1Layout.addWidget(labelValuePreset4Cam1)
         contenedorValuePreset4Cam1Layout.addWidget(valuePreset4Cam1)
-        #
+        #preset 5
         contenedorValuePreset5Cam1Layout = QHBoxLayout()
         labelValuePreset5Cam1 = QLabel("Preset 5")
         labelValuePreset5Cam1.setFixedSize(QSize(64,16))
         labelValuePreset5Cam1.setStyleSheet("border-style: none;")
         valuePreset5Cam1 = AnimatedToggle()
         valuePreset5Cam1.setFixedSize(valuePreset5Cam1.sizeHint())
-        valuePreset5Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
-        contenedorValuePreset5Cam1Layout.addWidget(labelValuePreset5Cam1)
-        contenedorValuePreset5Cam1Layout.addWidget(valuePreset5Cam1)
+        valuePreset5Cam1.setToolTip("Toggle to change preset 5")
         #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset5Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset5Cam1)
+        disablePreset5Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset5Cam1)
+        valuePreset5Cam1.stateChanged.connect(lambda x: enablePreset5Cam1() if x else disablePreset5Cam1())
+        #
+        #
+        contenedorValuePreset5Cam1Layout.addWidget(labelValuePreset5Cam1)
+        contenedorValuePreset5Cam1Layout.addWidget(valuePreset5Cam1)        
+        #preset 6
         contenedorValuePreset6Cam1Layout = QHBoxLayout()
         labelValuePreset6Cam1 = QLabel("Preset 6")
         labelValuePreset6Cam1.setFixedSize(QSize(64,16))
         labelValuePreset6Cam1.setStyleSheet("border-style: none;")
         valuePreset6Cam1 = AnimatedToggle()
         valuePreset6Cam1.setFixedSize(valuePreset6Cam1.sizeHint())
-        valuePreset6Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        valuePreset6Cam1.setToolTip("Toggle to change preset 6")
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset6Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset6Cam1)
+        disablePreset6Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset6Cam1)
+        valuePreset6Cam1.stateChanged.connect(lambda x: enablePreset6Cam1() if x else disablePreset6Cam1())
+        #
+        #
         contenedorValuePreset6Cam1Layout.addWidget(labelValuePreset6Cam1)
         contenedorValuePreset6Cam1Layout.addWidget(valuePreset6Cam1)
-        #
+        #preset 7
         contenedorValuePreset7Cam1Layout = QHBoxLayout()
         labelValuePreset7Cam1 = QLabel("Preset 7")
         labelValuePreset7Cam1.setFixedSize(QSize(64,16))
         labelValuePreset7Cam1.setStyleSheet("border-style: none;")
         valuePreset7Cam1 = AnimatedToggle()
         valuePreset7Cam1.setFixedSize(valuePreset7Cam1.sizeHint())
-        valuePreset7Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        valuePreset7Cam1.setToolTip("Toggle to change preset 7")
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset7Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset7Cam1)
+        disablePreset7Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset7Cam1)
+        valuePreset7Cam1.stateChanged.connect(lambda x: enablePreset7Cam1() if x else disablePreset7Cam1())
+        #
+        #
         contenedorValuePreset7Cam1Layout.addWidget(labelValuePreset7Cam1)
         contenedorValuePreset7Cam1Layout.addWidget(valuePreset7Cam1)
-        #
+        #preset 8
         contenedorValuePreset8Cam1Layout = QHBoxLayout()
         labelValuePreset8Cam1 = QLabel("Preset 8")
         labelValuePreset8Cam1.setFixedSize(QSize(64,16))
         labelValuePreset8Cam1.setStyleSheet("border-style: none;")
         valuePreset8Cam1 = AnimatedToggle()
         valuePreset8Cam1.setFixedSize(valuePreset8Cam1.sizeHint())
-        valuePreset8Cam1.stateChanged.connect(self.popUpConfiguracionPresetCam1)
+        valuePreset8Cam1.setToolTip("Toggle to change preset 8")
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset8Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset8Cam1)
+        disablePreset8Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset8Cam1)
+        valuePreset8Cam1.stateChanged.connect(lambda x: enablePreset8Cam1() if x else disablePreset8Cam1())
+        #
+        #
         contenedorValuePreset8Cam1Layout.addWidget(labelValuePreset8Cam1)
         contenedorValuePreset8Cam1Layout.addWidget(valuePreset8Cam1)
-        #
+        #agrego los preset en el layout vertical dentro del grupo de preset camara 1
         contenedorPresetCam1Layout = QVBoxLayout()
         contenedorPresetCam1Layout.addLayout(contenedorValuePreset1Cam1Layout)
         contenedorPresetCam1Layout.addLayout(contenedorValuePreset2Cam1Layout)
@@ -917,80 +1066,128 @@ class MainWindow(QDialog):
         labelValuePreset1Cam2.setStyleSheet("border-style: none;")
         valuePreset1Cam2 = AnimatedToggle()
         valuePreset1Cam2.setFixedSize(valuePreset1Cam2.sizeHint())
-        valuePreset1Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset1Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset1Cam2)
+        disablePreset1Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset1Cam2)
+        valuePreset1Cam2.stateChanged.connect(lambda x: enablePreset1Cam2() if x else disablePreset1Cam2())
+        #
+        #
         contenedorValuePreset1Cam2Layout.addWidget(labelValuePreset1Cam2)
         contenedorValuePreset1Cam2Layout.addWidget(valuePreset1Cam2)
-        #
+        #preset 2
         contenedorValuePreset2Cam2Layout = QHBoxLayout()
         labelValuePreset2Cam2 = QLabel("Preset 2")
         labelValuePreset2Cam2.setFixedSize(QSize(64,16))
         labelValuePreset2Cam2.setStyleSheet("border-style: none;")
         valuePreset2Cam2 = AnimatedToggle()
         valuePreset2Cam2.setFixedSize(valuePreset2Cam2.sizeHint())
-        valuePreset2Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset2Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset2Cam2)
+        disablePreset2Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset2Cam2)
+        valuePreset2Cam2.stateChanged.connect(lambda x: enablePreset2Cam2() if x else disablePreset2Cam2())
+        #
+        #
         contenedorValuePreset2Cam2Layout.addWidget(labelValuePreset2Cam2)
         contenedorValuePreset2Cam2Layout.addWidget(valuePreset2Cam2)    
-        #
+        #preset 3
         contenedorValuePreset3Cam2Layout = QHBoxLayout()
         labelValuePreset3Cam2 = QLabel("Preset 3")
         labelValuePreset3Cam2.setFixedSize(QSize(64,16))
         labelValuePreset3Cam2.setStyleSheet("border-style: none;")
         valuePreset3Cam2 = AnimatedToggle()
         valuePreset3Cam2.setFixedSize(valuePreset3Cam2.sizeHint())
-        valuePreset3Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset3Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset3Cam2)
+        disablePreset3Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset3Cam2)
+        valuePreset3Cam2.stateChanged.connect(lambda x: enablePreset3Cam2() if x else disablePreset3Cam2())
+        #
+        #
         contenedorValuePreset3Cam2Layout.addWidget(labelValuePreset3Cam2)
         contenedorValuePreset3Cam2Layout.addWidget(valuePreset3Cam2)
-        #
+        #preset 4
         contenedorValuePreset4Cam2Layout = QHBoxLayout()
         labelValuePreset4Cam2 = QLabel("Preset 4")
         labelValuePreset4Cam2.setFixedSize(QSize(64,16))
         labelValuePreset4Cam2.setStyleSheet("border-style: none;")
         valuePreset4Cam2 = AnimatedToggle()
         valuePreset4Cam2.setFixedSize(valuePreset4Cam2.sizeHint())
-        valuePreset4Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset4Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset4Cam2)
+        disablePreset4Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset4Cam2)
+        valuePreset4Cam2.stateChanged.connect(lambda x: enablePreset4Cam2() if x else disablePreset4Cam2())
+        #
+        #
         contenedorValuePreset4Cam2Layout.addWidget(labelValuePreset4Cam2)
         contenedorValuePreset4Cam2Layout.addWidget(valuePreset4Cam2)
-        #
+        #preset 5
         contenedorValuePreset5Cam2Layout = QHBoxLayout()
         labelValuePreset5Cam2 = QLabel("Preset 5")
         labelValuePreset5Cam2.setFixedSize(QSize(64,16))
         labelValuePreset5Cam2.setStyleSheet("border-style: none;")
         valuePreset5Cam2 = AnimatedToggle()
         valuePreset5Cam2.setFixedSize(valuePreset5Cam2.sizeHint())
-        valuePreset5Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset5Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset5Cam2)
+        disablePreset5Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset5Cam2)
+        valuePreset5Cam2.stateChanged.connect(lambda x: enablePreset5Cam2() if x else disablePreset5Cam2())
+        #
+        #
         contenedorValuePreset5Cam2Layout.addWidget(labelValuePreset5Cam2)
         contenedorValuePreset5Cam2Layout.addWidget(valuePreset5Cam2)
-        #
+        #preset 6
         contenedorValuePreset6Cam2Layout = QHBoxLayout()
         labelValuePreset6Cam2 = QLabel("Preset 6")
         labelValuePreset6Cam2.setFixedSize(QSize(64,16))
         labelValuePreset6Cam2.setStyleSheet("border-style: none;")
         valuePreset6Cam2 = AnimatedToggle()
         valuePreset6Cam2.setFixedSize(valuePreset6Cam2.sizeHint())
-        valuePreset6Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset6Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset6Cam2)
+        disablePreset6Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset6Cam2)
+        valuePreset6Cam2.stateChanged.connect(lambda x: enablePreset6Cam2() if x else disablePreset6Cam2())
+        #
+        #
         contenedorValuePreset6Cam2Layout.addWidget(labelValuePreset6Cam2)
         contenedorValuePreset6Cam2Layout.addWidget(valuePreset6Cam2)
-        #
+        #preset 7
         contenedorValuePreset7Cam2Layout = QHBoxLayout()
         labelValuePreset7Cam2 = QLabel("Preset 7")
         labelValuePreset7Cam2.setFixedSize(QSize(64,16))
         labelValuePreset7Cam2.setStyleSheet("border-style: none;")
         valuePreset7Cam2 = AnimatedToggle()
         valuePreset7Cam2.setFixedSize(valuePreset7Cam2.sizeHint())
-        valuePreset7Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset7Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset7Cam2)
+        disablePreset7Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset7Cam2)
+        valuePreset7Cam2.stateChanged.connect(lambda x: enablePreset7Cam2() if x else disablePreset7Cam2())
+        #
+        #
         contenedorValuePreset7Cam2Layout.addWidget(labelValuePreset7Cam2)
         contenedorValuePreset7Cam2Layout.addWidget(valuePreset7Cam2)
-        #
+        #preset 8
         contenedorValuePreset8Cam2Layout = QHBoxLayout()
         labelValuePreset8Cam2 = QLabel("Preset 8")
         labelValuePreset8Cam2.setFixedSize(QSize(64,16))
         labelValuePreset8Cam2.setStyleSheet("border-style: none;")
         valuePreset8Cam2 = AnimatedToggle()
         valuePreset8Cam2.setFixedSize(valuePreset8Cam2.sizeHint())
-        valuePreset8Cam2.stateChanged.connect(self.popUpConfiguracionPresetCam2)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset8Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset8Cam2)
+        disablePreset8Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset8Cam2)
+        valuePreset8Cam2.stateChanged.connect(lambda x: enablePreset8Cam2() if x else disablePreset8Cam2())
+        #
+        #
         contenedorValuePreset8Cam2Layout.addWidget(labelValuePreset8Cam2)
         contenedorValuePreset8Cam2Layout.addWidget(valuePreset8Cam2)
-        #
+        #agrego los preset en el layout vertical dentro del grupo de preset camara 2
         contenedorPresetCam2Layout = QVBoxLayout()
         contenedorPresetCam2Layout.addLayout(contenedorValuePreset1Cam2Layout)
         contenedorPresetCam2Layout.addLayout(contenedorValuePreset2Cam2Layout)
@@ -1023,80 +1220,128 @@ class MainWindow(QDialog):
         labelValuePreset1Cam3.setStyleSheet("border-style: none;")
         valuePreset1Cam3 = AnimatedToggle()
         valuePreset1Cam3.setFixedSize(valuePreset1Cam3.sizeHint())
-        valuePreset1Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset1Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset1Cam3)
+        disablePreset1Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset1Cam3)
+        valuePreset1Cam3.stateChanged.connect(lambda x: enablePreset1Cam3() if x else disablePreset1Cam3())
+        #
+        #
         contenedorValuePreset1Cam3Layout.addWidget(labelValuePreset1Cam3)
         contenedorValuePreset1Cam3Layout.addWidget(valuePreset1Cam3)
-        #
+        #preset 2
         contenedorValuePreset2Cam3Layout = QHBoxLayout()
         labelValuePreset2Cam3 = QLabel("Preset 2")
         labelValuePreset2Cam3.setFixedSize(QSize(64,16))
         labelValuePreset2Cam3.setStyleSheet("border-style: none;")
         valuePreset2Cam3 = AnimatedToggle()
         valuePreset2Cam3.setFixedSize(valuePreset2Cam3.sizeHint())
-        valuePreset2Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset2Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset2Cam3)
+        disablePreset2Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset2Cam3)
+        valuePreset2Cam3.stateChanged.connect(lambda x: enablePreset2Cam3() if x else disablePreset2Cam3())
+        #        
+        #
         contenedorValuePreset2Cam3Layout.addWidget(labelValuePreset2Cam3)
         contenedorValuePreset2Cam3Layout.addWidget(valuePreset2Cam3)    
-        #
+        #preset 3
         contenedorValuePreset3Cam3Layout = QHBoxLayout()
         labelValuePreset3Cam3 = QLabel("Preset 3")
         labelValuePreset3Cam3.setFixedSize(QSize(64,16))
         labelValuePreset3Cam3.setStyleSheet("border-style: none;")
         valuePreset3Cam3 = AnimatedToggle()
         valuePreset3Cam3.setFixedSize(valuePreset3Cam3.sizeHint())
-        valuePreset3Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset3Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset3Cam3)
+        disablePreset3Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset3Cam3)
+        valuePreset3Cam3.stateChanged.connect(lambda x: enablePreset3Cam3() if x else disablePreset3Cam3())
+        #
+        #
         contenedorValuePreset3Cam3Layout.addWidget(labelValuePreset3Cam3)
         contenedorValuePreset3Cam3Layout.addWidget(valuePreset3Cam3)
-        #
+        #preset 4
         contenedorValuePreset4Cam3Layout = QHBoxLayout()
         labelValuePreset4Cam3 = QLabel("Preset 4")
         labelValuePreset4Cam3.setFixedSize(QSize(64,16))
         labelValuePreset4Cam3.setStyleSheet("border-style: none;")
         valuePreset4Cam3 = AnimatedToggle()
         valuePreset4Cam3.setFixedSize(valuePreset4Cam3.sizeHint())
-        valuePreset4Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset4Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset4Cam3)
+        disablePreset4Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset4Cam3)
+        valuePreset4Cam3.stateChanged.connect(lambda x: enablePreset4Cam3() if x else disablePreset4Cam3())
+        #
+        #
         contenedorValuePreset4Cam3Layout.addWidget(labelValuePreset4Cam3)
         contenedorValuePreset4Cam3Layout.addWidget(valuePreset4Cam3)
-        #
+        #preset 5
         contenedorValuePreset5Cam3Layout = QHBoxLayout()
         labelValuePreset5Cam3 = QLabel("Preset 5")
         labelValuePreset5Cam3.setFixedSize(QSize(64,16))
         labelValuePreset5Cam3.setStyleSheet("border-style: none;")
         valuePreset5Cam3 = AnimatedToggle()
         valuePreset5Cam3.setFixedSize(valuePreset5Cam3.sizeHint())
-        valuePreset5Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset5Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset5Cam3)
+        disablePreset5Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset5Cam3)
+        valuePreset5Cam3.stateChanged.connect(lambda x: enablePreset5Cam3() if x else disablePreset5Cam3())
+        #
+        #
         contenedorValuePreset5Cam3Layout.addWidget(labelValuePreset5Cam3)
         contenedorValuePreset5Cam3Layout.addWidget(valuePreset5Cam3)
-        #
+        #preset 6
         contenedorValuePreset6Cam3Layout = QHBoxLayout()
         labelValuePreset6Cam3 = QLabel("Preset 6")
         labelValuePreset6Cam3.setFixedSize(QSize(64,16))
         labelValuePreset6Cam3.setStyleSheet("border-style: none;")
         valuePreset6Cam3 = AnimatedToggle()
         valuePreset6Cam3.setFixedSize(valuePreset6Cam3.sizeHint())
-        valuePreset6Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset6Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset6Cam3)
+        disablePreset6Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset6Cam3)
+        valuePreset6Cam3.stateChanged.connect(lambda x: enablePreset6Cam3() if x else disablePreset6Cam3())
+        #
+        #
         contenedorValuePreset6Cam3Layout.addWidget(labelValuePreset6Cam3)
         contenedorValuePreset6Cam3Layout.addWidget(valuePreset6Cam3)
-        #
+        #preset 7
         contenedorValuePreset7Cam3Layout = QHBoxLayout()
         labelValuePreset7Cam3 = QLabel("Preset 7")
         labelValuePreset7Cam3.setFixedSize(QSize(64,16))
         labelValuePreset7Cam3.setStyleSheet("border-style: none;")
         valuePreset7Cam3 = AnimatedToggle()
         valuePreset7Cam3.setFixedSize(valuePreset7Cam3.sizeHint())
-        valuePreset7Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset7Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset7Cam3)
+        disablePreset7Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset7Cam3)
+        valuePreset7Cam3.stateChanged.connect(lambda x: enablePreset7Cam3() if x else disablePreset7Cam3())
+        #
+        #
         contenedorValuePreset7Cam3Layout.addWidget(labelValuePreset7Cam3)
         contenedorValuePreset7Cam3Layout.addWidget(valuePreset7Cam3)
-        #
+        #preset 8
         contenedorValuePreset8Cam3Layout = QHBoxLayout()
         labelValuePreset8Cam3 = QLabel("Preset 8")
         labelValuePreset8Cam3.setFixedSize(QSize(64,16))
         labelValuePreset8Cam3.setStyleSheet("border-style: none;")
         valuePreset8Cam3 = AnimatedToggle()
         valuePreset8Cam3.setFixedSize(valuePreset8Cam3.sizeHint())
-        valuePreset8Cam3.stateChanged.connect(self.popUpConfiguracionPresetCam3)
+        #
+        #Defino la funcion asociada al set y reset de los presets
+        enablePreset8Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset8Cam3)
+        disablePreset8Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset8Cam3)
+        valuePreset8Cam3.stateChanged.connect(lambda x: enablePreset8Cam3() if x else disablePreset8Cam3())
+        #
+        #
         contenedorValuePreset8Cam3Layout.addWidget(labelValuePreset8Cam3)
         contenedorValuePreset8Cam3Layout.addWidget(valuePreset8Cam3)
-        #
+        #agrego los preset en el layout vertical dentro del grupo de preset camara 3
         contenedorPresetCam3Layout = QVBoxLayout()
         contenedorPresetCam3Layout.addLayout(contenedorValuePreset1Cam3Layout)
         contenedorPresetCam3Layout.addLayout(contenedorValuePreset2Cam3Layout)
@@ -1205,17 +1450,52 @@ class MainWindow(QDialog):
     #***************************************************
     #***************************************************
     #defino la funcion asociada con el cambio de preset de la camara 1
-    def popUpConfiguracionPresetCam1(self):
+    def popUpConfiguracionPresetCam1(self, checkbox):
         print("cambiar preset seleccionado en camara 1")
-    
+        print(checkbox)
+        ##
+        #Tenemos que agregar la popup W
+        if checkbox.isChecked() == True:
+            self.dlgChangePresetCam1 = PopUPWritePresetCam()
+            self.dlgChangePresetCam1.show()
+        ##
+    def popUpRestartConfiguracionPresetCam1(self, checkbox):
+        print("reset preset seleccion en camara 1")
+        if checkbox.isChecked() == False:
+            self.dlgDefaultPresetCam1 = PopUpResetPresetCam()
+            self.dlgDefaultPresetCam1.show()
+
     #defino la funcion asociada con el cambio de preset de la camara 2
-    def popUpConfiguracionPresetCam2(self):
+    def popUpConfiguracionPresetCam2(self, checkbox):
         print("cambiar preset seleccionado en camara 2")
-
+        ##
+        #Tenemos que agregar la popup
+        if checkbox.isChecked() == True:
+            self.dlgChangePresetCam2 = PopUPWritePresetCam()
+            self.dlgChangePresetCam2.show()
+    
+    def popUpRestartConfiguracionPresetCam2(self, checkbox):
+        print("reset preset seleccion en camara 2")
+        if checkbox.isChecked() == False:
+            self.dlgDefaultPresetCam2 = PopUpResetPresetCam()
+            self.dlgDefaultPresetCam2.show()
+                
+        ##
     #defino la funcion asociada con el cambio de preset de la camara 2
-    def popUpConfiguracionPresetCam3(self):
+    def popUpConfiguracionPresetCam3(self, checkbox):
         print("cambiar preset seleccionado en camara 3")
-
+        ##
+        #Tenemos que agregar la popup
+        if checkbox.isChecked() == True:
+            self.dlgChangePresetCam3 = PopUPWritePresetCam()
+            self.dlgChangePresetCam3.show()
+    
+    def popUpRestartConfiguracionPresetCam3(self, checkbox):
+        print("reset preset seleccion en camara 3")
+        if checkbox.isChecked() == False:
+            self.dlgDefaultPresetCam3 = PopUpResetPresetCam()
+            self.dlgDefaultPresetCam3.show()
+        ##
     #defino la funcion asociada a los zoom de imagen
     def zoomFitImage(self):
         print("Zoom Fit to the full image") #ajusto el zoom al tama;o de la imagen
