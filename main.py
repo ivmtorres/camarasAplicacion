@@ -2,7 +2,7 @@ from faulthandler import disable
 from functools import partial
 from msilib.schema import CheckBox
 from typing import ValuesView
-from PyQt5 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen
 from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty
 from PyQt5.QtWidgets import (
@@ -53,6 +53,102 @@ try:
     winddl.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
+#Clase barra de niveles
+class _Bar(QtWidgets.QWidget):
+    clickedValue = QtCore.pyqtSignal(int)
+
+    def __init__(self, steps, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
+        )
+        if isinstance(steps, list):
+            #lista de colores
+            self.n_steps = len(steps)
+            self.steps = steps
+        elif isinstance(steps, int):
+            #int tiene el numero de barras, el color es rojo
+            self.n_steps = steps
+            self.steps = ['red'] * steps
+        else:
+            raise TypeError('steps debe ser una lista o un int')
+        
+        self._bar_solid_percent = 0.8
+        self._background_color = QtGui.QColor('black')
+        self._padding = 4.0
+    def sizeHint(self):
+        return QtCore.QSize(40,120)
+
+    def paintEvent(self, e):
+        painter = QtGui.QPainter(self)
+        brush = QtGui.QBrush()
+        brush.setColor(self._background_color)
+        brush.setStyle(Qt.SolidPattern)
+        rect = QtCore.QRect(0,0,painter.device().width(),painter.device().height())
+        painter.fillRect(rect, brush)
+        #obtenemos el estado actual
+        dial = self.parent()._dial        
+        vmin, vmax = dial.minimum(), dial.maximum()
+        value = dial.value()
+        print(value)
+        labelValue = self.parent().valorQDial
+        labelValue.setText(str(value))
+        #definimos nuestro canvas
+        d_height = painter.device().height() - (self._padding * 2)
+        d_width = painter.device().width() - (self._padding * 2)
+        #dibujo las barras
+        step_size = d_height / self.n_steps
+        bar_height = step_size * self._bar_solid_percent
+        bar_spacer = step_size * (1 - self._bar_solid_percent) / 2
+        #calculamos el y-stop position, usando el valor dentro del rango
+        pc = (value - vmin) / (vmax - vmin)
+        n_steps_to_draw = int(pc * self.n_steps)
+
+        for n in range(n_steps_to_draw):
+            brush.setColor(QtGui.QColor(self.steps[n]))
+            rect = QtCore.QRect(
+                self._padding,
+                self._padding + d_height - ((1+n) * step_size) + bar_spacer,
+                d_width,
+                bar_height
+            )
+            painter.fillRect(rect, brush)
+            
+        
+        painter.end()
+    def _trigger_refresh(self,i):
+        #print("valor actual: ",i)
+        self.update()
+#Clase para mostrar la Powerbar 
+class PowerBar(QtWidgets.QWidget):    
+    def __init__(self, steps=5, *args, **kwargs):    
+        super().__init__(*args, **kwargs)
+        #creo el layout horizontal para mostrar las barras y el dial
+        layout = QHBoxLayout()
+        #creo una instancia a las barras y la agrego al layout
+        self._bar = _Bar(steps)
+        layout.addWidget(self._bar)
+        #creo el dial
+        self._dial = QtWidgets.QDial()
+        #seteo los valores maximos y minimos
+        self._dial.setMinimum(0)
+        self._dial.setMaximum(100)
+        self._dial.setSingleStep(10)
+        self._dial.setNotchesVisible(True)
+        #agrego el dial al layout
+        layout.addWidget(self._dial)
+        #indicador
+        self.valorQDial = QLabel()
+        self.valorQDial.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valorQDial.setFixedSize(QSize(40,23))
+        layout.addWidget(self.valorQDial)
+        #asocio la powerbar a la funcion de trigger de la clase _bar
+        self._dial.valueChanged.connect(self._bar._trigger_refresh)
+        #seteo el alyout 
+        self.setLayout(layout)
+
 
 #Clase boton para checkear
 class AnimatedToggle(QCheckBox):
@@ -200,8 +296,10 @@ class PopUpDateSelected(QWidget):
 
         self.okSearchButton = QPushButton("Search")
         self.okSearchButton.clicked.connect(self.realizarBusquedaOk)
+        self.okSearchButton.setIcon(QIcon(os.path.join(basedir,"appIcons","magnifier.png")))
         self.cancelSearchButton = QPushButton("Cancel")
         self.cancelSearchButton.clicked.connect(self.realizarBusquedaCancel)
+        self.cancelSearchButton.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
         layoutH = QHBoxLayout()
         layoutH.addWidget(self.okSearchButton)
         layoutH.addWidget(self.cancelSearchButton)
@@ -215,6 +313,87 @@ class PopUpDateSelected(QWidget):
     def realizarBusquedaCancel(self):
         print("Cancelar busqueda")
         self.close()
+#Clase modelo generico de reset preset control
+#usamos esta clase para ajustar los valores de control para cada
+#funcionalidad que tenga la pantalla (tab)
+class PopUpResetPresetTab(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Reset Preset of Control")
+        #aca va la funcionalidad del graficador con el control
+        layoutPresetCurrentResetTab = QVBoxLayout()
+        #valor de preset actual
+        self.labelCurrentPresetTab = QLabel("Current Control Tab")
+        self.valueCurrentPresetTab = QLineEdit("124.15")
+        self.valueCurrentPresetTab.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPresetTab.setBuddy(self.valueCurrentPresetTab)
+        #valor de preset a cambiar
+        self.labelDefaultPresetTab = QLabel("Default Control Tab")
+        self.valueDefaultPresetTab = QLineEdit("124.15")
+        self.valueDefaultPresetTab.setStyleSheet("border: 2px solid black;background-color:lightgreen;")
+        self.labelDefaultPresetTab.setBuddy(self.valueDefaultPresetTab)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentResetTab.addWidget(self.labelCurrentPresetTab)
+        layoutPresetCurrentResetTab.addWidget(self.valueCurrentPresetTab)
+        layoutPresetCurrentResetTab.addWidget(self.labelDefaultPresetTab)
+        layoutPresetCurrentResetTab.addWidget(self.valueDefaultPresetTab)
+        #layout horizontal para los controles de los botones
+        layoutPresetCurrentDefaultBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okDefaulPresetTab = QPushButton("Reset Control")
+        self.okDefaulPresetTab.clicked.connect(self.okUpDatePresetTab)
+        self.okDefaulPresetTab.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelDefaultPresetTab = QPushButton("Cancel Change")
+        self.cancelDefaultPresetTab.clicked.connect(self.cancelUpDatePresetTab)
+        self.cancelDefaultPresetTab.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego el layout horizontal
+        layoutPresetCurrentDefaultBotones.addWidget(self.okDefaulPresetTab)
+        layoutPresetCurrentDefaultBotones.addWidget(self.cancelDefaultPresetTab)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentResetTab.addLayout(layoutPresetCurrentDefaultBotones)
+        self.setLayout(layoutPresetCurrentResetTab)
+        self.resize(400,20)
+        self.labelDefaultPresetTab.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetTab(self):
+        print("Bajando default value al control")
+    def cancelUpDatePresetTab(self):
+        print("Cancelar default value al control")
+        self.close()
+#Clase modelo generico de preset control 
+class PopUpWritePresetTab(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Write Preset of Control")
+        layoutPresetCurrentNew = QVBoxLayout()
+        #grafico powerbar
+        volumenCtrl = PowerBar(["#5e4fa2","#3288bd","#66c2a5","#abdda4","#e6f598"])
+        #
+        layoutPresetCurrentNew.addWidget(volumenCtrl)
+        #agrego el layout horizontal
+        layoutPresetCurrentNewBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okNewPreset = QPushButton("Update")
+        self.okNewPreset.clicked.connect(self.okUpDatePresetCtrl)
+        self.okNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons", "arrow-curve-270.png")))
+        #agreg el boton de control cancel
+        self.cancelNewPreset = QPushButton("Cancel")
+        self.cancelNewPreset.clicked.connect(self.cancelUpDatePresetCtrl)
+        self.cancelNewPreset.setIcon(QIcon(os.path.join(basedir,"appICons","cross-circle-frame.png")))
+        #agrego el layout horizontal
+        layoutPresetCurrentNewBotones.addWidget(self.okNewPreset)
+        layoutPresetCurrentNewBotones.addWidget(self.cancelNewPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentNew.addLayout(layoutPresetCurrentNewBotones)
+        self.setLayout(layoutPresetCurrentNew)
+        self.resize(400,20)
+        self.okNewPreset.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetCtrl(self):
+        print("Bajando preset a camara")
+    def cancelUpDatePresetCtrl(self):
+        print("Cancelar preset a camara")
+        self.close()
+
 #Clase modelo generico de reset preset camara
 class PopUpResetPresetCam(QWidget):
     def __init__(self):
@@ -228,8 +407,8 @@ class PopUpResetPresetCam(QWidget):
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
         self.labelDefaultPreset = QLabel("Default Preset")
-        self.valueDefaultPreset = QLineEdit("....")
-        self.valueDefaultPreset.setStyleSheet("border: 2px solid black;")
+        self.valueDefaultPreset = QLineEdit("124.15")
+        self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
         self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
         #agrego los dos widgets al layout
         layoutPresetCurrentReset.addWidget(self.labelCurrentPreset)
@@ -464,12 +643,69 @@ class MainWindow(QDialog):
         self.timerPbar1.timeout.connect(self.handleTimer1) #defino la funcion que maneja el temporizador
         self.timerPbar1.start(1000)             #le doy una determinada cantidad de tiempo
  
-        sub1WindowTab1Boton = QWidget() #creo una subventana para mostrar la camara1 y las curvas1
+        sub1WindowTab1Boton = QWidget() #creo una subventana para mostrar la camara1 la curvas de la izquierda y la curva de la derecha
+        #creo un contenedor para la imagen y para el toolbar
+        contenedorImageToolbarCentralTab1 = QWidget()
+        #creo el layout vertical para el tollbar y la imagen 
+        contenedorImageToolbarCentralTab1layout = QVBoxLayout()
+        #creo el toolbar
+        toolBarImageTab1 = QToolBar("Toolbar Image Tab1")
+        toolBarImageTab1.setIconSize(QSize(16,16))
+        #cargo los iconos en la barra del toolbar
+        #button fit
+        buttonZoomFitActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-fit.png")),"zoom fit",self)
+        buttonZoomFitActionImageTab1.setStatusTip("Zoom fit to full image")
+        buttonZoomFitActionImageTab1.triggered.connect(self.zoomFitImage)
+        buttonZoomFitActionImageTab1.setCheckable(True)
+        #button in
+        buttonZoomInActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
+        buttonZoomInActionImageTab1.setStatusTip("Zoom In")
+        buttonZoomInActionImageTab1.triggered.connect(self.zoomInImage)
+        buttonZoomInActionImageTab1.setCheckable(True)
+        #button out
+        buttonZoomOutActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
+        buttonZoomOutActionImageTab1.setStatusTip("Zoom Out")
+        buttonZoomOutActionImageTab1.triggered.connect(self.zoomOutImage)
+        buttonZoomOutActionImageTab1.setCheckable(True)
+        #button roi rectangle
+        buttonRectRoiActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
+        buttonRectRoiActionImageTab1.setStatusTip("Rectangle Roi")
+        buttonRectRoiActionImageTab1.triggered.connect(self.roiRectImage)
+        buttonRectRoiActionImageTab1.setCheckable(True)
+        #button roi ellipse
+        buttonEllipRoiActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
+        buttonEllipRoiActionImageTab1.setStatusTip("Ellipse Roi")
+        buttonEllipRoiActionImageTab1.triggered.connect(self.roiEllipImage)
+        buttonEllipRoiActionImageTab1.setCheckable(True)
+        #button roi line
+        buttonLineRoiActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
+        buttonLineRoiActionImageTab1.setStatusTip("Line Roi")
+        buttonLineRoiActionImageTab1.triggered.connect(self.roiLineImage)
+        buttonLineRoiActionImageTab1.setCheckable(True)
+        #button roi pollygon
+        buttonPoliRoiActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-polygon.png")),"Roi Pollygon", self)
+        buttonPoliRoiActionImageTab1.setStatusTip("Pollygon Roi")
+        buttonPoliRoiActionImageTab1.triggered.connect(self.roiPollyImage)
+        buttonPoliRoiActionImageTab1.setCheckable(True)
+        #agrego los botones al toolbar
+        toolBarImageTab1.addAction(buttonZoomFitActionImageTab1)
+        toolBarImageTab1.addAction(buttonZoomInActionImageTab1)
+        toolBarImageTab1.addAction(buttonZoomOutActionImageTab1)
+        toolBarImageTab1.addAction(buttonRectRoiActionImageTab1)
+        toolBarImageTab1.addAction(buttonEllipRoiActionImageTab1)
+        toolBarImageTab1.addAction(buttonLineRoiActionImageTab1)
+        toolBarImageTab1.addAction(buttonPoliRoiActionImageTab1)        
+        #*******
         scene = QGraphicsScene(0, 0, 0, 0)
-        pixmap = QPixmap("imageCam1.jpg")                                                                                       #a reemplazar por la imagen
+        pixmap = QPixmap("imageCam1.jpg") #a reemplazar por la imagen
         pixmapitem = scene.addPixmap(pixmap)
         viewPixMapItem = QGraphicsView(scene)
         viewPixMapItem.setRenderHint(QPainter.Antialiasing)
+        #*******
+        contenedorImageToolbarCentralTab1layout.addWidget(toolBarImageTab1)
+        contenedorImageToolbarCentralTab1layout.addWidget(viewPixMapItem)
+        contenedorImageToolbarCentralTab1.setLayout(contenedorImageToolbarCentralTab1layout)
+        #*******
         #agrego grafico izquierda para la camara 1
         graficoTab1Izq = MplCanvas(self, width=2, height=2, dpi=100)
         #genero un dataframe de prueba para la curva de la camara 1
@@ -492,11 +728,117 @@ class MainWindow(QDialog):
             [4,10]
         ], columns=['A','B'])
         dfTab1Der.plot(ax=graficoTab1Der.axes)
+        #agrego contenedor a la izquierda para curva
+        #para label1 y boton1
+        #para label2 y boton2
+        contenedorIzqTab1 = QWidget()
+        contenedorIzqTab1Layout = QVBoxLayout()
+        #creo label 1
+        label1Tab1 = QLabel("Edt1")
+        label1Tab1.setFixedSize(QSize(16,16))
+        label1Tab1.setStyleSheet("border-style: none;")
+        #creo boton 1
+        boton1Tab1 = AnimatedToggle()
+        boton1Tab1.setFixedSize(boton1Tab1.sizeHint())
+        boton1Tab1.setToolTip("Toggle to change preset 1")
+        #definimos la funcion asociada al preset1 del tab1
+        enableBoton1Tab1 = partial(self.popUpSetBotonTab1, boton1Tab1 )
+        disableBoton1Tab1 = partial(self.popUpResetBotonTab1, boton1Tab1)
+        boton1Tab1.stateChanged.connect(lambda x: enableBoton1Tab1() if x else disableBoton1Tab1())        
+        #agregamos el indicador 1 de medicion
+        valor1Tab1 = "105.2"
+        valor1IndTab1 = QLabel(valor1Tab1)
+        valor1IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        valor1IndTab1.setFixedSize(QSize(40,23))
+        #creo label 2
+        label2Tab1 = QLabel("Edt2")
+        label2Tab1.setFixedSize(QSize(16,16))
+        label2Tab1.setStyleSheet("border-style: none;")
+        #creo el boton 2
+        boton2Tab1 = AnimatedToggle()
+        boton2Tab1.setFixedSize(boton2Tab1.sizeHint())
+        boton2Tab1.setToolTip("Toggle to change preset 2")       
+        #agregamos el indicador 2 de medicion
+        valor2Tab1 = "115.2"
+        valor2IndTab1 = QLabel(valor2Tab1)
+        valor2IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        valor2IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 2 del tab1
+        enableBoton2Tab1 = partial(self.popUpSetBotonTab1, boton2Tab1)
+        disableBoton2Tab1 = partial(self.popUpResetBotonTab1, boton2Tab1)
+        boton2Tab1.stateChanged.connect(lambda x: enableBoton2Tab1() if x else disableBoton2Tab1())
+        #agrego el layout
+        contenedorIzqTab1Layout.addWidget(graficoTab1Izq)
+        contenedorIzqTab1LayoutSub1 = QHBoxLayout()
+        contenedorIzqTab1LayoutSub2 = QHBoxLayout()
+        contenedorIzqTab1LayoutSub1.addWidget(label1Tab1)
+        contenedorIzqTab1LayoutSub1.addWidget(boton1Tab1)        
+        contenedorIzqTab1LayoutSub1.addWidget(valor1IndTab1)
+        contenedorIzqTab1LayoutSub2.addWidget(label2Tab1)
+        contenedorIzqTab1LayoutSub2.addWidget(boton2Tab1)        
+        contenedorIzqTab1LayoutSub2.addWidget(valor2IndTab1)
+        contenedorIzqTab1Layout.addLayout(contenedorIzqTab1LayoutSub1)
+        contenedorIzqTab1Layout.addLayout(contenedorIzqTab1LayoutSub2)
+        #cargo el layout
+        contenedorIzqTab1.setLayout(contenedorIzqTab1Layout)
+        #agrego contenedor a la derecha para curva
+        #para label3 y boton3
+        #para label4 y boton4
+        contenedorDerTab1 = QWidget()
+        contenedorDerTab1Layout = QVBoxLayout()
+        #creo label 3
+        label3Tab1 = QLabel("Edt3")
+        label3Tab1.setFixedSize(QSize(16,16))
+        label3Tab1.setStyleSheet("border-style: none;")
+        #creo boton 3
+        boton3Tab1 = AnimatedToggle()
+        boton3Tab1.setFixedSize(boton3Tab1.sizeHint())
+        boton3Tab1.setToolTip("Toggle to change preset 3")
+        #agregamos el indicador 3 de medicion
+        valor3Tab1 = "115.2"
+        valor3IndTab1 = QLabel(valor3Tab1)
+        valor3IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        valor3IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 3 del tab1
+        enableBoton3Tab1 = partial(self.popUpSetBotonTab1, boton3Tab1)
+        disableBoton3Tab1 = partial(self.popUpResetBotonTab1, boton3Tab1)
+        boton3Tab1.stateChanged.connect(lambda x: enableBoton3Tab1() if x else disableBoton3Tab1())
+        #creo label 4
+        label4Tab1 = QLabel("Edt4")
+        label4Tab1.setFixedSize(QSize(16,16))
+        label4Tab1.setStyleSheet("border-style: none;")
+        #creo boton 4
+        boton4Tab1 = AnimatedToggle()
+        boton4Tab1.setFixedSize(boton4Tab1.sizeHint())
+        boton4Tab1.setToolTip("Toggle to change preset 4")
+         #agregamos el indicador 4 de medicion
+        valor4Tab1 = "115.2"
+        valor4IndTab1 = QLabel(valor4Tab1)
+        valor4IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        valor4IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset4 del tab1
+        enableBoton4Tab1 = partial(self.popUpSetBotonTab1, boton4Tab1)
+        disableBoton4Tab1 = partial(self.popUpResetBotonTab1, boton4Tab1)
+        boton4Tab1.stateChanged.connect(lambda x: enableBoton4Tab1() if x else disableBoton4Tab1())
+        #agrego el layout
+        contenedorDerTab1Layout.addWidget(graficoTab1Der)
+        contenedorDerTab1LayoutSub1 = QHBoxLayout()
+        contenedorDerTab1LayoutSub2 = QHBoxLayout()
+        contenedorDerTab1LayoutSub1.addWidget(label3Tab1)
+        contenedorDerTab1LayoutSub1.addWidget(boton3Tab1)
+        contenedorDerTab1LayoutSub1.addWidget(valor3IndTab1)
+        contenedorDerTab1LayoutSub2.addWidget(label4Tab1)
+        contenedorDerTab1LayoutSub2.addWidget(boton4Tab1)
+        contenedorDerTab1LayoutSub2.addWidget(valor4IndTab1)
+        contenedorDerTab1Layout.addLayout(contenedorDerTab1LayoutSub1)
+        contenedorDerTab1Layout.addLayout(contenedorDerTab1LayoutSub2)
+        #cargo el layout
+        contenedorDerTab1.setLayout(contenedorDerTab1Layout)
 
         tab1BotonHboxSub1 = QHBoxLayout()
-        tab1BotonHboxSub1.addWidget(graficoTab1Izq)
-        tab1BotonHboxSub1.addWidget(viewPixMapItem)
-        tab1BotonHboxSub1.addWidget(graficoTab1Der)
+        tab1BotonHboxSub1.addWidget(contenedorIzqTab1)
+        tab1BotonHboxSub1.addWidget(contenedorImageToolbarCentralTab1)#viewPixMapItem)
+        tab1BotonHboxSub1.addWidget(contenedorDerTab1)
         sub1WindowTab1Boton.setLayout(tab1BotonHboxSub1)
         #agrego el texto q representa la barra de conexion y la ventana de trending e imagen                                                                               #
         tab1BotonVbox = QVBoxLayout()
@@ -1066,6 +1408,7 @@ class MainWindow(QDialog):
         labelValuePreset1Cam2.setStyleSheet("border-style: none;")
         valuePreset1Cam2 = AnimatedToggle()
         valuePreset1Cam2.setFixedSize(valuePreset1Cam2.sizeHint())
+        valuePreset1Cam2.setToolTip("Toggle to change preset 1")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset1Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset1Cam2)
@@ -1082,6 +1425,7 @@ class MainWindow(QDialog):
         labelValuePreset2Cam2.setStyleSheet("border-style: none;")
         valuePreset2Cam2 = AnimatedToggle()
         valuePreset2Cam2.setFixedSize(valuePreset2Cam2.sizeHint())
+        valuePreset2Cam2.setToolTip("Toggle to change preset 2")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset2Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset2Cam2)
@@ -1098,6 +1442,7 @@ class MainWindow(QDialog):
         labelValuePreset3Cam2.setStyleSheet("border-style: none;")
         valuePreset3Cam2 = AnimatedToggle()
         valuePreset3Cam2.setFixedSize(valuePreset3Cam2.sizeHint())
+        valuePreset3Cam2.setToolTip("Toggle to change preset 3")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset3Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset3Cam2)
@@ -1114,6 +1459,7 @@ class MainWindow(QDialog):
         labelValuePreset4Cam2.setStyleSheet("border-style: none;")
         valuePreset4Cam2 = AnimatedToggle()
         valuePreset4Cam2.setFixedSize(valuePreset4Cam2.sizeHint())
+        valuePreset4Cam2.setToolTip("Toggle to change preset 4")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset4Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset4Cam2)
@@ -1130,6 +1476,7 @@ class MainWindow(QDialog):
         labelValuePreset5Cam2.setStyleSheet("border-style: none;")
         valuePreset5Cam2 = AnimatedToggle()
         valuePreset5Cam2.setFixedSize(valuePreset5Cam2.sizeHint())
+        valuePreset5Cam2.setToolTip("Toggle to change preset 5")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset5Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset5Cam2)
@@ -1146,6 +1493,7 @@ class MainWindow(QDialog):
         labelValuePreset6Cam2.setStyleSheet("border-style: none;")
         valuePreset6Cam2 = AnimatedToggle()
         valuePreset6Cam2.setFixedSize(valuePreset6Cam2.sizeHint())
+        valuePreset6Cam2.setToolTip("Toggle to change preset 6")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset6Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset6Cam2)
@@ -1162,6 +1510,7 @@ class MainWindow(QDialog):
         labelValuePreset7Cam2.setStyleSheet("border-style: none;")
         valuePreset7Cam2 = AnimatedToggle()
         valuePreset7Cam2.setFixedSize(valuePreset7Cam2.sizeHint())
+        valuePreset7Cam2.setToolTip("Toggle to change preset 7")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset7Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset7Cam2)
@@ -1178,6 +1527,7 @@ class MainWindow(QDialog):
         labelValuePreset8Cam2.setStyleSheet("border-style: none;")
         valuePreset8Cam2 = AnimatedToggle()
         valuePreset8Cam2.setFixedSize(valuePreset8Cam2.sizeHint())
+        valuePreset8Cam2.setToolTip("Toggle to change preset 8")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset8Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset8Cam2)
@@ -1220,6 +1570,7 @@ class MainWindow(QDialog):
         labelValuePreset1Cam3.setStyleSheet("border-style: none;")
         valuePreset1Cam3 = AnimatedToggle()
         valuePreset1Cam3.setFixedSize(valuePreset1Cam3.sizeHint())
+        valuePreset1Cam3.setToolTip("Toggle to change preset 1")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset1Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset1Cam3)
@@ -1236,6 +1587,7 @@ class MainWindow(QDialog):
         labelValuePreset2Cam3.setStyleSheet("border-style: none;")
         valuePreset2Cam3 = AnimatedToggle()
         valuePreset2Cam3.setFixedSize(valuePreset2Cam3.sizeHint())
+        valuePreset2Cam3.setToolTip("Toggle to change preset 2")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset2Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset2Cam3)
@@ -1252,6 +1604,7 @@ class MainWindow(QDialog):
         labelValuePreset3Cam3.setStyleSheet("border-style: none;")
         valuePreset3Cam3 = AnimatedToggle()
         valuePreset3Cam3.setFixedSize(valuePreset3Cam3.sizeHint())
+        valuePreset3Cam3.setToolTip("Toggle to change preset 3")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset3Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset3Cam3)
@@ -1268,6 +1621,7 @@ class MainWindow(QDialog):
         labelValuePreset4Cam3.setStyleSheet("border-style: none;")
         valuePreset4Cam3 = AnimatedToggle()
         valuePreset4Cam3.setFixedSize(valuePreset4Cam3.sizeHint())
+        valuePreset4Cam3.setToolTip("Toggle to change preset 4")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset4Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset4Cam3)
@@ -1284,6 +1638,7 @@ class MainWindow(QDialog):
         labelValuePreset5Cam3.setStyleSheet("border-style: none;")
         valuePreset5Cam3 = AnimatedToggle()
         valuePreset5Cam3.setFixedSize(valuePreset5Cam3.sizeHint())
+        valuePreset5Cam3.setToolTip("Toggle to change preset 5")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset5Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset5Cam3)
@@ -1300,6 +1655,7 @@ class MainWindow(QDialog):
         labelValuePreset6Cam3.setStyleSheet("border-style: none;")
         valuePreset6Cam3 = AnimatedToggle()
         valuePreset6Cam3.setFixedSize(valuePreset6Cam3.sizeHint())
+        valuePreset6Cam3.setToolTip("Toggle to change preset 6")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset6Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset6Cam3)
@@ -1316,6 +1672,7 @@ class MainWindow(QDialog):
         labelValuePreset7Cam3.setStyleSheet("border-style: none;")
         valuePreset7Cam3 = AnimatedToggle()
         valuePreset7Cam3.setFixedSize(valuePreset7Cam3.sizeHint())
+        valuePreset7Cam3.setToolTip("Toggle to change preset 7")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset7Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset7Cam3)
@@ -1332,6 +1689,7 @@ class MainWindow(QDialog):
         labelValuePreset8Cam3.setStyleSheet("border-style: none;")
         valuePreset8Cam3 = AnimatedToggle()
         valuePreset8Cam3.setFixedSize(valuePreset8Cam3.sizeHint())
+        valuePreset8Cam3.setToolTip("Toggle to change preset 8")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset8Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset8Cam3)
@@ -1449,6 +1807,18 @@ class MainWindow(QDialog):
         self.setLayout(mainLayout)
     #***************************************************
     #***************************************************
+    #defino la funcion asociada con el cambio de preset en el tab1
+    def popUpSetBotonTab1(self, checkbox):
+        print("ajustamos preset 1 tab1")
+        if checkbox.isChecked() == True: 
+            self.dlgChangePresetTab1 = PopUpWritePresetTab()
+            self.dlgChangePresetTab1.show()
+    def popUpResetBotonTab1(self, checkbox):
+        print("reset preset 1 tab1")
+        if checkbox.isChecked() == False:
+            self.dlgDefaultPresetTab1 = PopUpResetPresetTab()
+            self.dlgDefaultPresetTab1.show()
+
     #defino la funcion asociada con el cambio de preset de la camara 1
     def popUpConfiguracionPresetCam1(self, checkbox):
         print("cambiar preset seleccionado en camara 1")
