@@ -868,6 +868,65 @@ class MainWindow(QDialog):
         pixmapitem2 = scene2.addPixmap(pixmap2)
         viewPixMapItem2 = QGraphicsView(scene2)
         viewPixMapItem2.setRenderHint(QPainter.Antialiasing)
+        #creo un contenedor para la imagen del tab2 y para el toolbar
+        contenedorImageToolbarCentralTab2 = QWidget()
+        #creo un layout vertical para el toolbar y la imagen
+        contenedorImageToolbarCentralTab2layout = QVBoxLayout()
+        #agrego el toolbar para la imagen del tab2
+        toolBarImageTab2 = QToolBar("Toolbar Image Tab2")
+        toolBarImageTab2.setIconSize(QSize(16,16))
+        #cargo los iconos en la barra del toolbar
+        #button fit
+        buttonZoomFitActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-fit.png")),"zoom fit",self)
+        buttonZoomFitActionImageTab2.setStatusTip("Zoom fit to full image")
+        buttonZoomFitActionImageTab2.triggered.connect(self.zoomFitImage)
+        buttonZoomFitActionImageTab2.setCheckable(True)
+        #button in
+        buttonZoomInActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
+        buttonZoomInActionImageTab2.setStatusTip("Zoom In")
+        buttonZoomInActionImageTab2.triggered.connect(self.zoomInImage)
+        buttonZoomInActionImageTab2.setCheckable(True)
+        #button out
+        buttonZoomOutActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
+        buttonZoomOutActionImageTab2.setStatusTip("Zoom Out")
+        buttonZoomOutActionImageTab2.triggered.connect(self.zoomOutImage)
+        buttonZoomOutActionImageTab2.setCheckable(True)
+        #button roi rectangle
+        buttonRectRoiActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
+        buttonRectRoiActionImageTab2.setStatusTip("Rectangle Roi")
+        buttonRectRoiActionImageTab2.triggered.connect(self.roiRectImage)
+        buttonRectRoiActionImageTab2.setCheckable(True)
+        #button roi ellipse
+        buttonEllipRoiActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
+        buttonEllipRoiActionImageTab2.setStatusTip("Ellipse Roi")
+        buttonEllipRoiActionImageTab2.triggered.connect(self.roiEllipImage)
+        buttonEllipRoiActionImageTab2.setCheckable(True)
+        #button roi line
+        buttonLineRoiActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
+        buttonLineRoiActionImageTab2.setStatusTip("Line Roi")
+        buttonLineRoiActionImageTab2.triggered.connect(self.roiLineImage)
+        buttonLineRoiActionImageTab2.setCheckable(True)
+        #button roi pollygon
+        buttonPoliRoiActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-polygon.png")),"Roi Pollygon", self)
+        buttonPoliRoiActionImageTab2.setStatusTip("Pollygon Roi")
+        buttonPoliRoiActionImageTab2.triggered.connect(self.roiPollyImage)
+        buttonPoliRoiActionImageTab2.setCheckable(True)
+        #agrego los botones al toolbar
+        toolBarImageTab2.addAction(buttonZoomFitActionImageTab2)
+        toolBarImageTab2.addAction(buttonZoomInActionImageTab2)
+        toolBarImageTab2.addAction(buttonZoomOutActionImageTab2)
+        toolBarImageTab2.addAction(buttonRectRoiActionImageTab2)
+        toolBarImageTab2.addAction(buttonEllipRoiActionImageTab2)
+        toolBarImageTab2.addAction(buttonLineRoiActionImageTab2)
+        toolBarImageTab2.addAction(buttonPoliRoiActionImageTab2)        
+        #*******
+        contenedorImageToolbarCentralTab2layout.addWidget(toolBarImageTab2)
+        contenedorImageToolbarCentralTab2layout.addWidget(viewPixMapItem2)
+        contenedorImageToolbarCentralTab2.setLayout(contenedorImageToolbarCentralTab2layout)
+        #**********************
+        #**********************
+        #**********************
+        #**********************
         #agrego grafico 1 izquierda para la camara 2
         graficoTab2Izq1 = MplCanvas(self, width=2, height=2, dpi=100)
         #genero una dataframe de prueba para la curva de la izquierda 1
@@ -896,7 +955,7 @@ class MainWindow(QDialog):
         sub2WindowTab2Boton.setLayout(tab2BotonVBoxSub2)
         tab2BotonHBoxSub1 = QHBoxLayout()
         tab2BotonHBoxSub1.addWidget(sub2WindowTab2Boton)
-        tab2BotonHBoxSub1.addWidget(viewPixMapItem2)
+        tab2BotonHBoxSub1.addWidget(contenedorImageToolbarCentralTab2)
         sub1WindowTab2Boton.setLayout(tab2BotonHBoxSub1)
         
         tab2BotonVBox = QVBoxLayout()
@@ -927,6 +986,65 @@ class MainWindow(QDialog):
         pixmapitem3 = scene3.addPixmap(pixmap3) # cargo la imagen que voy a mostrar en el contenedor de graficos
         viewPixMapItem3 = QGraphicsView(scene3) # Creo un mostrador de contenedores de graficos
         viewPixMapItem3.setRenderHint(QPainter.Antialiasing) #acomodo un poco los datos        
+        #***********
+        #***********
+        #***********
+        #creo un contenedor para la imagen del tab2 y para el toolbar
+        contenedorImageToolbarCentralTab3 = QWidget()
+        #creo un layout vertical para el toolbar y la imagen
+        contenedorImageToolbarCentralTab3layout = QVBoxLayout()
+        #agrego el toolbar para la imagen del tab2
+        toolBarImageTab3 = QToolBar("Toolbar Image Tab3")
+        toolBarImageTab3.setIconSize(QSize(16,16))
+        #cargo los iconos en la barra del toolbar
+        #button fit
+        buttonZoomFitActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-fit.png")),"zoom fit",self)
+        buttonZoomFitActionImageTab3.setStatusTip("Zoom fit to full image")
+        buttonZoomFitActionImageTab3.triggered.connect(self.zoomFitImage)
+        buttonZoomFitActionImageTab3.setCheckable(True)
+        #button in
+        buttonZoomInActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
+        buttonZoomInActionImageTab3.setStatusTip("Zoom In")
+        buttonZoomInActionImageTab3.triggered.connect(self.zoomInImage)
+        buttonZoomInActionImageTab3.setCheckable(True)
+        #button out
+        buttonZoomOutActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
+        buttonZoomOutActionImageTab3.setStatusTip("Zoom Out")
+        buttonZoomOutActionImageTab3.triggered.connect(self.zoomOutImage)
+        buttonZoomOutActionImageTab3.setCheckable(True)
+        #button roi rectangle
+        buttonRectRoiActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
+        buttonRectRoiActionImageTab3.setStatusTip("Rectangle Roi")
+        buttonRectRoiActionImageTab3.triggered.connect(self.roiRectImage)
+        buttonRectRoiActionImageTab3.setCheckable(True)
+        #button roi ellipse
+        buttonEllipRoiActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
+        buttonEllipRoiActionImageTab3.setStatusTip("Ellipse Roi")
+        buttonEllipRoiActionImageTab3.triggered.connect(self.roiEllipImage)
+        buttonEllipRoiActionImageTab3.setCheckable(True)
+        #button roi line
+        buttonLineRoiActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
+        buttonLineRoiActionImageTab3.setStatusTip("Line Roi")
+        buttonLineRoiActionImageTab3.triggered.connect(self.roiLineImage)
+        buttonLineRoiActionImageTab3.setCheckable(True)
+        #button roi pollygon
+        buttonPoliRoiActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-polygon.png")),"Roi Pollygon", self)
+        buttonPoliRoiActionImageTab3.setStatusTip("Pollygon Roi")
+        buttonPoliRoiActionImageTab3.triggered.connect(self.roiPollyImage)
+        buttonPoliRoiActionImageTab3.setCheckable(True)
+        #agrego los botones al toolbar
+        toolBarImageTab3.addAction(buttonZoomFitActionImageTab3)
+        toolBarImageTab3.addAction(buttonZoomInActionImageTab3)
+        toolBarImageTab3.addAction(buttonZoomOutActionImageTab3)
+        toolBarImageTab3.addAction(buttonRectRoiActionImageTab3)
+        toolBarImageTab3.addAction(buttonEllipRoiActionImageTab3)
+        toolBarImageTab3.addAction(buttonLineRoiActionImageTab3)
+        toolBarImageTab3.addAction(buttonPoliRoiActionImageTab3) 
+        #**************************
+        contenedorImageToolbarCentralTab3layout.addWidget(toolBarImageTab3)
+        contenedorImageToolbarCentralTab3layout.addWidget(viewPixMapItem3)
+        contenedorImageToolbarCentralTab3.setLayout(contenedorImageToolbarCentralTab3layout)       
+        #**************************
         #agrego grafico 1 izquierda para la camara 3
         graficoTab3Izq1 = MplCanvas(self, width= 2, height=2, dpi=100)
         #genero una dataframe de prueba para la curva de la izquierda 1
@@ -954,7 +1072,7 @@ class MainWindow(QDialog):
         sub2WindowTab3Boton.setLayout(tab3BotonVBoxSub2)
         tab3BotonHBoxSub1 = QHBoxLayout()
         tab3BotonHBoxSub1.addWidget(sub2WindowTab3Boton)
-        tab3BotonHBoxSub1.addWidget(viewPixMapItem3) 
+        tab3BotonHBoxSub1.addWidget(contenedorImageToolbarCentralTab3) 
         sub1WindowTab3Boton.setLayout(tab3BotonHBoxSub1)
         tab3BotonVBox = QVBoxLayout() #creo un layout vertical para mostrar los datos del widget principal verticalmente
         tab3BotonVBox.setContentsMargins(5,5,5,5) #defino los margenes 
