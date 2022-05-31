@@ -1,0 +1,100 @@
+DEBUG [IRLogger.cpp:105] @ 0.000338s :***************************************************
+DEBUG [IRLogger.cpp:106] @ 0.000445s :* IRImagerDirect SDK                              *
+DEBUG [IRLogger.cpp:107] @ 0.0004888s :***************************************************
+DEBUG [IRLogger.cpp:108] @ 0.0005249s :* Version:             8.8.1
+DEBUG [IRLogger.cpp:109] @ 0.0005599s :* Commit Date:         Wed Nov 17 11:55:39 2021
+DEBUG [IRLogger.cpp:110] @ 0.0005951s :* Commit Branch:       master
+DEBUG [IRLogger.cpp:111] @ 0.000632s :* Commit Hash:         71552585
+DEBUG [IRLogger.cpp:113] @ 0.0010406s :* Native Machine:      AMD64
+DEBUG [IRLogger.cpp:114] @ 0.0010812s :* Machine:             AMD64
+DEBUG [IRLogger.cpp:116] @ 0.0011197s :* OS:                  Windows 10 0 19043
+DEBUG [IRLogger.cpp:123] @ 0.0011456s :***************************************************
+WARNING [IRDeviceParams.cpp:198] @ 0.0018844s :XML parameter 'average' is deprecated and is not supported anymore.
+DEBUG [IRDeviceParams.cpp:220] @ 0.0019253s :Parameters
+DEBUG [IRDeviceParams.cpp:221] @ 0.0019742s :serial: 0
+DEBUG [IRDeviceParams.cpp:222] @ 0.0020062s :videoformatindex: 0
+DEBUG [IRDeviceParams.cpp:223] @ 0.0020388s :fov: 0
+DEBUG [IRDeviceParams.cpp:224] @ 0.0020928s :optics_text: 0000000000000000
+DEBUG [IRDeviceParams.cpp:225] @ 0.0021297s :formatspath: 000002593BC2B0B0
+DEBUG [IRDeviceParams.cpp:226] @ 0.0021776s :calipath: 0000000000000000
+DEBUG [IRDeviceParams.cpp:227] @ 0.0022102s :temperature min: 0
+DEBUG [IRDeviceParams.cpp:228] @ 0.0022424s :temperature max: 0
+DEBUG [IRDeviceParams.cpp:229] @ 0.0022953s :framerate: 20
+DEBUG [IRDeviceParams.cpp:230] @ 0.0023253s :bispectral: 0
+DEBUG [IRDeviceParams.cpp:231] @ 0.0023698s :flag automatic: 1
+DEBUG [IRDeviceParams.cpp:232] @ 0.0024032s :min interval: 15
+DEBUG [IRDeviceParams.cpp:233] @ 0.002436s :max interval: 0
+DEBUG [IRDeviceParams.cpp:234] @ 0.0024803s :chip heating mode: 0
+DEBUG [IRDeviceParams.cpp:235] @ 0.0025152s :chip heating fixed val: 40
+DEBUG [IRDeviceParams.cpp:236] @ 0.0025728s :focus:  50
+DEBUG [IRDeviceParams.cpp:237] @ 0.0026062s :enable extended temp range: 0
+DEBUG [IRDeviceParams.cpp:238] @ 0.0026442s :buffer queue size: 5
+DEBUG [IRDeviceParams.cpp:239] @ 0.0026788s :enable high precision: 0
+DEBUG [IRDeviceParams.cpp:240] @ 0.0027129s :radialDistortionCorrectionMode: 0
+DEBUG [IRDeviceParams.cpp:241] @ 0.0027572s :deviceAPI: 0
+DEBUG [IRDeviceParams.cpp:242] @ 0.0027946s :useExternalProbeForReferencing: 0
+DEBUG [IRDeviceParams.cpp:243] @ 0.0028441s :enableMultiThreading: 0
+DEBUG [IRDeviceParams.cpp:244] @ 0.0028922s :deviceIpAddress: 0.0.0.0
+DEBUG [IRDeviceParams.cpp:245] @ 0.0029277s :localUdpPort: 0
+DEBUG [Cali.cpp:87] @ 0.0850377s :Calibration directory path: C:\Users\lupus\AppData\Roaming\Imager\Cali
+DEBUG [Cali.cpp:88] @ 0.0850896s :Calibration file name: Cali-20064016.xml
+DEBUG [Cali.cpp:98] @ 0.0857209s :Calibration data A: 1450 B:400 C:4095 D:1000
+INFO [IRImager.cpp:263] @ 0.0871968s :Init thermal imager to 20064016 with size: 382x290@27 Hz
+DEBUG [Cali.cpp:87] @ 0.0877748s :Calibration directory path: C:\Users\lupus\AppData\Roaming\Imager\Cali
+DEBUG [Cali.cpp:88] @ 0.0878101s :Calibration file name: Cali-20064016.xml
+DEBUG [Cali.cpp:98] @ 0.0884101s :Calibration data A: 1450 B:400 C:4095 D:1000
+DEBUG [Cali.cpp:87] @ 0.0896629s :Calibration directory path: C:\Users\lupus\AppData\Roaming\Imager\Cali
+DEBUG [Cali.cpp:88] @ 0.089699s :Calibration file name: Cali-20064016.xml
+DEBUG [Cali.cpp:98] @ 0.0903455s :Calibration data A: 1450 B:400 C:4095 D:1000
+DEBUG [IRImager.cpp:297] @ 0.0904971s :No temperature range configuration specified. Setting default values tMin: -20 , tMax: 100
+DEBUG [IRImager.cpp:372] @ 0.0913095s :Using HID control interface
+DEBUG [IRImager.cpp:412] @ 0.109036s :Initialized HID control interface to device with HW:3400 FW:3432
+DEBUG [IRImager.cpp:1367] @ 0.110692s :Set focusmotor position to 50%
+DEBUG [IRImager.cpp:433] @ 0.110752s :Frameconfig - width(in): 382, height(in): 290, interval: 370370, max framerate: 27, HW interval: 0.037037
+DEBUG [Cali.cpp:87] @ 0.110845s :Calibration directory path: C:\Users\lupus\AppData\Roaming\Imager\Cali
+DEBUG [Cali.cpp:88] @ 0.110883s :Calibration file name: Cali-20064016.xml
+DEBUG [Cali.cpp:98] @ 0.111458s :Calibration data A: 1450 B:400 C:4095 D:1000
+DEBUG [ImageProcessing.cpp:192] @ 0.1158s :Source buffer size: 221560 Width: 382 Height: 290
+DEBUG [ImageProcessing.cpp:115] @ 0.171929s :Source buffer size: 221560 Width: 382 Height: 290
+DEBUG [OpSource.cpp:334] @ 0.172066s :Using formats path: .\\Formats.def
+DEBUG [OpSource.cpp:563] @ 0.172365s :Format found with size: 382
+DEBUG [IRImager.cpp:845] @ 0.172919s :Caught onFrameInit with size: 382x288
+DEBUG [OpSource.cpp:334] @ 0.174056s :Using formats path: .\\Formats.def
+DEBUG [OpSource.cpp:563] @ 0.174325s :Format found with size: 382
+DEBUG [OpSource.cpp:334] @ 0.174405s :Using formats path: .\\Formats.def
+DEBUG [OpCorr.cpp:465] @ 0.176848s :Read cali: C:\Users\lupus\AppData\Roaming\Imager\Cali\Cali-20064016-53-M20-100.dat
+DEBUG [OpCorr.cpp:555] @ 0.176973s :Read calibration of camera no 20064016, # of fields: 6 , start of fields: 40
+DEBUG [ImageProcessing.cpp:1095] @ 0.476081s :Update flag temperature: 35.8125
+DEBUG [ImageProcessing.cpp:1098] @ 0.47807s :Update box temperature: 35.8125
+DEBUG [Cali.cpp:601] @ 0.478103s :Calibration file path: 000002593C01F514/000000CA4EEFCDD0.xml
+DEBUG [SimpleXML.cpp:238] @ 0.478259s :Failed to open file C:\Users\lupus\AppData\Roaming\Imager\Cali\CaliExt-20064016.xml
+DEBUG [IRImager.cpp:547] @ 0.495072s :Chip heating disabled
+DEBUG [IRImager.cpp:1102] @ 0.621661s :Start direct autoskim calibration
+DEBUG [OpFlag.cpp:591] @ 5.62863s :SkimDiff: -3 Adjust: -2252 State: 4 EMax: 10727 Emin: 1068
+DEBUG [OpFlag.cpp:655] @ 5.62868s :SetSkim direct:2387 Diff:-1
+DEBUG [OpFlag.cpp:591] @ 5.82358s :SkimDiff: -2 Adjust: -1238 State: 4 EMax: 11730 Emin: 2094
+DEBUG [OpFlag.cpp:655] @ 5.82386s :SetSkim direct:2386 Diff:-1
+DEBUG [OpFlag.cpp:591] @ 5.99475s :SkimDiff: -1 Adjust: -384 State: 4 EMax: 12625 Emin: 2907
+DEBUG [OpFlag.cpp:655] @ 5.9948s :SetSkim direct:2385 Diff:-1
+DEBUG [OpFlag.cpp:591] @ 6.18712s :SkimDiff: 1 Adjust: 353 State: 4 EMax: 13369 Emin: 3637
+DEBUG [OpFlag.cpp:591] @ 6.21887s :SkimDiff: 1 Adjust: 398 State: 4 EMax: 13394 Emin: 3703
+DEBUG [OpFlag.cpp:591] @ 6.25115s :SkimDiff: 1 Adjust: 375 State: 4 EMax: 13370 Emin: 3681
+DEBUG [OpFlag.cpp:591] @ 6.29894s :SkimDiff: 1 Adjust: 169 State: 4 EMax: 13289 Emin: 3349
+DEBUG [OpFlag.cpp:591] @ 6.33084s :SkimDiff: 1 Adjust: 29 State: 4 EMax: 13020 Emin: 3338
+DEBUG [OpFlag.cpp:591] @ 6.3628s :SkimDiff: 1 Adjust: 30 State: 4 EMax: 13018 Emin: 3342
+DEBUG [OpFlag.cpp:591] @ 6.41098s :SkimDiff: 1 Adjust: 24 State: 4 EMax: 13009 Emin: 3339
+DEBUG [OpFlag.cpp:591] @ 6.44277s :SkimDiff: 1 Adjust: 29 State: 4 EMax: 13019 Emin: 3340
+DEBUG [OpFlag.cpp:591] @ 6.47493s :SkimDiff: 1 Adjust: 25 State: 4 EMax: 13010 Emin: 3341
+INFO [IRImager.cpp:1191] @ 6.47546s :AutoSkim Operation finished
+DEBUG [IRImager.cpp:1111] @ 6.47697s :Start flag calibration
+DEBUG [IRImager.cpp:1125] @ 9.53509s :Finished startup calibration
+DEBUG [IRImager.cpp:1176] @ 24.6029s :Automatic control of shutter flag
+DEBUG [OpFlag.cpp:591] @ 25.0348s :SkimDiff: 0 Adjust: 0 State: 0 EMax: 12989 Emin: 3315
+DEBUG [IRImager.cpp:662] @ 44.0975s :Release imager
+DEBUG [BaseControlDevice.cpp:26] @ 44.1253s :Base destructor called
+DEBUG [IRImager.cpp:669] @ 44.1255s :Delete image processing
+DEBUG [IRImager.cpp:676] @ 44.1301s :Delete buffer
+DEBUG [IRImager.cpp:684] @ 44.1303s :Delete source buffer
+DEBUG [IRImager.cpp:691] @ 44.1304s :Delete buffer (energy)
+DEBUG [IRImager.cpp:698] @ 44.1308s :Delete timer
+DEBUG [IRImager.cpp:704] @ 44.1309s :Delete manual timer
