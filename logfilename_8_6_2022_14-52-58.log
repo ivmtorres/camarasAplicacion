@@ -1,0 +1,40 @@
+DEBUG [IRLogger.cpp:105] @ 0.0007207s :***************************************************
+DEBUG [IRLogger.cpp:106] @ 0.0008937s :* IRImagerDirect SDK                              *
+DEBUG [IRLogger.cpp:107] @ 0.000977s :***************************************************
+DEBUG [IRLogger.cpp:108] @ 0.0010496s :* Version:             8.8.1
+DEBUG [IRLogger.cpp:109] @ 0.0011205s :* Commit Date:         Wed Nov 17 11:55:39 2021
+DEBUG [IRLogger.cpp:110] @ 0.0011867s :* Commit Branch:       master
+DEBUG [IRLogger.cpp:111] @ 0.0012592s :* Commit Hash:         71552585
+DEBUG [IRLogger.cpp:113] @ 0.0016001s :* Native Machine:      AMD64
+DEBUG [IRLogger.cpp:114] @ 0.0016685s :* Machine:             AMD64
+DEBUG [IRLogger.cpp:116] @ 0.0017309s :* OS:                  Windows 10 0 19043
+DEBUG [IRLogger.cpp:123] @ 0.0017725s :***************************************************
+WARNING [IRDeviceParams.cpp:198] @ 0.0615491s :XML parameter 'average' is deprecated and is not supported anymore.
+DEBUG [IRDeviceParams.cpp:220] @ 0.0616161s :Parameters
+DEBUG [IRDeviceParams.cpp:221] @ 0.0616519s :serial: 0
+DEBUG [IRDeviceParams.cpp:222] @ 0.0616844s :videoformatindex: 0
+DEBUG [IRDeviceParams.cpp:223] @ 0.0617154s :fov: 0
+DEBUG [IRDeviceParams.cpp:224] @ 0.0617539s :optics_text: 0000000000000000
+DEBUG [IRDeviceParams.cpp:225] @ 0.0617853s :formatspath: 000001D1AA001990
+DEBUG [IRDeviceParams.cpp:226] @ 0.0618152s :calipath: 0000000000000000
+DEBUG [IRDeviceParams.cpp:227] @ 0.0618483s :temperature min: 0
+DEBUG [IRDeviceParams.cpp:228] @ 0.0618782s :temperature max: 0
+DEBUG [IRDeviceParams.cpp:229] @ 0.0619112s :framerate: 20
+DEBUG [IRDeviceParams.cpp:230] @ 0.0620374s :bispectral: 0
+DEBUG [IRDeviceParams.cpp:231] @ 0.0620661s :flag automatic: 1
+DEBUG [IRDeviceParams.cpp:232] @ 0.0620934s :min interval: 15
+DEBUG [IRDeviceParams.cpp:233] @ 0.0621193s :max interval: 0
+DEBUG [IRDeviceParams.cpp:234] @ 0.0621442s :chip heating mode: 0
+DEBUG [IRDeviceParams.cpp:235] @ 0.0621708s :chip heating fixed val: 40
+DEBUG [IRDeviceParams.cpp:236] @ 0.0621992s :focus:  50
+DEBUG [IRDeviceParams.cpp:237] @ 0.0622243s :enable extended temp range: 0
+DEBUG [IRDeviceParams.cpp:238] @ 0.0622501s :buffer queue size: 5
+DEBUG [IRDeviceParams.cpp:239] @ 0.0622751s :enable high precision: 0
+DEBUG [IRDeviceParams.cpp:240] @ 0.0623011s :radialDistortionCorrectionMode: 0
+DEBUG [IRDeviceParams.cpp:241] @ 0.0623263s :deviceAPI: 0
+DEBUG [IRDeviceParams.cpp:242] @ 0.0623559s :useExternalProbeForReferencing: 0
+DEBUG [IRDeviceParams.cpp:243] @ 0.0623823s :enableMultiThreading: 0
+DEBUG [IRDeviceParams.cpp:244] @ 0.0624091s :deviceIpAddress: 0.0.0.0
+DEBUG [IRDeviceParams.cpp:245] @ 0.0624337s :localUdpPort: 0
+ERROR [IRDeviceDS.cpp:810] @ 0.0781151s :create video graph failed hr=0
+ERROR [DirectBridgeClientUSB.cpp:165] @ 0.0848416s :UVC device with serial 0 could not be found

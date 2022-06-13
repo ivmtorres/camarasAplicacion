@@ -1,7 +1,5 @@
-from faulthandler import disable
 from functools import partial
-from msilib.schema import CheckBox
-from typing import ValuesView
+
 from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen
 from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty, QThread
@@ -70,14 +68,14 @@ class EvoIRFrameMetadata(ct.Structure):
                  ("tempFlag", ct.c_float),
                  ("tempBox", ct.c_float),
                  ]
-class VideoThread(QThread):
+class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
     change_pixmap_signal = pyqtSignal(np.ndarray)
 
-    def __init__(self):
+    def __init__(self): #sobre escribimos la clase
         super().__init__()
-        self._run_flag = True
+        self._run_flag = True #utilizamos este flag para indicar al hilo que termine la adquisicion
 
-    def run(self):
+    def run(self):  #funcion que sobre escribimos de run del hilo
         # capture from thermal cam
         # load library
         if os.name == 'nt':
@@ -91,75 +89,76 @@ class VideoThread(QThread):
         pathXml = ct.c_char_p(b'C:\Users\lupus\OneDrive\Documentos\ProcesamientoDeImagenes\config\generic.xml ')
 
         # init vars
-        pathFormat = ct.c_char_p()
+        pathFormat = ct.c_char_p()      #tipo de formato que usamos para el path a la libreria
         
         
-        pathLog = ct.c_char_p(b'logfilename')
+        pathLog = ct.c_char_p(b'logfilename')   #tipo de formato que usamos par ael path al archivo de log
 
-        palette_width = ct.c_int() 
-        palette_height = ct.c_int() 
+        palette_width = ct.c_int() #dimension de la paleta ..ancho
+        palette_height = ct.c_int()  #dimension de la paleta ..alto
 
-        thermal_width = ct.c_int()
-        thermal_height = ct.c_int()
+        thermal_width = ct.c_int() #dimension de la paleta termica ..ancho
+        thermal_height = ct.c_int() #dimension de la paleta termica ..alto
 
-        serial = ct.c_ulong()
+        serial = ct.c_ulong() #numero serial de la camara
         # init EvoIRFrameMetadata structure
-        metadata = EvoIRFrameMetadata()
+        metadata = EvoIRFrameMetadata() #instanciamos a la clase de EVO cortex la estructura
 
         # init lib
-        ret = libir.evo_irimager_usb_init(pathXml, pathFormat, pathLog)
-        if ret != 0:
-                print("error at init")
-                exit(ret)
+        ret = libir.evo_irimager_usb_init(pathXml, pathFormat, pathLog) #instancio a la libreria de evo para
+        if ret != 0:                                                    #conectar con camara usb de optris
+                print("error at init")                                  #si hay error salgo y retorno el error
+                exit(ret)                                               #de la camara
 
         # get the serial number
-        ret = libir.evo_irimager_get_serial(ct.byref(serial))
-        print('serial: ' + str(serial.value))
+        ret = libir.evo_irimager_get_serial(ct.byref(serial))           #si la conexxion salio bien retorno el 
+        print('serial: ' + str(serial.value))                           #numero serie de la camara
 
         # get thermal image size
         libir.evo_irimager_get_thermal_image_size(ct.byref(thermal_width), ct.byref(thermal_height))
-        print('thermal width: ' + str(thermal_width.value))
-        print('thermal height: ' + str(thermal_height.value))
-
+        print('thermal width: ' + str(thermal_width.value))     #utilizamos el metodo de la libreria para determinar
+        print('thermal height: ' + str(thermal_height.value))   #el tama;o de la imagen. El ancho y el alto
+        
         # init thermal data container
         np_thermal = np.zeros([thermal_width.value * thermal_height.value], dtype=np.uint16)
-        npThermalPointer = np_thermal.ctypes.data_as(ct.POINTER(ct.c_ushort))
+        npThermalPointer = np_thermal.ctypes.data_as(ct.POINTER(ct.c_ushort)) #utilizo la libreria ctypes para manipular datos de C
+                                                                              #en python
 
         # get palette image size, width is different to thermal image width duo to stride alignment!!!
         libir.evo_irimager_get_palette_image_size(ct.byref(palette_width), ct.byref(palette_height))
-        print('palette width: ' + str(palette_width.value))
-        print('palette height: ' + str(palette_height.value))
+        print('palette width: ' + str(palette_width.value)) #con la libreria de evo obtengo la imagen y cargo los datos
+        print('palette height: ' + str(palette_height.value)) #de ancho y alto para la paleta 
 
         # init image container
         np_img = np.zeros([palette_width.value * palette_height.value * 3], dtype=np.uint8)
         npImagePointer = np_img.ctypes.data_as(ct.POINTER(ct.c_ubyte))
 
-
-        # capture and display image till q is pressed
-        while self._run_flag == True:
+        #a partir de aca comenzamos a obtener la imagen        
+        while self._run_flag == True: #capturo la imagen mientras no este activa el flag de detener
                 #get thermal and palette image with metadat
                 ret = libir.evo_irimager_get_thermal_palette_image_metadata(thermal_width, thermal_height, npThermalPointer, palette_width, palette_height, npImagePointer, ct.byref(metadata))
-
+                #obtenemos de evo la imagen, ademas los datos de ancho y algo termico. los datos de imagen ancho y alto. el dato np termico y el dato np de imagen
+                #le tenemos que pasar como dato la estructura evo que definimos antes
                 if ret != 0:
                         print('error on evo_irimager_get_thermal_palette_image ' + str(ret))
                         continue
-
+                #si llega a responder con un error lo indicamos 
                 #calculate total mean value
-                mean_temp = np_thermal.mean()
-                mean_temp = mean_temp / 10. - 100
+                mean_temp = np_thermal.mean() #sobre el contenido de la imagen que retorna calculo una media.
+                mean_temp = mean_temp / 10. - 100 #le saco un cero y le resto 100
 
-                print('Mean Temp: ' + str(mean_temp))
+                #print('Mean Temp: ' + str(mean_temp)) #mostramos el promedio
 
                 #display palette image
                 #cv2.imshow('Optris Image Test For Meditecna',np_img.reshape(palette_height.value, palette_width.value, 3)[:,:,::-1])
                 frame = np_img.reshape(palette_height.value, palette_width.value, 3)[:,:,::-1]
-                self.change_pixmap_signal.emit(frame)
+                self.change_pixmap_signal.emit(frame) #convierto el dato en formato numpy a un formato de qt5
         # clean shutdown
-        libir.evo_irimager_terminate()   
+        libir.evo_irimager_terminate()   #si se detiene el hilo de adquisicion termino el hilo de ejecucion
 
     def stop(self):
         """Sets run flag to False and waits for thread to finish"""
-        self._run_flag = False
+        self._run_flag = False #cuando el hilo se termina indicamos con el flag que salga del while
         self.wait()
 #***************************************************
 #***************************************************
@@ -258,6 +257,7 @@ class PowerBar(QtWidgets.QWidget):
         self._dial.valueChanged.connect(self._bar._trigger_refresh)
         #seteo el alyout 
         self.setLayout(layout)
+
 
 
 #Clase boton para checkear
@@ -503,7 +503,7 @@ class PopUpWritePresetTab(QWidget):
     def cancelUpDatePresetCtrl(self):
         print("Cancelar preset a camara")
         self.close()
-
+        
 #Clase modelo generico de reset preset camara
 class PopUpResetPresetCam(QWidget):
     def __init__(self):
@@ -594,7 +594,6 @@ class PopUPWritePresetCam(QWidget):
     def cancelUpDatePresetCam(self):
         print("Cancelar preset a camara")
         self.close()
-
 #Clase modelo generico de loggin 
 class PopUpLoggin(QWidget):
     def __init__(self):
@@ -635,20 +634,17 @@ class PopUpLoggin(QWidget):
     def cancelConnectDB(self):
         print("Cancelar")
         self.close()
-
 #clase modelo generico de combo box
 class UserComboBox(QComboBox):
     popupAboutToBeShown = pyqtSignal()
     def showPopup(self):
         self.popupAboutToBeShown.emit()
         super(UserComboBox,self).showPopup()
-
 class CamComboBox(QComboBox):
     popupAboutToBeShown = pyqtSignal()
     def showPopup(self):
         self.popupAboutToBeShown.emit()
         super(CamComboBox,self).showPopup()
-
 #Clase principal
 class MainWindow(QDialog):
     def __init__(self, parent=None):
@@ -746,14 +742,15 @@ class MainWindow(QDialog):
         #***************************************
         #creo el contenido de la imagen
         #agrego las dimensiones
-        self.disply_width = 640
-        self.display_height = 480
+        self.disply_width = 390
+        self.display_height = 290
         # create the label that holds the image
         self.image_label = QLabel(self)
         self.image_label.resize(self.disply_width, self.display_height)
         # create a text label
         self.textLabel = QLabel('ThermalCam')
-
+        #**************************************
+        #**************************************
         # create the video capture thread
         self.thread = VideoThread()
         # connect its signal to the update_image slot
@@ -828,10 +825,10 @@ class MainWindow(QDialog):
         toolBarImageTab1.addAction(buttonLineRoiActionImageTab1)
         toolBarImageTab1.addAction(buttonPoliRoiActionImageTab1)        
         #*******
-        scene = QGraphicsScene(0, 0, 0, 0)
-        pixmap = QPixmap("imageCam1.jpg") #a reemplazar por la imagen
-        pixmapitem = scene.addPixmap(pixmap)
-        viewPixMapItem = QGraphicsView(scene)
+        self.scene = QGraphicsScene(0, 0, 0, 0)
+        self.pixmap = QPixmap("imageCam1.jpg") #a reemplazar por la imagen
+        pixmapitem = self.scene.addPixmap(self.pixmap)
+        viewPixMapItem = QGraphicsView(self.scene)
         viewPixMapItem.setRenderHint(QPainter.Antialiasing)
         #*******
         contenedorImageToolbarCentralTab1layout.addWidget(toolBarImageTab1)
@@ -2068,6 +2065,8 @@ class MainWindow(QDialog):
         """Updates the image_label with a new opencv image"""
         qt_img = self.convert_cv_qt(cv_img)
         self.image_label.setPixmap(qt_img)
+        #cargo la imagen en formato pixmap en el viewer
+        #self.viewCam1.setPixmap(qt_img)
     
     def convert_cv_qt(self, cv_img):
         """Convert from an opencv image to QPixmap"""
@@ -2279,7 +2278,7 @@ class MainWindow(QDialog):
     #***************************************************
 if __name__ == '__main__':      
     app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon(os.path.join(basedir,"appIcons","logo.ico")))
+    app.setWindowIcon(QIcon(os.path.join(basedir,"appIcons","tgsLogo3.ico")))
     main = MainWindow()
     main.show()
     app.exec()
