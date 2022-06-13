@@ -11,9 +11,11 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QWidget,
-    QGraphicsEllipseItem    
+    QGraphicsEllipseItem,
+    QSizePolicy,
+    QScrollArea
 )
-from PyQt5.QtGui import QIcon, QPixmap, QPainter, QBrush, QColor
+from PyQt5.QtGui import QIcon, QPixmap, QPainter, QBrush, QColor, QPalette
 from PyQt5.QtCore import Qt, QSize, QThread, pyqtSignal, pyqtSlot, QPoint, QRect, QLine, QRectF, QPointF
 import numpy as np
 import cv2
@@ -21,6 +23,10 @@ import cv2
 class TestImage(QLabel):
     def __init__(self):
         super().__init__()
+        ######################Escala########################
+        self.scaleFactor = 1
+        self.scala = 1.25
+        ######################Escala########################
         #punto para deteccion del click
         self.begin = QPoint()
         self.end = QPoint()
@@ -87,132 +93,155 @@ class TestImage(QLabel):
         self.clickBordeTopRectEllipse2 = False
         self.clickBordeBottomRectEllipse1 = False
         self.clickBordeBottomRectEllipse2 = False
+#########################################################        
+    def adjustScrollBar(self, scrollBar, factor):
+        scrollBar.setValue(int(factor * scrollBar.value() + ((factor - 1) * scrollBar.pageStep()/2)))
+#########################################################
     def paintEvent(self, event):
         #sobrecargo el metodo paint de la clase label
-        super().paintEvent(event)
-        #instancio a la clase QPainter
-        qp = QPainter(self)
-        #defino un color para el objeto instanciado
-        br = QBrush(QColor(100,10,10,40))
-        #pinto el objeto 
-        qp.setBrush(br)
-        #defino un borde para los objetos
-        pen = QtGui.QPen()
-        pen.setWidth(3)
-        pen.setColor(QtGui.QColor("#00FF00"))
-        #asigno este objeto al objeto painter instanciado
-        qp.setPen(pen)
-        #dibujo dos rectangulos llevo la posicion en dos variables del programa principal
-        qp.drawRect(self.parent().rectangulo1)
-        qp.drawText(self.posTextRect1,"rect1")
-        qp.drawRect(self.parent().rectangulo2)
-        qp.drawText(self.posTextRect2,"rect2")
-        #dibujo dos lineas
-        qp.drawLine(self.parent().recta1)
-        qp.drawText(self.posTextRecta1, "recta1")
-        qp.drawLine(self.parent().recta2)
-        qp.drawText(self.posTextRecta2, "recta2")
-        #dibujo dos ellipses
-        #deteccion de giro de ellipse
-        presionEnEllipse1 = (self.parent().presionTeclaEnEllipse1Flag & (self.parent().teclaUpGirarEllipse1 | self.parent().teclaDownGirarEllipse1))
-        presionEnEllipse2 = (self.parent().presionTeclaEnEllipse2Flag & (self.parent().teclaUpGirarEllipse2 | self.parent().teclaDownGirarEllipse2))
-        if presionEnEllipse1 | presionEnEllipse2 :
-            if self.parent().presionTeclaEnEllipse1Flag:
-                if self.parent().teclaUpGirarEllipse1:
-                    self.parent().anguloEllipse1 = self.parent().ellipse1.rotation() + 1 * self.parent().clickEllipse1
-                    #roto la elipse 1
-                    qp.rotate(self.parent().anguloEllipse1)
-                    #dibujo las ellipses
-                    qp.drawEllipse(self.parent().rectanguloEllipse1)
-                    qp.drawText(self.posTextEllipse1, "Ellipse1")
-                    #restauro
-                    qp.resetTransform()
-                    #dibujo las ellipses
-                    qp.drawEllipse(self.parent().rectanguloEllipse2)
-                    qp.drawText(self.posTextEllipse2, "Ellipse2")
-                    #reseteo los flags de deteccion de giro
-                    self.parent().teclaDownGirarEllipse1 = False
-                    self.parent().teclaUpGirarEllipse2 = False
-                    self.parent().teclaDownGirarEllipse2 = False
+        super().paintEvent(event)        
+#########################################################
+        try:
+            escala = self.scaleFactor * self.pixmap().size()
+            print(escala)
+            self.resize(escala)
+            #########################################################
+            #instancio a la clase QPainter
+            qp = QPainter(self)
+            #defino un color para el objeto instanciado
+            br = QBrush(QColor(100,10,10,40))
+            #pinto el objeto 
+            qp.setBrush(br)
+            #defino un borde para los objetos
+            pen = QtGui.QPen()
+            pen.setWidth(3)
+            pen.setColor(QtGui.QColor("#00FF00"))
+            #asigno este objeto al objeto painter instanciado
+            qp.setPen(pen)
+            #dibujo dos rectangulos llevo la posicion en dos variables del programa principal
+            qp.drawRect(self.parent().parent().rectangulo1)
+            qp.drawText(self.posTextRect1,"rect1")
+            qp.drawRect(self.parent().parent().rectangulo2)
+            qp.drawText(self.posTextRect2,"rect2")
+            #dibujo dos lineas
+            qp.drawLine(self.parent().parent().recta1)
+            qp.drawText(self.posTextRecta1, "recta1")
+            qp.drawLine(self.parent().parent().recta2)
+            qp.drawText(self.posTextRecta2, "recta2")
+            #dibujo dos ellipses
+            #deteccion de giro de ellipse
+            presionEnEllipse1 = (self.parent().parent().presionTeclaEnEllipse1Flag & (self.parent().parent().teclaUpGirarEllipse1 | self.parent().parent().teclaDownGirarEllipse1))
+            presionEnEllipse2 = (self.parent().parent().presionTeclaEnEllipse2Flag & (self.parent().parent().teclaUpGirarEllipse2 | self.parent().parent().teclaDownGirarEllipse2))
+            if presionEnEllipse1 | presionEnEllipse2 :
+                if self.parent().parent().presionTeclaEnEllipse1Flag:
+                    if self.parent().parent().teclaUpGirarEllipse1:
+                        self.parent().parent().anguloEllipse1 = self.parent().parent().ellipse1.rotation() + 1 * self.parent().parent().clickEllipse1
+                        #roto la elipse 1
+                        qp.rotate(self.parent().parent().anguloEllipse1)
+                        #dibujo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse1)
+                        qp.drawText(self.posTextEllipse1, "Ellipse1")
+                        #restauro
+                        qp.resetTransform()
+                        #dibujo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse2)
+                        qp.drawText(self.posTextEllipse2, "Ellipse2")
+                        #reseteo los flags de deteccion de giro
+                        self.parent().parent().teclaDownGirarEllipse1 = False
+                        self.parent().parent().teclaUpGirarEllipse2 = False
+                        self.parent().parent().teclaDownGirarEllipse2 = False
 
-                elif self.parent().teclaDownGirarEllipse1:
-                    self.parent().anguloEllipse1 = self.parent().ellipse1.rotation() + 1 * self.parent().clickEllipse1
-                    qp.drawEllipse(self.parent().rectanguloEllipse2)
-                    qp.drawText(self.posTextEllipse2, "Ellipse2")
-                    qp.rotate(self.parent().anguloEllipse1)
-                    #dibujo las ellipses
-                    qp.drawEllipse(self.parent().rectanguloElipse1)
-                    qp.drawText(self.posTextEllipse1, "Ellipse1")
-                    #reseteo los flags de deteccion de giro
-                    self.parent().teclaUpGirarEllipse1 = False
-                    self.parent().teclaUpGirarEllipse2 = False
-                    self.parent().teclaDownGirarEllipse2 = False
-                else:
-                    pass
-            if self.parent().presionTeclaEnEllipse2Flag:
-                if self.parent().teclaUpGirarEllipse2:
-                    self.parent().anguloEllipse2 = self.parent().ellipse2.rotation() + 1 * self.parent().clickEllipse2
-                    qp.drawEllipse(self.parent().rectanguloEllipse1)
-                    qp.drawText(self.posTextEllipse1, "Ellipse1")
-                    #roto la elipse 1
-                    qp.rotate(self.parent().anguloEllipse2)
-                    #dibujo las ellipses
-                    qp.drawEllipse(self.parent().rectanguloEllipse2)
-                    qp.drawText(self.posTextEllipse2, "Ellipse2")
-                    #reseteo los flag de giro
-                    self.parent().teclaUpGirarEllipse1 = False
-                    self.parent().teclaDownGirarEllipse1 = False
-                    self.parent().teclaDownGirarEllipse2 = False
-                elif self.parent().teclaDownGirarEllipse2:
-                    self.parent().anguloEllipse2 = self.parent().ellipse2.rotation() + 1 * self.parent().clickEllipse2
-                    #dibjo las ellipses
-                    qp.drawEllipse(self.parent().rectanguloEllipse1)
-                    qp.drawText(self.posTextEllipse1, "Ellipse1")
-                    qp.rotate(self.parent().anguloEllipse2)
-                    #dibujo las ellipses
-                    qp.drawEllipse(self.parent().rectanguloEllipse2)
-                    qp.drawText(self.posTextEllipse2, "Ellipse2")
-                    #reseteo los flags
-                    self.parent().teclaUpGirarEllipse1 = False
-                    self.parent().teclaDownGirarEllipse1 = False
-                    self.parent().teclaUpGirarEllipse2 = False
-                else:
-                    pass
-        else:
-            #dibujo las ellipses sin rotar
-            qp.rotate(self.parent().anguloEllipse1)
-            qp.drawEllipse(self.parent().rectanguloEllipse1)
-            qp.drawText(self.posTextEllipse1, "Ellipse1")
-            qp.resetTransform()
-            #dibujo las ellipses sin rotar
-            qp.rotate(self.parent().anguloEllipse2)
-            qp.drawEllipse(self.parent().rectanguloEllipse2)
-            qp.drawText(self.posTextEllipse2, "Ellipse2")
-            #reseteo los flags
-            self.parent().teclaUpGirarEllipse1 = False
-            self.parent().teclaDownGirarEllipse1 = False
-            self.parent().teclaUpGirarEllipse2 = False
-            self.parent().teclaDownGirarEllipse2 = False
+                    elif self.parent().parent().teclaDownGirarEllipse1:
+                        self.parent().parent().anguloEllipse1 = self.parent().parent().ellipse1.rotation() + 1 * self.parent().parent().clickEllipse1
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse2)
+                        qp.drawText(self.posTextEllipse2, "Ellipse2")
+                        qp.rotate(self.parent().parent().anguloEllipse1)
+                        #dibujo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloElipse1)
+                        qp.drawText(self.posTextEllipse1, "Ellipse1")
+                        #reseteo los flags de deteccion de giro
+                        self.parent().parent().teclaUpGirarEllipse1 = False
+                        self.parent().parent().teclaUpGirarEllipse2 = False
+                        self.parent().parent().teclaDownGirarEllipse2 = False
+                    else:
+                        pass
+                if self.parent().parent().presionTeclaEnEllipse2Flag:
+                    if self.parent().parent().teclaUpGirarEllipse2:
+                        self.parent().parent().anguloEllipse2 = self.parent().parent().ellipse2.rotation() + 1 * self.parent().parent().clickEllipse2
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse1)
+                        qp.drawText(self.posTextEllipse1, "Ellipse1")
+                        #roto la elipse 1
+                        qp.rotate(self.parent().parent().anguloEllipse2)
+                        #dibujo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse2)
+                        qp.drawText(self.posTextEllipse2, "Ellipse2")
+                        #reseteo los flag de giro
+                        self.parent().parent().teclaUpGirarEllipse1 = False
+                        self.parent().parent().teclaDownGirarEllipse1 = False
+                        self.parent().parent().teclaDownGirarEllipse2 = False
+                    elif self.parent().parent().teclaDownGirarEllipse2:
+                        self.parent().parent().anguloEllipse2 = self.parent().parent().ellipse2.rotation() + 1 * self.parent().parent().clickEllipse2
+                        #dibjo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse1)
+                        qp.drawText(self.posTextEllipse1, "Ellipse1")
+                        qp.rotate(self.parent().parent().anguloEllipse2)
+                        #dibujo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse2)
+                        qp.drawText(self.posTextEllipse2, "Ellipse2")
+                        #reseteo los flags
+                        self.parent().parent().teclaUpGirarEllipse1 = False
+                        self.parent().parent().teclaDownGirarEllipse1 = False
+                        self.parent().parent().teclaUpGirarEllipse2 = False
+                    else:
+                        pass
+            else:
+                #dibujo las ellipses sin rotar
+                qp.rotate(self.parent().parent().anguloEllipse1)
+                qp.drawEllipse(self.parent().parent().rectanguloEllipse1)
+                qp.drawText(self.posTextEllipse1, "Ellipse1")
+                qp.resetTransform()
+                #dibujo las ellipses sin rotar
+                qp.rotate(self.parent().parent().anguloEllipse2)
+                qp.drawEllipse(self.parent().parent().rectanguloEllipse2)
+                qp.drawText(self.posTextEllipse2, "Ellipse2")
+                #reseteo los flags
+                self.parent().parent().teclaUpGirarEllipse1 = False
+                self.parent().parent().teclaDownGirarEllipse1 = False
+                self.parent().parent().teclaUpGirarEllipse2 = False
+                self.parent().parent().teclaDownGirarEllipse2 = False
+        except:
+            print("error Image")
+
     def mousePressEvent(self, event):
         #detecto la posicion del ultimo movimiento
         self.begin = event.pos()
+        #####################################################
+        print("mouse click", self.scaleFactor)
+        if  self.parent().parent().zoomInButton == True:
+            self.scala = 1.25
+        elif self.parent().parent().zoomOutButton == True:
+            self.scala = 0.8
+        else:
+            self.scala = 1
+        self.scaleFactor *= self.scala
+        #####################################################
         #detecto si se estan dibujando los rectangulos
-        if self.parent().toolROIs == 0:
+        if self.parent().parent().toolROIs == 0:
             #defino las condiciones de borde, si es que estoy tocando el borde o no
-            detectoCondicionClickBordeTopLeftRect1Inf = (self.parent().rectangulo1.topLeft() - self.umbralTopLeftRect).x() 
-            detectoCondicionClickBordeTopLeftRect1Sup = (self.parent().rectangulo1.topLeft() + self.umbralTopLeftRect).x()
+            detectoCondicionClickBordeTopLeftRect1Inf = (self.parent().parent().rectangulo1.topLeft() - self.umbralTopLeftRect).x() 
+            detectoCondicionClickBordeTopLeftRect1Sup = (self.parent().parent().rectangulo1.topLeft() + self.umbralTopLeftRect).x()
             condicionClickBordeTopLeftRect1 = detectoCondicionClickBordeTopLeftRect1Inf < self.begin.x() < detectoCondicionClickBordeTopLeftRect1Sup 
             
-            detectoCondicionClickBordeTopLeftRect2Inf = (self.parent().rectangulo2.topLeft() - self.umbralTopLeftRect).x()
-            detectoCondicionClickBordeTopLeftRect2Sup = (self.parent().rectangulo2.topLeft() + self.umbralTopLeftRect).x()
+            detectoCondicionClickBordeTopLeftRect2Inf = (self.parent().parent().rectangulo2.topLeft() - self.umbralTopLeftRect).x()
+            detectoCondicionClickBordeTopLeftRect2Sup = (self.parent().parent().rectangulo2.topLeft() + self.umbralTopLeftRect).x()
             condicionClickBordeTopLeftRect2 = detectoCondicionClickBordeTopLeftRect2Inf < self.begin.x() < detectoCondicionClickBordeTopLeftRect2Sup
 
-            detectoCondicionClickBordeBottomRightRect1Inf = (self.parent().rectangulo1.bottomRight() - self.umbralBottomRightRect).x()
-            detectoCondicionClickBordeBottomRightRect1Sup = (self.parent().rectangulo1.bottomRight() + self.umbralBottomRightRect).x()
+            detectoCondicionClickBordeBottomRightRect1Inf = (self.parent().parent().rectangulo1.bottomRight() - self.umbralBottomRightRect).x()
+            detectoCondicionClickBordeBottomRightRect1Sup = (self.parent().parent().rectangulo1.bottomRight() + self.umbralBottomRightRect).x()
             condicionClickBordeBottomRightRect1 = detectoCondicionClickBordeBottomRightRect1Inf < self.begin.x() < detectoCondicionClickBordeBottomRightRect1Sup
             
-            detectoCondicionClickBordeBottomRightRect2Inf = (self.parent().rectangulo2.bottomRight() - self.umbralBottomRightRect).x()
-            detectoCondicionClickBordeBottomRightRect2Sup = (self.parent().rectangulo2.bottomRight() + self.umbralBottomRightRect).x()
+            detectoCondicionClickBordeBottomRightRect2Inf = (self.parent().parent().rectangulo2.bottomRight() - self.umbralBottomRightRect).x()
+            detectoCondicionClickBordeBottomRightRect2Sup = (self.parent().parent().rectangulo2.bottomRight() + self.umbralBottomRightRect).x()
             condicionClickBordeBottomRightRect2 = detectoCondicionClickBordeBottomRightRect2Inf < self.begin.x() < detectoCondicionClickBordeBottomRightRect2Sup
             
             if condicionClickBordeTopLeftRect1 | condicionClickBordeTopLeftRect2 | condicionClickBordeBottomRightRect1 | condicionClickBordeBottomRightRect2:
@@ -239,21 +268,21 @@ class TestImage(QLabel):
                     print("no se presiono ningun borde, no deberias estar aca!")
             else:
                 #verifico si el click fue dentro del rectangulo 1
-                if self.parent().rectangulo1.contains(self.begin, False):
+                if self.parent().parent().rectangulo1.contains(self.begin, False):
                     self.flag = False
                     #guardo la posicion del click como la posicion anterior
                     self.posAnteriorRect1 = self.begin
-                    if self.parent().indiceRect == 0:
+                    if self.parent().parent().indiceRect == 0:
                         print("estoy haciendo un click para dibujar el rectangulo 1")
                     else:
                         print("estoy haciendo un click para dibujar el rectangulo 2")
                     self.flagRec1VsRec2 = True
                 #verifico si el click fue dentro del rectangulo 2
-                elif self.parent().rectangulo2.contains(self.begin, False):
+                elif self.parent().parent().rectangulo2.contains(self.begin, False):
                     self.flag = False
                     #guardo la posicion del click como la posicion anterior
                     self.posAnteriorRect2 = self.begin
-                    if self.parent().indiceRect == 0:
+                    if self.parent().parent().indiceRect == 0:
                         print("estoy haciendo un clikc para dibujar el rectangulo 1")
                     else:
                         print("estoy haciendo un click para dibujar el rectangulo 2")
@@ -262,20 +291,20 @@ class TestImage(QLabel):
                     #estoy dibujando un nuevo rectangulo
                     self.flag = True
         #detecto se se estan dibujando las rectas
-        if self.parent().toolROIs == 1:
+        if self.parent().parent().toolROIs == 1:
             #determino si se esta presionando la esquina de la recta 1 - 2
             #determino si se esta presionando la esquina de la recta 1 - 2
-            condicionClickBordeLeftRecta1Inf = (self.parent().recta1.p1() - self.umbralLeftRect).x()
-            condicionClickBordeLeftRecta1Sup = (self.parent().recta1.p1() + self.umbralLeftRect).x()
+            condicionClickBordeLeftRecta1Inf = (self.parent().parent().recta1.p1() - self.umbralLeftRect).x()
+            condicionClickBordeLeftRecta1Sup = (self.parent().parent().recta1.p1() + self.umbralLeftRect).x()
             condicionClickBordeLeftRecta1 =  condicionClickBordeLeftRecta1Inf< self.begin.x() < condicionClickBordeLeftRecta1Sup
-            condicionClickBordeLeftRecta2Inf = (self.parent().recta2.p1() - self.umbralLeftRect).x()
-            condicionClickBordeLeftRecta2Sup = (self.parent().recta2.p1() + self.umbralLeftRect).x()
+            condicionClickBordeLeftRecta2Inf = (self.parent().parent().recta2.p1() - self.umbralLeftRect).x()
+            condicionClickBordeLeftRecta2Sup = (self.parent().parent().recta2.p1() + self.umbralLeftRect).x()
             condicionClickBordeLeftRecta2 =  condicionClickBordeLeftRecta2Inf< self.begin.x() <condicionClickBordeLeftRecta2Sup 
-            condicionClickBordeRightRecta1Inf = (self.parent().recta1.p2() - self.umbralRightRect).x()
-            condicionClickBordeRightRecta1Sup = (self.parent().recta1.p2() + self.umbralRightRect).x()
+            condicionClickBordeRightRecta1Inf = (self.parent().parent().recta1.p2() - self.umbralRightRect).x()
+            condicionClickBordeRightRecta1Sup = (self.parent().parent().recta1.p2() + self.umbralRightRect).x()
             condicionClickBordeRightRecta1 = condicionClickBordeRightRecta1Inf < self.begin.x() < condicionClickBordeRightRecta1Sup
-            condicionClickBordeRightRecta2Inf = (self.parent().recta2.p2() - self.umbralRightRect).x()
-            condicionClickBordeRightRecta2Sup= (self.parent().recta2.p2() + self.umbralRightRect).x()
+            condicionClickBordeRightRecta2Inf = (self.parent().parent().recta2.p2() - self.umbralRightRect).x()
+            condicionClickBordeRightRecta2Sup= (self.parent().parent().recta2.p2() + self.umbralRightRect).x()
             condicionClickBordeRightRecta2 = condicionClickBordeRightRecta2Inf < self.begin.x() < condicionClickBordeRightRecta2Sup
             #verifico si se esta haciendo un click en los bordes de las rectas
             if condicionClickBordeLeftRecta1 | condicionClickBordeLeftRecta2 | condicionClickBordeRightRecta1 | condicionClickBordeRightRecta2:
@@ -303,19 +332,19 @@ class TestImage(QLabel):
             #o bien estamos desplazando la recta dibujada
             else:
                 #determino si el punto donde se hace click esta dentro de la recta
-                if(not self.parent().recta1.isNull()) & (not self.parent().recta2.isNull()):
-                    valorInicialRecta1ZonaInf = (self.parent().recta1.p1().x() < self.begin.x() < self.parent().recta1.p2().x()) | (self.parent().recta1.p2().x()<self.begin.x()<self.parent().recta1.p1().x())
-                    valorFinalRecta1ZonaSup = (self.parent().recta1.p1().y() < self.begin.y() < self.parent().recta1.p2().y()) | (self.parent().recta1.p2().y()<self.begin.y()<self.parent().recta1.p1().y())
+                if(not self.parent().parent().recta1.isNull()) & (not self.parent().parent().recta2.isNull()):
+                    valorInicialRecta1ZonaInf = (self.parent().parent().recta1.p1().x() < self.begin.x() < self.parent().parent().recta1.p2().x()) | (self.parent().parent().recta1.p2().x()<self.begin.x()<self.parent().parent().recta1.p1().x())
+                    valorFinalRecta1ZonaSup = (self.parent().parent().recta1.p1().y() < self.begin.y() < self.parent().parent().recta1.p2().y()) | (self.parent().parent().recta1.p2().y()<self.begin.y()<self.parent().parent().recta1.p1().y())
                     condicionClickDentroRecta1XY =  valorInicialRecta1ZonaInf & valorFinalRecta1ZonaSup  
-                    pendienteRecta1 = abs(self.parent().recta1.p1().y() - self.parent().recta1.p2().y()) / abs(self.parent().recta1.p1().x() - self.parent().recta1.p2().x()) 
-                    pendienteRecta1PuntoClick = abs(self.parent().recta1.p1().y()-self.begin.y())/abs(self.parent().recta1.p1().x()-self.begin.x())
+                    pendienteRecta1 = abs(self.parent().parent().recta1.p1().y() - self.parent().parent().recta1.p2().y()) / abs(self.parent().parent().recta1.p1().x() - self.parent().parent().recta1.p2().x()) 
+                    pendienteRecta1PuntoClick = abs(self.parent().parent().recta1.p1().y()-self.begin.y())/abs(self.parent().parent().recta1.p1().x()-self.begin.x())
                     condicionClickDentroRecta1Pendiente = pendienteRecta1 * 0.9 < pendienteRecta1PuntoClick < pendienteRecta1 * 1.1
 
-                    valorInicialRecta2ZonaInf = (self.parent().recta2.p1().x() < self.begin.x() < self.parent().recta2.p2().x()) | (self.parent().recta2.p2().x()<self.begin.x()<self.parent().recta2.p1().x())
-                    valorFinalRecta2ZonaSup = (self.parent().recta2.p1().y() < self.begin.y() < self.parent().recta2.p2().y()) | (self.parent().recta2.p2().y()<self.begin.y()<self.parent().recta2.p1().y())
+                    valorInicialRecta2ZonaInf = (self.parent().parent().recta2.p1().x() < self.begin.x() < self.parent().parent().recta2.p2().x()) | (self.parent().parent().recta2.p2().x()<self.begin.x()<self.parent().parent().recta2.p1().x())
+                    valorFinalRecta2ZonaSup = (self.parent().parent().recta2.p1().y() < self.begin.y() < self.parent().parent().recta2.p2().y()) | (self.parent().parent().recta2.p2().y()<self.begin.y()<self.parent().parent().recta2.p1().y())
                     condicionClickDentroRecta2XY = valorInicialRecta2ZonaInf & valorFinalRecta2ZonaSup   
-                    pendienteRecta2 = abs(self.parent().recta2.p1().y() - self.parent().recta2.p2().y()) / abs(self.parent().recta2.p1().x() - self.parent().recta2.p2().x())
-                    pendienteRecta2PuntoClick = abs(self.parent().recta2.p1().y()-self.begin.y())/abs(self.parent().recta2.p1().x()-self.begin.x())
+                    pendienteRecta2 = abs(self.parent().parent().recta2.p1().y() - self.parent().parent().recta2.p2().y()) / abs(self.parent().parent().recta2.p1().x() - self.parent().parent().recta2.p2().x())
+                    pendienteRecta2PuntoClick = abs(self.parent().parent().recta2.p1().y()-self.begin.y())/abs(self.parent().parent().recta2.p1().x()-self.begin.x())
                     condicionClickDentroRecta2Pendiente = pendienteRecta2 * 0.9 < pendienteRecta2PuntoClick < pendienteRecta2 * 1.1
                     
                     self.moviendoRecta1 = condicionClickDentroRecta1XY & condicionClickDentroRecta1Pendiente
@@ -324,7 +353,7 @@ class TestImage(QLabel):
                     if self.moviendoRecta1:
                         self.flag = False
                         self.posAnteriorRecta1 = self.begin #guardo la posicion del click comola posicion antes de mover el mouse
-                        if self.parent().indiceRect == 0:
+                        if self.parent().parent().indiceRect == 0:
                             print("estoy haciendo un click para mover la recta 1")
                         else:
                             print("estoy haciendo un click para mover la recta 2")
@@ -332,7 +361,7 @@ class TestImage(QLabel):
                     elif self.moviendoRecta2:
                         self.flag = False
                         self.posAnteriorRecta2 = self.begin
-                        if self.parent().indiceRect == 0:
+                        if self.parent().parent().indiceRect == 0:
                             print("estoy haciendo un click para mover la recta 1")
                         else:
                             print("estoy haciendo un click para mover la recta 2")
@@ -342,40 +371,40 @@ class TestImage(QLabel):
                 else:
                     print("no tengo que estar aca")
         #detecto si se estan dibujando las ellipses
-        if self.parent().toolROIs == 2:
+        if self.parent().parent().toolROIs == 2:
             ptoXEllipse = self.begin.x()
             ptoYEllipse = self.begin.y()
             #condicion de borde izquierdo - derecho para ellipse1-2
-            condicionClickBordeLeftRectEllipse1Inf = (int(self.parent().ellipse1.rect().left()) - self.umbralLeftEllipse.x())
-            condicionClickBordeLeftRectEllipse1Sup = (int(self.parent().ellipse1.rect().left()) + self.umbralLeftEllipse.x())
+            condicionClickBordeLeftRectEllipse1Inf = (int(self.parent().parent().ellipse1.rect().left()) - self.umbralLeftEllipse.x())
+            condicionClickBordeLeftRectEllipse1Sup = (int(self.parent().parent().ellipse1.rect().left()) + self.umbralLeftEllipse.x())
             condicionClickBordeLeftRectEllipse1 = condicionClickBordeLeftRectEllipse1Inf < self.begin.x() < condicionClickBordeLeftRectEllipse1Sup
             #
-            condicionClickBordeLeftRectEllipse2Inf = (int(self.parent().ellipse2.rect().left()) - self.umbralLeftEllipse.x())
-            condicionClickBordeLeftRectEllipse2Sup = (int(self.parent().ellipse2.rect().left()) + self.umbralLeftEllipse.x())
+            condicionClickBordeLeftRectEllipse2Inf = (int(self.parent().parent().ellipse2.rect().left()) - self.umbralLeftEllipse.x())
+            condicionClickBordeLeftRectEllipse2Sup = (int(self.parent().parent().ellipse2.rect().left()) + self.umbralLeftEllipse.x())
             condicionClickBordeLeftRectEllipse2 = condicionClickBordeLeftRectEllipse2Inf < self.begin.x() < condicionClickBordeLeftRectEllipse2Sup
             #
-            condicionClickBordeRightRectEllipse1Inf = (int(self.parent().ellipse1.rect().right()) - self.umbralRightEllipse.x())
-            condicionClickBordeRightRectEllipse1Sup = (int(self.parent().ellipse1.rect().right()) + self.umbralRightEllipse.x())
+            condicionClickBordeRightRectEllipse1Inf = (int(self.parent().parent().ellipse1.rect().right()) - self.umbralRightEllipse.x())
+            condicionClickBordeRightRectEllipse1Sup = (int(self.parent().parent().ellipse1.rect().right()) + self.umbralRightEllipse.x())
             condicionClickBordeRightRectEllipse1 = condicionClickBordeRightRectEllipse1Inf < self.begin.x() < condicionClickBordeRightRectEllipse1Sup
             #
-            condicionClickBordeRightRectEllipse2Inf = (int(self.parent().ellipse2.rect().right()) - self.umbralRightEllipse.x())
-            condicionClickBordeRightRectEllipse2Sup = (int(self.parent().ellipse2.rect().right()) + self.umbralRightEllipse.x())
+            condicionClickBordeRightRectEllipse2Inf = (int(self.parent().parent().ellipse2.rect().right()) - self.umbralRightEllipse.x())
+            condicionClickBordeRightRectEllipse2Sup = (int(self.parent().parent().ellipse2.rect().right()) + self.umbralRightEllipse.x())
             condicionClickBordeRightRectEllipse2 = condicionClickBordeRightRectEllipse2Inf < self.begin.x() < condicionClickBordeRightRectEllipse2Sup
             #condicion de borde superior - inferior para ellise1-2
-            condicionClickBordeTopRectEllipse1Inf = (int(self.parent().ellipse1.rect().top()) - self.umbralTopEllipse.y())
-            condicionClickBordeTopRectEllipse1Sup = (int(self.parent().ellipse1.rect().top()) + self.umbralTopEllipse.y())
+            condicionClickBordeTopRectEllipse1Inf = (int(self.parent().parent().ellipse1.rect().top()) - self.umbralTopEllipse.y())
+            condicionClickBordeTopRectEllipse1Sup = (int(self.parent().parent().ellipse1.rect().top()) + self.umbralTopEllipse.y())
             condicionClickBordeTopRectEllipse1 = condicionClickBordeTopRectEllipse1Inf < self.begin.y() < condicionClickBordeTopRectEllipse1Sup
             #
-            condicionClickBordeTopRectEllipse2Inf = (int(self.parent().ellipse2.rect().top()) - self.umbralTopEllipse.y())
-            condicionClickBordeTopRectEllipse2Sup = (int(self.parent().ellipse2.rect().top()) + self.umbralTopEllipse.y())
+            condicionClickBordeTopRectEllipse2Inf = (int(self.parent().parent().ellipse2.rect().top()) - self.umbralTopEllipse.y())
+            condicionClickBordeTopRectEllipse2Sup = (int(self.parent().parent().ellipse2.rect().top()) + self.umbralTopEllipse.y())
             condicionClickBordeTopRectEllipse2 = condicionClickBordeTopRectEllipse2Inf < self.begin.y() < condicionClickBordeTopRectEllipse2Sup
             #
-            condicionClickBordeBottomRectEllipse1Inf = (int(self.parent().ellipse1.rect().bottom()) - self.umbralBottomEllipse.y()) 
-            condicionClickBordeBottomRectEllipse1Sup = (int(self.parent().ellipse1.rect().bottom()) + self.umbralBottomEllipse.y())
+            condicionClickBordeBottomRectEllipse1Inf = (int(self.parent().parent().ellipse1.rect().bottom()) - self.umbralBottomEllipse.y()) 
+            condicionClickBordeBottomRectEllipse1Sup = (int(self.parent().parent().ellipse1.rect().bottom()) + self.umbralBottomEllipse.y())
             condicionClickBordeBottomRectEllipse1 = condicionClickBordeBottomRectEllipse1Inf < self.begin.y() < condicionClickBordeBottomRectEllipse1Sup
             #
-            condicionClickBordeBottomRectEllipse2Inf = (int(self.parent().ellipse2.rect().bottom()) - self.umbralBottomEllipse.y())
-            condicionClickBordeBottomRectEllipse2Sup = (int(self.parent().ellipse2.rect().bottom()) + self.umbralBottomEllipse.y())
+            condicionClickBordeBottomRectEllipse2Inf = (int(self.parent().parent().ellipse2.rect().bottom()) - self.umbralBottomEllipse.y())
+            condicionClickBordeBottomRectEllipse2Sup = (int(self.parent().parent().ellipse2.rect().bottom()) + self.umbralBottomEllipse.y())
             condicionClickBordeBottomRectEllipse2 = condicionClickBordeBottomRectEllipse2Inf < self.begin.y() < condicionClickBordeBottomRectEllipse2Sup
             #verifico la condicion de click en el borde superior o derecho
             if condicionClickBordeLeftRectEllipse1 | condicionClickBordeLeftRectEllipse2 | condicionClickBordeRightRectEllipse1 | condicionClickBordeRightRectEllipse2 | condicionClickBordeTopRectEllipse1 | condicionClickBordeTopRectEllipse2 | condicionClickBordeBottomRectEllipse1 | condicionClickBordeBottomRectEllipse2:
@@ -431,27 +460,27 @@ class TestImage(QLabel):
             #click dentro de ellipse o fuera de ellipse pero no en ningun borde
             else:
                 #estoy haciendo un click dentro de la ellipse 1
-                if self.parent().rectanguloEllipse1.contains(ptoXEllipse,ptoYEllipse):
+                if self.parent().parent().rectanguloEllipse1.contains(ptoXEllipse,ptoYEllipse):
                     #marco que se presiono el mouse sobre una elipse
-                    self.parent().presionTeclaEnEllipse1Flag = True
-                    self.parent().presionTeclaEnEllipse2Flag = False
+                    self.parent().parent().presionTeclaEnEllipse1Flag = True
+                    self.parent().parent().presionTeclaEnEllipse2Flag = False
                     #detecto que se esta intentando mover la elipse 1
                     self.flag = False
                     #guardo la posicion anterior
                     self.posAnteriorRectEllipse1 = self.begin     
-                    if self.parent().indiceEllipse == 0:
+                    if self.parent().parent().indiceEllipse == 0:
                         print("click ellipse 1 estoy haciendo un click para dibujar el rectangulo ellipse 1")
                     else:
                         print("click elipse 1 estoy haciendo un clikc para dibujar el rectantulo ellipse 2 ")  
                     self.flagRectEllipse1VsRectEllipse2 = True
-                elif self.parent().rectanguloEllipse2.contains(ptoXEllipse, ptoYEllipse):
+                elif self.parent().parent().rectanguloEllipse2.contains(ptoXEllipse, ptoYEllipse):
                     #marco que se presiono el mouse sobre una ellipse
-                    self.parent().presionReclaEnEllipse1Flag = False
-                    self.parent().presionTeclaEnEllipse2Flag = True
+                    self.parent().parent().presionReclaEnEllipse1Flag = False
+                    self.parent().parent().presionTeclaEnEllipse2Flag = True
                     self.flag = False
                     #guardo la posicion anterior
                     self.posAnteriorRectEllipse2 = self.begin
-                    if self.parent().indiceEllipse == 0 :
+                    if self.parent().parent().indiceEllipse == 0 :
                         print("click elipse 2 estoy haciendo un click para dibujar el rectangulo ellipse 1")
                     else:
                         print("click elipse 2 estoy haciendo un click para dibujar el rectangulo ellipse 2")
@@ -460,8 +489,8 @@ class TestImage(QLabel):
                 else:
                     self.flag = True
                     #pongo en false tecla girar
-                    self.parent().presionTeclaEnEllipse2Flag = False
-                    self.parent().presionTeclaEnEllipse1Flag = False
+                    self.parent().parent().presionTeclaEnEllipse2Flag = False
+                    self.parent().parent().presionTeclaEnEllipse1Flag = False
         ####
         self.update()
     def mouseMoveEvent(self, event):
@@ -469,74 +498,74 @@ class TestImage(QLabel):
         self.end = event.pos()
         print(self.end)
         #rectangulo
-        if self.parent().toolROIs == 0:
+        if self.parent().parent().toolROIs == 0:
             #determino si estoy en un borde
             if self.clickBordeRect:
                 print("reducir tama;o")
                 if self.clickBordeTopLeftRect1:
-                    self.parent().rectangulo1.setTopLeft(event.pos())
-                    self.posTextRect1 = self.parent().rectangulo1.topLeft()
+                    self.parent().parent().rectangulo1.setTopLeft(event.pos())
+                    self.posTextRect1 = self.parent().parent().rectangulo1.topLeft()
                 elif self.clickBordeTopLeftRect2:
-                    self.parent().rectangulo2.setTopLeft(event.pos())
-                    self.posTextRect2 = self.parent().rectangulo2.topLeft()
+                    self.parent().parent().rectangulo2.setTopLeft(event.pos())
+                    self.posTextRect2 = self.parent().parent().rectangulo2.topLeft()
                 elif self.clickBordeBottomRightRect1:
-                    self.parent().rectangulo1.setBottomRight(event.pos())
+                    self.parent().parent().rectangulo1.setBottomRight(event.pos())
                 elif self.clickBordeBottomRightRect2:
-                    self.parent().rectangulo2.setBottomRight(event.pos())
+                    self.parent().parent().rectangulo2.setBottomRight(event.pos())
                 else:
                     print("aca va la parte del borde inferior")
             #no estoy en un borde
             else:
                 #estoy arrastrando el mouse mientras dibujo una nueva roi
                 if self.flag:
-                    if self.parent().indiceRect == 0:
-                        self.parent().rectangulo1 = QRect(self.begin, self.end)
+                    if self.parent().parent().indiceRect == 0:
+                        self.parent().parent().rectangulo1 = QRect(self.begin, self.end)
                         self.posTextRect1 = self.begin
                     else:
-                        self.parent().rectangulo2 = QRect(self.begin, self.end)
+                        self.parent().parent().rectangulo2 = QRect(self.begin, self.end)
                         self.posTextRect2 = self.begin
                 #estoy realizando un desplazamiento del rectangulo mientras muevo el mouse
                 else:
-                    if self.parent().rectangulo1.contains(self.begin, False) & self.flagRec1VsRec2:
+                    if self.parent().parent().rectangulo1.contains(self.begin, False) & self.flagRec1VsRec2:
                         #calculo la distancia entre el punto x-y y el punto clickeado dentro del rectangulo
                         desplazamientoXRect1 = self.end.x() - self.posAnteriorRect1.x()
                         desplazamientoYRect1 = self.end.y() - self.posAnteriorRect1.y()
-                        self.parent().rectangulo1.translate(desplazamientoXRect1, desplazamientoYRect1)
-                        self.posTextRect1 = self.parent().rectangulo1.topLeft()
+                        self.parent().parent().rectangulo1.translate(desplazamientoXRect1, desplazamientoYRect1)
+                        self.posTextRect1 = self.parent().parent().rectangulo1.topLeft()
                         self.posAnteriorRect1 = self.end
                         self.begin = self.end
                     else:
                         desplazamientoXRect2 = self.end.x() - self.posAnteriorRect2.x()
                         desplazamientoYRect2 = self.end.y() - self.posAnteriorRect2.y()
-                        self.parent().rectangulo2.translate(desplazamientoXRect2, desplazamientoYRect2)
-                        self.posTextRect2 = self.parent().rectangulo2.topLeft()
+                        self.parent().parent().rectangulo2.translate(desplazamientoXRect2, desplazamientoYRect2)
+                        self.posTextRect2 = self.parent().parent().rectangulo2.topLeft()
                         self.posAnteriorRect2 = self.end
                         self.begin = self.end
         #recta
-        if self.parent().toolROIs == 1:
+        if self.parent().parent().toolROIs == 1:
             #determina el borde
             if self.clickBordeRecta:
                 print("reducir tamaño")
                 if self.clickBordeLeftRecta1:
-                    self.parent().recta1.setP1(event.pos())
-                    self.posTextRecta1 = self.parent().recta1.p1()
+                    self.parent().parent().recta1.setP1(event.pos())
+                    self.posTextRecta1 = self.parent().parent().recta1.p1()
                 elif self.clickBordeLeftRecta2:
-                    self.parent().recta2.setP1(event.pos())
-                    self.posTextRecta2 = self.parent().recta2.p1()
+                    self.parent().parent().recta2.setP1(event.pos())
+                    self.posTextRecta2 = self.parent().parent().recta2.p1()
                 elif self.clickBordeRightRecta1:
-                    self.parent().recta1.setP2(event.pos())
+                    self.parent().parent().recta1.setP2(event.pos())
                 elif self.clickBordeRightRecta2:
-                    self.parent().recta2.setP2(event.pos())
+                    self.parent().parent().recta2.setP2(event.pos())
                 else:
                     print("aca va la parte del borde inferior")
             #estoy arrastrando el mouse mientras dibujo una nueva recta
             else:
                 if self.flag: 
-                    if self.parent().indiceRect == 0:
-                        self.parent().recta1 = QLine(self.begin, self.end)
+                    if self.parent().parent().indiceRect == 0:
+                        self.parent().parent().recta1 = QLine(self.begin, self.end)
                         self.posTextRecta1 = self.begin
                     else:
-                        self.parent().recta2 = QLine(self.begin, self.end)
+                        self.parent().parent().recta2 = QLine(self.begin, self.end)
                         self.posTextRecta2 = self.begin
                 else: #si estoy realizando un desplazamiento de la recta mientras muevo el mouse
                     if self.moviendoRecta1 & self.flagRecta1VsRecta2:
@@ -545,87 +574,87 @@ class TestImage(QLabel):
                         desplazamientoYRecta1 = self.end.y() - self.posAnteriorRecta1.y()
                         print(desplazamientoXRecta1)
                         print(desplazamientoYRecta1)
-                        self.parent().recta1.translate(desplazamientoXRecta1,desplazamientoYRecta1)
-                        self.posTextRecta1 = self.parent().recta1.p1()
+                        self.parent().parent().recta1.translate(desplazamientoXRecta1,desplazamientoYRecta1)
+                        self.posTextRecta1 = self.parent().parent().recta1.p1()
                         self.posAnteriorRecta1 = self.end
                         self.begin = self.end
                     else: 
                         desplazamientoXRecta2 = self.end.x() - self.posAnteriorRecta2.x()
                         desplazamientoYRecta2 = self.end.y() - self.posAnteriorRecta2.y()
-                        self.parent().recta2.translate(desplazamientoXRecta2, desplazamientoYRecta2)
-                        self.posTextRecta2 = self.parent().recta2.p1()
+                        self.parent().parent().recta2.translate(desplazamientoXRecta2, desplazamientoYRecta2)
+                        self.posTextRecta2 = self.parent().parent().recta2.p1()
                         self.posAnteriorRecta2 = self.end
                         self.begin = self.end
         #elipse
-        if self.parent().toolROIs == 2:
+        if self.parent().parent().toolROIs == 2:
             ptoXEllipse = self.end.x()
             ptoYEllipse = self.end.y()
-            rect1TopLeftEllipse = self.parent().rectanguloEllipse1.topLeft()
-            rect1BotRightEllipse = self.parent().rectanguloEllipse1.bottomRight()
-            rect2TopLeftEllipse = self.parent().rectanguloEllipse2.topLeft()
-            rect2BotRightEllipse = self.parent().rectanguloEllipse2.bottomRight()
+            rect1TopLeftEllipse = self.parent().parent().rectanguloEllipse1.topLeft()
+            rect1BotRightEllipse = self.parent().parent().rectanguloEllipse1.bottomRight()
+            rect2TopLeftEllipse = self.parent().parent().rectanguloEllipse2.topLeft()
+            rect2BotRightEllipse = self.parent().parent().rectanguloEllipse2.bottomRight()
             #verifico si previamente se hiso un click en el borde
             if self.clickBordeEllipse:
                 if self.clickBordeLeftRectEllipse1:
-                    self.parent().rectanguloEllipse1 = QRectF(QPointF(ptoXEllipse, rect1TopLeftEllipse.y()), rect1BotRightEllipse)
-                    self.parent().ellipse1 = QGraphicsEllipseItem(self.parent().rectanguloEllipse1)
-                    self.posTextEllipse1 = self.parent().rectanguloEllipse1.topLeft()
+                    self.parent().parent().rectanguloEllipse1 = QRectF(QPointF(ptoXEllipse, rect1TopLeftEllipse.y()), rect1BotRightEllipse)
+                    self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
+                    self.posTextEllipse1 = self.parent().parent().rectanguloEllipse1.topLeft()
                 elif self.clickBordeLeftRectEllipse2:
-                    self.parent().rectanguloEllipse2 = QRectF(QPointF(ptoXEllipse, rect2TopLeftEllipse.y()), rect2BotRightEllipse)
-                    self.parent().ellipse2 = QGraphicsEllipseItem(self.parent().rectanguloEllipse2)
-                    self.posTextEllipse2 = self.parent().rectanguloEllipse2.topLeft()
+                    self.parent().parent().rectanguloEllipse2 = QRectF(QPointF(ptoXEllipse, rect2TopLeftEllipse.y()), rect2BotRightEllipse)
+                    self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
+                    self.posTextEllipse2 = self.parent().parent().rectanguloEllipse2.topLeft()
                 elif self.clickBordeRightRectEllipse1:
-                    self.parent().rectanguloEllipse1 = QRectF(rect1TopLeftEllipse, QPointF(ptoXEllipse, rect1BotRightEllipse.y()))
-                    self.parent().ellipse1 = QGraphicsEllipseItem(self.parent().rectanguloEllipse1)
+                    self.parent().parent().rectanguloEllipse1 = QRectF(rect1TopLeftEllipse, QPointF(ptoXEllipse, rect1BotRightEllipse.y()))
+                    self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
                 elif self.clickBordeRightRectEllipse2:
-                    self.parent().rectanguloEllipse2 = QRectF(rect2TopLeftEllipse, QPointF(ptoXEllipse, rect2BotRightEllipse.y()))
-                    self.parent().ellipse2 = QGraphicsEllipseItem(self.parent().rectanguloEllipse2)
+                    self.parent().parent().rectanguloEllipse2 = QRectF(rect2TopLeftEllipse, QPointF(ptoXEllipse, rect2BotRightEllipse.y()))
+                    self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
                 elif self.clickBordeTopRectEllipse1:
-                    self.parent().rectanguloEllipse1 = QRectF(QPointF(rect1TopLeftEllipse.x(),ptoYEllipse), rect1BotRightEllipse)
-                    self.parent().ellipse1 = QGraphicsEllipseItem(self.parent().rectanguloEllipse1)
-                    self.posTextEllipse1 = self.parent().rectanguloEllipse1.topLeft()
+                    self.parent().parent().rectanguloEllipse1 = QRectF(QPointF(rect1TopLeftEllipse.x(),ptoYEllipse), rect1BotRightEllipse)
+                    self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
+                    self.posTextEllipse1 = self.parent().parent().rectanguloEllipse1.topLeft()
                 elif self.clickBordeTopRectEllipse2:
-                    self.parent().rectanguloEllipse2 = QRectF(QPointF(rect2TopLeftEllipse.x(), ptoYEllipse), rect2BotRightEllipse)
-                    self.parent().ellipse2 = QGraphicsEllipseItem(self.parent().rectanguloEllipse2)
-                    self.posTextEllipse2 = self.parent().rectanguloEllipse2.topLeft()
+                    self.parent().parent().rectanguloEllipse2 = QRectF(QPointF(rect2TopLeftEllipse.x(), ptoYEllipse), rect2BotRightEllipse)
+                    self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
+                    self.posTextEllipse2 = self.parent().parent().rectanguloEllipse2.topLeft()
                 elif self.clickBordeBottomRectEllipse1:
-                    self.parent().rectanguloEllipse1 = QRectF(rect1TopLeftEllipse, QPointF(rect1BotRightEllipse.x(), ptoYEllipse))
-                    self.parent().ellipse1 = QGraphicsEllipseItem(self.parent().rectanguloEllipse1)
+                    self.parent().parent().rectanguloEllipse1 = QRectF(rect1TopLeftEllipse, QPointF(rect1BotRightEllipse.x(), ptoYEllipse))
+                    self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
                 elif self.clickBordeBottomRectEllipse2:
-                    self.parent().rectanguloEllipse2 = QRectF(rect2TopLeftEllipse, QPointF(rect2BotRightEllipse.x(), ptoYEllipse))
-                    self.parent().ellipse2 = QGraphicsEllipseItem(self.parent().rectanguloEllipse2)
+                    self.parent().parent().rectanguloEllipse2 = QRectF(rect2TopLeftEllipse, QPointF(rect2BotRightEllipse.x(), ptoYEllipse))
+                    self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
                 else:
                     print("aca no deberiamos estar")
             else:
                 #estoy arrastrando el mouse mientras dibujo una nueva elipse
                 if self.flag:
-                    if self.parent().indiceEllipse == 0:
-                        self.parent().rectanguloEllipse1 = QRectF(self.begin, self.end)
-                        self.parent().ellipse1 = QGraphicsEllipseItem(self.parent().rectanguloEllipse1)
+                    if self.parent().parent().indiceEllipse == 0:
+                        self.parent().parent().rectanguloEllipse1 = QRectF(self.begin, self.end)
+                        self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
                         self.posTextEllipse1 = self.begin
                     else:
-                        self.parent().rectanguloEllipse2 = QRectF(self.begin, self.end)
-                        self.parent().ellipse2 = QGraphicsEllipseItem(self.parent().rectanguloEllipse2)
+                        self.parent().parent().rectanguloEllipse2 = QRectF(self.begin, self.end)
+                        self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
                         self.posTextEllipse2 = self.begin
                 #si estoy realizando un desplazaimiento de la elipse
                 else:
                     #estoy dentro de la elipse 1
-                    if self.parent().ellipse1.contains(QPointF(ptoXEllipse, ptoYEllipse)) & self.flagRectEllipse1VsRectEllipse2:
+                    if self.parent().parent().ellipse1.contains(QPointF(ptoXEllipse, ptoYEllipse)) & self.flagRectEllipse1VsRectEllipse2:
                         #calculo la distrancia entre el punto x-y y el punto clickeado dentro del rectangulo
                         desplazamientoXRecEllip1 = self.end.x() - self.posAnteriorRectEllipse1.x()
                         desplazamientoYRecEllip1 = self.end.y() - self.posAnteriorRectEllipse1.y()
-                        self.parent().rectanguloEllipse1.translate(desplazamientoXRecEllip1, desplazamientoYRecEllip1)
-                        self.parent().ellipse1.setRect(self.parent().rectanguloEllipse1)
-                        self.posTextEllipse1 = self.parent().rectanguloEllipse1.topLeft()
+                        self.parent().parent().rectanguloEllipse1.translate(desplazamientoXRecEllip1, desplazamientoYRecEllip1)
+                        self.parent().parent().ellipse1.setRect(self.parent().parent().rectanguloEllipse1)
+                        self.posTextEllipse1 = self.parent().parent().rectanguloEllipse1.topLeft()
                         self.posAnteriorRectEllipse1 = self.end
                         self.begin = self.end
                     #estoy dentro de la elipse 2
                     else:
                         desplazamientoXRecEllip2 = self.end.x() - self.posAnteriorRectEllipse2.x()
                         desplazamientoYRecEllip2 = self.end.y() - self.posAnteriorRectEllipse2.y()
-                        self.parent().rectanguloEllipse2.translate(desplazamientoXRecEllip2, desplazamientoYRecEllip2)
-                        self.parent().ellipse2.setRect(self.parent().rectanguloEllipse2)
-                        self.posTextEllipse2 = self.parent().rectanguloEllipse2.topLeft()
+                        self.parent().parent().rectanguloEllipse2.translate(desplazamientoXRecEllip2, desplazamientoYRecEllip2)
+                        self.parent().parent().ellipse2.setRect(self.parent().parent().rectanguloEllipse2)
+                        self.posTextEllipse2 = self.parent().parent().rectanguloEllipse2.topLeft()
                         self.posAnteriorRectEllipse2 = self.end
                         self.begin = self.end
         ####
@@ -634,7 +663,7 @@ class TestImage(QLabel):
         #detecto la posicion en la que se solto el mouse
         self.end = event.pos()
         #rectangulo
-        if self.parent().toolROIs == 0:    
+        if self.parent().parent().toolROIs == 0:    
             #determino si estoy soltando el borde
             if self.clickBordeRect:
                 print("fin ajuste tama;o")
@@ -646,16 +675,16 @@ class TestImage(QLabel):
             #estoy soltando una nueva roi
             else:
                 if self.flag:
-                    if self.parent().indiceRect == 0:
-                        self.parent().rectangulo1 = QRect(self.begin, self.end)
+                    if self.parent().parent().indiceRect == 0:
+                        self.parent().parent().rectangulo1 = QRect(self.begin, self.end)
                         self.posTextRect1 = self.begin
-                        self.parent().indiceRect = 1
+                        self.parent().parent().indiceRect = 1
                     else:
-                        self.parent().rectangulo2 = QRect(self.begin, self.end)
-                        self.parent().indiceRect = 0
+                        self.parent().parent().rectangulo2 = QRect(self.begin, self.end)
+                        self.parent().parent().indiceRect = 0
                         self.posTextRect2 = self.begin
         #recta
-        if self.parent().toolROIs == 1:
+        if self.parent().parent().toolROIs == 1:
             if self.clickBordeRecta:
                 print("fin ajuste tamaño")
                 self.clickBordeRecta = False
@@ -666,16 +695,16 @@ class TestImage(QLabel):
             else:
                 print(self.begin, self.end)
                 if self.flag:
-                    if self.parent().indiceRect == 0:
-                        self.parent().recta1 = QLine(self.begin,self.end)
+                    if self.parent().parent().indiceRect == 0:
+                        self.parent().parent().recta1 = QLine(self.begin,self.end)
                         self.posTextRecta1 = self.begin
-                        self.parent().indiceRect = 1
+                        self.parent().parent().indiceRect = 1
                     else:
-                        self.parent().recta2 = QLine(self.begin,self.end)
-                        self.parent().indiceRect = 0
+                        self.parent().parent().recta2 = QLine(self.begin,self.end)
+                        self.parent().parent().indiceRect = 0
                         self.posTextRecta2 = self.begin
         #elipse
-        if self.parent().toolROIs == 2:
+        if self.parent().parent().toolROIs == 2:
             if self.clickBordeEllipse:
                 self.clickBordeEllipse = False
                 self.clickBordeTopRectEllipse1 = False
@@ -685,19 +714,19 @@ class TestImage(QLabel):
             #si no es un click en el borde es que se dibujo uno nuevo o se translado uno ya existente
             else:
                 if self.flag:
-                    if self.parent().indiceEllipse == 0:
-                        self.parent().rectanguloEllipse1 = QRectF(self.begin, self.end)
-                        self.parent().ellipse1 = QGraphicsEllipseItem(self.parent().rectanguloEllipse1)
+                    if self.parent().parent().indiceEllipse == 0:
+                        self.parent().parent().rectanguloEllipse1 = QRectF(self.begin, self.end)
+                        self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
                         self.posTextEllipse1 = self.begin
-                        self.parent().indiceEllipse = 1
+                        self.parent().parent().indiceEllipse = 1
                     else:
-                        self.parent().rectanguloEllipse2 = QRectF(self.begin, self.end)
-                        self.parent().ellipse2 = QGraphicsEllipseItem(self.parent().rectanguloEllipse2)
-                        self.parent().indiceEllipse = 0
+                        self.parent().parent().rectanguloEllipse2 = QRectF(self.begin, self.end)
+                        self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
+                        self.parent().parent().indiceEllipse = 0
                         self.posTextEllipse2 = self.begin
                 else:
-                    self.parent().presionTeclaEnEllipse1Flag = False
-                    self.parent().presionTeclaEnEllipse2Flag = False
+                    self.parent().parent().presionTeclaEnEllipse1Flag = False
+                    self.parent().parent().presionTeclaEnEllipse2Flag = False
         ####
         self.update()
     
@@ -736,49 +765,66 @@ class App(QWidget):
         self.beginRect = QPoint()
         self.endRect = QPoint()
         
-        self.subwindow.indiceRect = 0
-        #
-       
-        #defino los rectangulos
-        self.subwindow.rectangulo1 = QRect(self.beginRect, self.endRect)
-        self.subwindow.rectangulo2 = QRect(self.beginRect, self.endRect)
-        self.subwindow.listaRects = [self.subwindow.rectangulo1, self.subwindow.rectangulo2]
-        #defino las lineas
-        self.beginLinea = QPoint()
-        self.endLinea = QPoint()
-        self.subwindow.recta1 = QLine(self.beginLinea, self.endLinea)
-        self.subwindow.recta2 = QLine(self.beginLinea, self.endLinea)
-        self.subwindow.indiceRecta = 0
-        #defino las elipses o circulos
-        self.beginEllipse = QPoint()
-        self.endEllipse = QPoint()
-        #definimos la elipse 1
-        self.subwindow.rectanguloEllipse1 = QRectF(self.beginEllipse, self.endEllipse)
-        self.subwindow.ellipse1 = QGraphicsEllipseItem(self.subwindow.rectanguloEllipse1)
-        #definimos la elipse 2
-        self.subwindow.rectanguloEllipse2 = QRectF(self.beginEllipse, self.endEllipse)
-        self.subwindow.ellipse2 = QGraphicsEllipseItem(self.subwindow.rectanguloEllipse2)
-        #detecto el angulo
-        self.subwindow.anguloEllipse1 = self.subwindow.ellipse1.rotation()
-        self.subwindow.anguloEllipse2 = self.subwindow.ellipse2.rotation()
-        #numero de clicks
-        self.subwindow.clickEllipse1 = 0
-        self.subwindow.clickEllipse2 = 0
-        #detecto la tecla presionada
-        self.subwindow.teclaUpGirarEllipse1 = False
-        self.subwindow.teclaDownGirarEllipse1 = False
-        self.subwindow.teclaUpGirarEllipse2 = False
-        self.subwindow.teclaDownGirarEllipse2 = False
-        self.subwindow.presionTeclaEnEllipse1Flag = False
-        self.subwindow.presionTeclaEnEllipse2Flag = False
-        #indice para indicar que ellipse estoy usando
-        self.subwindow.indiceEllipse = 0
-        #
-        self.subwindow.toolROIs = 0
         #configuro los objetos para visualizar la imagen
         self.image = TestImage()
         #configuro una iamgen
         self.textLabel = QLabel("WebCam")       
+        #########################Escala##################
+        self.zoomInEscala = 1.25
+        self.zoomOutEscala = 0.8
+        self.zoomInOut = 1
+        #
+        self.image.setBackgroundRole(QPalette.Base)
+        self.image.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+        self.image.setScaledContents(True)
+        #
+        self.scrollArea = QScrollArea()
+        self.scrollArea.setBackgroundRole(QPalette.Dark)
+        self.scrollArea.setWidget(self.image)
+        self.scrollArea.setVisible(True)
+        #
+        self.scrollArea.zoomInButton = False
+        self.scrollArea.zoomOutButton = False
+        #########################Escala###################
+        #
+        self.scrollArea.indiceRect = 0
+        #       
+        #defino los rectangulos
+        self.scrollArea.rectangulo1 = QRect(self.beginRect, self.endRect)
+        self.scrollArea.rectangulo2 = QRect(self.beginRect, self.endRect)
+        self.scrollArea.listaRects = [self.scrollArea.rectangulo1, self.scrollArea.rectangulo2]
+        #defino las lineas
+        self.beginLinea = QPoint()
+        self.endLinea = QPoint()
+        self.scrollArea.recta1 = QLine(self.beginLinea, self.endLinea)
+        self.scrollArea.recta2 = QLine(self.beginLinea, self.endLinea)
+        self.scrollArea.indiceRecta = 0
+        #defino las elipses o circulos
+        self.beginEllipse = QPoint()
+        self.endEllipse = QPoint()
+        #definimos la elipse 1
+        self.scrollArea.rectanguloEllipse1 = QRectF(self.beginEllipse, self.endEllipse)
+        self.scrollArea.ellipse1 = QGraphicsEllipseItem(self.scrollArea.rectanguloEllipse1)
+        #definimos la elipse 2
+        self.scrollArea.rectanguloEllipse2 = QRectF(self.beginEllipse, self.endEllipse)
+        self.scrollArea.ellipse2 = QGraphicsEllipseItem(self.scrollArea.rectanguloEllipse2)
+        #detecto el angulo
+        self.scrollArea.anguloEllipse1 = self.scrollArea.ellipse1.rotation()
+        self.scrollArea.anguloEllipse2 = self.scrollArea.ellipse2.rotation()
+        #numero de clicks
+        self.scrollArea.clickEllipse1 = 0
+        self.scrollArea.clickEllipse2 = 0
+        #detecto la tecla presionada
+        self.scrollArea.teclaUpGirarEllipse1 = False
+        self.scrollArea.teclaDownGirarEllipse1 = False
+        self.scrollArea.teclaUpGirarEllipse2 = False
+        self.scrollArea.teclaDownGirarEllipse2 = False
+        self.scrollArea.presionTeclaEnEllipse1Flag = False
+        self.scrollArea.presionTeclaEnEllipse2Flag = False
+        #indice para indicar que ellipse estoy usando
+        self.scrollArea.indiceEllipse = 0
+        #
+        self.scrollArea.toolROIs = 0
         #
         self.thread = VideoThread()
         self.thread.change_pixmap_signal.connect(self.update_image)
@@ -826,7 +872,7 @@ class App(QWidget):
         #
         vbox = QVBoxLayout()  
         vbox.addWidget(toolbar)      
-        vbox.addWidget(self.image)        
+        vbox.addWidget(self.scrollArea)#image)        
         self.subwindow.setLayout(vbox)
         #
         hbox = QHBoxLayout()
@@ -858,7 +904,9 @@ class App(QWidget):
     def drawROIRectangle(self, statusButton):
         print("click make a ROI Rectangle", statusButton)
         #logica para dibujar un rectangulo
-        self.subwindow.toolROIs = 0
+        self.scrollArea.toolROIs = 0
+        self.scrollArea.zoomInButton = False
+        self.scrollArea.zoomOutButton = False
         if statusButton:
             self.button_actionLine.setChecked(False)
             self.button_actionCircle.setChecked(False)
@@ -868,7 +916,9 @@ class App(QWidget):
     def drawROILine(self, statusButton):
         print("click make a ROI Line", statusButton)
         #logica para dibujar una linea
-        self.subwindow.toolROIs = 1
+        self.scrollArea.toolROIs = 1
+        self.scrollArea.zoomInButton = False
+        self.scrollArea.zoomOutButton = False
         if statusButton:
             self.button_actionRect.setChecked(False)
             self.button_actionCircle.setChecked(False)
@@ -878,7 +928,9 @@ class App(QWidget):
     def drawROICircle(self, statusButton):
         print("click make a ROI Circle", statusButton)
         #logica para dibujar un circulo
-        self.subwindow.toolROIs = 2
+        self.scrollArea.toolROIs = 2
+        self.scrollArea.zoomInButton = False
+        self.scrollArea.zoomOutButton = False
         if statusButton:
             self.button_actionRect.setChecked(False)
             self.button_actionLine.setChecked(False)
@@ -888,7 +940,9 @@ class App(QWidget):
     def makeZoomIn(self, statusButton):
         print("click on Zoom IN", statusButton)
         #logica para hacer zoomIn
-        self.subwindow.toolROIs = 0
+        self.scrollArea.toolROIs = 3 #ningun herramienta roi
+        self.scrollArea.zoomInButton = True
+        self.scrollArea.zoomOutButton = False
         if statusButton:
             self.button_actionRect.setChecked(False)
             self.button_actionLine.setChecked(False)
@@ -898,7 +952,9 @@ class App(QWidget):
     def makeZoomOut(self, statusButton):
         print("click on Zoom OUT", statusButton)
         #logica para hacer zoomOut
-        self.subwindow.toolROIs = 0
+        self.scrollArea.toolROIs = 3 #ningun herramienta roi
+        self.scrollArea.zoomInButton = False
+        self.scrollArea.zoomOutButton = True
         if statusButton:
             self.button_actionRect.setChecked(False)
             self.button_actionLine.setChecked(False)
