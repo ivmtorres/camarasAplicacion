@@ -1,8 +1,8 @@
-from functools import partial
 
+from functools import partial
 from PyQt5 import QtGui, QtCore,QtWidgets
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen
-from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty, QThread
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette
+from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRect, QLine, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty, QThread
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -32,7 +32,9 @@ from PyQt5.QtWidgets import (
     QGraphicsScene,
     QGraphicsView,
     QToolBar,
-    QAction   
+    QAction,
+    QGraphicsEllipseItem,
+    QScrollArea   
 )
 from PyQt5.QtGui import QIcon, QPaintEvent
 import matplotlib
@@ -56,6 +58,720 @@ try:
 except ImportError:
     pass
 #***************************************************
+#clase para herramientas de imagen
+class TestImage(QLabel):
+    def __init__(self):
+        super().__init__()
+        ######################Escala########################
+        self.scaleFactor = 1
+        self.scala = 1.25
+        ######################Escala########################
+        #punto para deteccion del click
+        self.begin = QPoint()
+        self.end = QPoint()
+        #punto de inicio del texto para el rectangulo 1
+        self.posTextRect1 = QPoint()
+        self.posTextRect2 = QPoint()
+        #habilitacion para dibujar ROIs rectangulares
+        self.flag = True
+        #registro para detectar la posicion anterior del rectangulo1 y del rectangulo2
+        self.posAnteriorRect1 = QPoint()
+        self.posAnteriorRect2 = QPoint()
+        #utilizamos este flag para determinar si se esta moviendo la roi
+        self.flagRec1VsRec2 = True
+        #definimos un registro para determinar si se esta apretando el borde superior o el borde inferior
+        self.umbralTopLeftRect = QPoint(5,5)
+        self.umbralBottomRightRect = QPoint(5,5)
+        #definimos un flag para determinar si se apreto el borde
+        self.clickBordeRect = False
+        self.clickBordeTopLeftRect1 = False
+        self.clickBordeTopLeftRect2 = False
+        self.clickBordeBottomRightRect1 = False
+        self.clickBordeBottomRightRect2 = False
+        
+        ####################Variable para el dibujo de lineas
+        self.posTextRecta1 = QPoint()
+        self.posTextRecta2 = QPoint()
+        #
+        self.posAnteriorRecta1 = QPoint()
+        self.posAnteriorRecta2 = QPoint()
+        self.clickBordeRecta = False
+        self.flagRecta1VsRecta2 = True
+        #
+        self.umbralLeftRect = QPoint(5,5)
+        self.umbralRightRect = QPoint(5,5)
+        #
+        self.clickBordeLeftRecta1 = False
+        self.clickBordeLeftRecta2 = False
+        self.clickBordeRightRecta1 = False
+        self.clickBordeRightRecta2 = False
+        #
+        self.moviendoRecta1 = False
+        self.moviendoRecta2 = False
+        ###################Variable para el dibujo de elipses
+        self.posTextEllipse1 = QPoint()
+        self.posTextEllipse2 = QPoint()
+        #
+        self.posAnteriorRectEllipse1 = QPoint()
+        self.posAnteriorRectEllipse2 = QPoint()
+        #
+        self.flagRectEllipse1VsRectEllipse2 = True
+        #
+        self.umbralLeftEllipse = QPoint(5,5)
+        self.umbralRightEllipse = QPoint(5,5)
+        self.umbralTopEllipse = QPoint(5,5)
+        self.umbralBottomEllipse = QPoint(5,5)
+        #
+        self.clickBordeEllipse = False
+        #
+        self.clickBordeLeftRectEllipse1 = False
+        self.clickBordeLeftRectEllipse2 = False
+        self.clickBordeRightRectEllipse1 = False
+        self.clickBordeRightRectEllipse2 = False
+        self.clickBordeTopRectEllipse1 = False
+        self.clickBordeTopRectEllipse2 = False
+        self.clickBordeBottomRectEllipse1 = False
+        self.clickBordeBottomRectEllipse2 = False
+    #barras de scroll bar a lado derecho e inferior  
+    def adjustScrollBar(self, scrollBar, factor):
+    #capturo el redibujo de la imagen en el textlabel
+        scrollBar.setValue(int(factor * scrollBar.value() + ((factor - 1) * scrollBar.pageStep()/2)))
+    #sobrecargamos el evento de imagen en textlabel
+    def paintEvent(self, event):
+    #sobrecargo el metodo paint de la clase label
+        super().paintEvent(event)
+        try:
+            escala = self.scaleFactor * self.pixmap().size()
+            print(escala)
+            self.resize(escala)
+            flagEstado = True            
+        except:
+            print("error Image")
+            flagEstado = False #si tenemos un error en la adquisicion no agregamos los objetos en la imagen
+        if flagEstado:
+            #instancio a la clase QPainter
+            qp = QPainter(self)
+            #defino un color para el objeto instanciado
+            br = QBrush(QColor(100,10,10,40))
+            #pinto el objeto 
+            qp.setBrush(br)
+            #defino un borde para los objetos
+            pen = QtGui.QPen()
+            pen.setWidth(3)
+            pen.setColor(QtGui.QColor("#00FF00"))
+            #asigno este objeto al objeto painter instanciado
+            qp.setPen(pen)
+            #dibujo dos rectangulos llevo la posicion en dos variables del programa principal
+            qp.drawRect(self.parent().parent().rectangulo1) #
+            qp.drawText(self.posTextRect1,"rect1")
+            qp.drawRect(self.parent().parent().rectangulo2)
+            qp.drawText(self.posTextRect2,"rect2")
+            #dibujo dos lineas
+            qp.drawLine(self.parent().parent().recta1)
+            qp.drawText(self.posTextRecta1, "recta1")
+            qp.drawLine(self.parent().parent().recta2)
+            qp.drawText(self.posTextRecta2, "recta2")
+            #dibujo dos ellipses
+            #deteccion de giro de ellipse
+            presionEnEllipse1 = (self.parent().parent().presionTeclaEnEllipse1Flag & (self.parent().parent().teclaUpGirarEllipse1 | self.parent().parent().teclaDownGirarEllipse1))
+            presionEnEllipse2 = (self.parent().parent().presionTeclaEnEllipse2Flag & (self.parent().parent().teclaUpGirarEllipse2 | self.parent().parent().teclaDownGirarEllipse2))
+            if presionEnEllipse1 | presionEnEllipse2 :
+                if self.parent().parent().presionTeclaEnEllipse1Flag:
+                    if self.parent().parent().teclaUpGirarEllipse1:
+                        self.parent().parent().anguloEllipse1 = self.parent().parent().ellipse1.rotation() + 1 * self.parent().parent().clickEllipse1
+                        #roto la elipse 1
+                        qp.rotate(self.parent().parent().anguloEllipse1)
+                        #dibujo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse1)
+                        qp.drawText(self.posTextEllipse1, "Ellipse1")
+                        #restauro
+                        qp.resetTransform()
+                        #dibujo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse2)
+                        qp.drawText(self.posTextEllipse2, "Ellipse2")
+                        #reseteo los flags de deteccion de giro
+                        self.parent().parent().teclaDownGirarEllipse1 = False
+                        self.parent().parent().teclaUpGirarEllipse2 = False
+                        self.parent().parent().teclaDownGirarEllipse2 = False
+
+                    elif self.parent().parent().teclaDownGirarEllipse1:
+                        self.parent().parent().anguloEllipse1 = self.parent().parent().ellipse1.rotation() + 1 * self.parent().parent().clickEllipse1
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse2)
+                        qp.drawText(self.posTextEllipse2, "Ellipse2")
+                        qp.rotate(self.parent().parent().anguloEllipse1)
+                        #dibujo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloElipse1)
+                        qp.drawText(self.posTextEllipse1, "Ellipse1")
+                        #reseteo los flags de deteccion de giro
+                        self.parent().parent().teclaUpGirarEllipse1 = False
+                        self.parent().parent().teclaUpGirarEllipse2 = False
+                        self.parent().parent().teclaDownGirarEllipse2 = False
+                    else:
+                        pass
+                if self.parent().parent().presionTeclaEnEllipse2Flag:
+                    if self.parent().parent().teclaUpGirarEllipse2:
+                        self.parent().parent().anguloEllipse2 = self.parent().parent().ellipse2.rotation() + 1 * self.parent().parent().clickEllipse2
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse1)
+                        qp.drawText(self.posTextEllipse1, "Ellipse1")
+                        #roto la elipse 1
+                        qp.rotate(self.parent().parent().anguloEllipse2)
+                        #dibujo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse2)
+                        qp.drawText(self.posTextEllipse2, "Ellipse2")
+                        #reseteo los flag de giro
+                        self.parent().parent().teclaUpGirarEllipse1 = False
+                        self.parent().parent().teclaDownGirarEllipse1 = False
+                        self.parent().parent().teclaDownGirarEllipse2 = False
+                    elif self.parent().parent().teclaDownGirarEllipse2:
+                        self.parent().parent().anguloEllipse2 = self.parent().parent().ellipse2.rotation() + 1 * self.parent().parent().clickEllipse2
+                        #dibjo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse1)
+                        qp.drawText(self.posTextEllipse1, "Ellipse1")
+                        qp.rotate(self.parent().parent().anguloEllipse2)
+                        #dibujo las ellipses
+                        qp.drawEllipse(self.parent().parent().rectanguloEllipse2)
+                        qp.drawText(self.posTextEllipse2, "Ellipse2")
+                        #reseteo los flags
+                        self.parent().parent().teclaUpGirarEllipse1 = False
+                        self.parent().parent().teclaDownGirarEllipse1 = False
+                        self.parent().parent().teclaUpGirarEllipse2 = False
+                    else:
+                        pass
+            else:
+                #dibujo las ellipses sin rotar
+                qp.rotate(self.parent().parent().anguloEllipse1)
+                qp.drawEllipse(self.parent().parent().rectanguloEllipse1)
+                qp.drawText(self.posTextEllipse1, "Ellipse1")
+                qp.resetTransform()
+                #dibujo las ellipses sin rotar
+                qp.rotate(self.parent().parent().anguloEllipse2)
+                qp.drawEllipse(self.parent().parent().rectanguloEllipse2)
+                qp.drawText(self.posTextEllipse2, "Ellipse2")
+                #reseteo los flags
+                self.parent().parent().teclaUpGirarEllipse1 = False
+                self.parent().parent().teclaDownGirarEllipse1 = False
+                self.parent().parent().teclaUpGirarEllipse2 = False
+                self.parent().parent().teclaDownGirarEllipse2 = False
+    #sobrecargamos el evento de presion de mouse
+    def mousePressEvent(self, event):
+        #detecto la posicion del ultimo movimiento
+        self.begin = event.pos()
+        #####################################################
+        print("mouse click", self.scaleFactor)
+        if  self.parent().parent().zoomInButton == True:
+            self.scala = 1.25
+        elif self.parent().parent().zoomOutButton == True:
+            self.scala = 0.8
+        else:
+            self.scala = 1
+        #calculamos el factor de escala
+        self.scaleFactor *= self.scala
+        #detectamos si se esta dibujando los rectangulos
+        if self.parent().parent().toolROIs == 0:
+            #defino las condiciones de borde, si es que estoy tocando el borde o no
+            detectoCondicionClickBordeTopLeftRect1Inf = (self.parent().parent().rectangulo1.topLeft() - self.umbralTopLeftRect).x() 
+            detectoCondicionClickBordeTopLeftRect1Sup = (self.parent().parent().rectangulo1.topLeft() + self.umbralTopLeftRect).x()
+            condicionClickBordeTopLeftRect1 = detectoCondicionClickBordeTopLeftRect1Inf < self.begin.x() < detectoCondicionClickBordeTopLeftRect1Sup 
+            
+            detectoCondicionClickBordeTopLeftRect2Inf = (self.parent().parent().rectangulo2.topLeft() - self.umbralTopLeftRect).x()
+            detectoCondicionClickBordeTopLeftRect2Sup = (self.parent().parent().rectangulo2.topLeft() + self.umbralTopLeftRect).x()
+            condicionClickBordeTopLeftRect2 = detectoCondicionClickBordeTopLeftRect2Inf < self.begin.x() < detectoCondicionClickBordeTopLeftRect2Sup
+
+            detectoCondicionClickBordeBottomRightRect1Inf = (self.parent().parent().rectangulo1.bottomRight() - self.umbralBottomRightRect).x()
+            detectoCondicionClickBordeBottomRightRect1Sup = (self.parent().parent().rectangulo1.bottomRight() + self.umbralBottomRightRect).x()
+            condicionClickBordeBottomRightRect1 = detectoCondicionClickBordeBottomRightRect1Inf < self.begin.x() < detectoCondicionClickBordeBottomRightRect1Sup
+            
+            detectoCondicionClickBordeBottomRightRect2Inf = (self.parent().parent().rectangulo2.bottomRight() - self.umbralBottomRightRect).x()
+            detectoCondicionClickBordeBottomRightRect2Sup = (self.parent().parent().rectangulo2.bottomRight() + self.umbralBottomRightRect).x()
+            condicionClickBordeBottomRightRect2 = detectoCondicionClickBordeBottomRightRect2Inf < self.begin.x() < detectoCondicionClickBordeBottomRightRect2Sup
+            #comparamos si se esta haciendo un click
+            if condicionClickBordeTopLeftRect1 | condicionClickBordeTopLeftRect2 | condicionClickBordeBottomRightRect1 | condicionClickBordeBottomRightRect2:
+                #se detecto un borde
+                self.clickBordeRect = True
+                #se detecto el borde 1
+                if condicionClickBordeTopLeftRect1:
+                    print("click borde superior rect 1")
+                    self.clickBordeTopLeftRect1 = True
+                    self.clickBordeTopLeftRect2 = False                
+                elif condicionClickBordeTopLeftRect2:
+                    print("click borde superior rect 2")
+                    self.clickBordeTopLeftRect1 = False
+                    self.clickBordeTopLeftRect2 = True            
+                elif condicionClickBordeBottomRightRect1:
+                    print("click borde inferior rect 1")
+                    self.clickBordeBottomRightRect1 = True
+                    self.clickBordeBottomRightRect2 = False            
+                elif condicionClickBordeBottomRightRect2:
+                    print("click borde inferior rect 2")
+                    self.clickBordeBottomRightRect1 = False
+                    self.clickBordeBottomRightRect2 = True
+                else:
+                    print("no se presiono ningun borde, no deberias estar aca!")
+            else:
+                #verifico si el click fue dentro del rectangulo 1
+                if self.parent().parent().rectangulo1.contains(self.begin, False):
+                    self.flag = False
+                    #guardo la posicion del click como la posicion anterior
+                    self.posAnteriorRect1 = self.begin
+                    if self.parent().parent().indiceRect == 0:
+                        print("estoy haciendo un click para dibujar el rectangulo 1")
+                    else:
+                        print("estoy haciendo un click para dibujar el rectangulo 2")
+                    self.flagRec1VsRec2 = True
+                #verifico si el click fue dentro del rectangulo 2
+                elif self.parent().parent().rectangulo2.contains(self.begin, False):
+                    self.flag = False
+                    #guardo la posicion del click como la posicion anterior
+                    self.posAnteriorRect2 = self.begin
+                    if self.parent().parent().indiceRect == 0:
+                        print("estoy haciendo un clikc para dibujar el rectangulo 1")
+                    else:
+                        print("estoy haciendo un click para dibujar el rectangulo 2")
+                    self.flagRec1VsRec2 = False
+                else:
+                    #estoy dibujando un nuevo rectangulo
+                    self.flag = True
+        #detecto si se estan dibujando las rectas
+        if self.parent().parent().toolROIs == 1:
+            #determino si se esta presionando la esquina de la recta 1 - 2
+            #determino si se esta presionando la esquina de la recta 1 - 2
+            condicionClickBordeLeftRecta1Inf = (self.parent().parent().recta1.p1() - self.umbralLeftRect).x()
+            condicionClickBordeLeftRecta1Sup = (self.parent().parent().recta1.p1() + self.umbralLeftRect).x()
+            condicionClickBordeLeftRecta1 =  condicionClickBordeLeftRecta1Inf< self.begin.x() < condicionClickBordeLeftRecta1Sup
+            condicionClickBordeLeftRecta2Inf = (self.parent().parent().recta2.p1() - self.umbralLeftRect).x()
+            condicionClickBordeLeftRecta2Sup = (self.parent().parent().recta2.p1() + self.umbralLeftRect).x()
+            condicionClickBordeLeftRecta2 =  condicionClickBordeLeftRecta2Inf< self.begin.x() <condicionClickBordeLeftRecta2Sup 
+            condicionClickBordeRightRecta1Inf = (self.parent().parent().recta1.p2() - self.umbralRightRect).x()
+            condicionClickBordeRightRecta1Sup = (self.parent().parent().recta1.p2() + self.umbralRightRect).x()
+            condicionClickBordeRightRecta1 = condicionClickBordeRightRecta1Inf < self.begin.x() < condicionClickBordeRightRecta1Sup
+            condicionClickBordeRightRecta2Inf = (self.parent().parent().recta2.p2() - self.umbralRightRect).x()
+            condicionClickBordeRightRecta2Sup= (self.parent().parent().recta2.p2() + self.umbralRightRect).x()
+            condicionClickBordeRightRecta2 = condicionClickBordeRightRecta2Inf < self.begin.x() < condicionClickBordeRightRecta2Sup
+            #verifico si se esta haciendo un click en los bordes de las rectas
+            if condicionClickBordeLeftRecta1 | condicionClickBordeLeftRecta2 | condicionClickBordeRightRecta1 | condicionClickBordeRightRecta2:
+                #indicamos que se realizo un click en uno de los bordes
+                self.clickBordeRecta = True 
+                #condicion click en el extremo izquierdo recta 1
+                if condicionClickBordeLeftRecta1:
+                    print("click borde izquierdo recta 1")
+                    self.clickBordeLeftRecta1 = True
+                #condicion click en el extremo izquierdo recta 2
+                elif condicionClickBordeLeftRecta2:
+                    print("click borde izquierdo recta 2")
+                    self.clickBordeLeftRecta2 = True
+                #condicion click en el extremo derecho recta 1
+                elif condicionClickBordeRightRecta1:
+                    print("click borde derecho recta 1")
+                    self.clickBordeRightRecta1 = True
+                #condicion click en el extremo derecho recta 2        
+                elif condicionClickBordeRightRecta2:
+                    print("click borde derecho recta 2")
+                    self.clickBordeRightRecta2 = True
+                else:
+                    print("no se presiono ningun borde, no deberiamos estar aca")
+            #no se presiono ningun borde y estamos dibujando una nueva recta
+            #o bien estamos desplazando la recta dibujada
+            else:
+                #determino si el punto donde se hace click esta dentro de la recta
+                if(not self.parent().parent().recta1.isNull()) & (not self.parent().parent().recta2.isNull()):
+                    valorInicialRecta1ZonaInf = (self.parent().parent().recta1.p1().x() < self.begin.x() < self.parent().parent().recta1.p2().x()) | (self.parent().parent().recta1.p2().x()<self.begin.x()<self.parent().parent().recta1.p1().x())
+                    valorFinalRecta1ZonaSup = (self.parent().parent().recta1.p1().y() < self.begin.y() < self.parent().parent().recta1.p2().y()) | (self.parent().parent().recta1.p2().y()<self.begin.y()<self.parent().parent().recta1.p1().y())
+                    condicionClickDentroRecta1XY =  valorInicialRecta1ZonaInf & valorFinalRecta1ZonaSup  
+                    pendienteRecta1 = abs(self.parent().parent().recta1.p1().y() - self.parent().parent().recta1.p2().y()) / abs(self.parent().parent().recta1.p1().x() - self.parent().parent().recta1.p2().x()) 
+                    pendienteRecta1PuntoClick = abs(self.parent().parent().recta1.p1().y()-self.begin.y())/abs(self.parent().parent().recta1.p1().x()-self.begin.x())
+                    condicionClickDentroRecta1Pendiente = pendienteRecta1 * 0.9 < pendienteRecta1PuntoClick < pendienteRecta1 * 1.1
+
+                    valorInicialRecta2ZonaInf = (self.parent().parent().recta2.p1().x() < self.begin.x() < self.parent().parent().recta2.p2().x()) | (self.parent().parent().recta2.p2().x()<self.begin.x()<self.parent().parent().recta2.p1().x())
+                    valorFinalRecta2ZonaSup = (self.parent().parent().recta2.p1().y() < self.begin.y() < self.parent().parent().recta2.p2().y()) | (self.parent().parent().recta2.p2().y()<self.begin.y()<self.parent().parent().recta2.p1().y())
+                    condicionClickDentroRecta2XY = valorInicialRecta2ZonaInf & valorFinalRecta2ZonaSup   
+                    pendienteRecta2 = abs(self.parent().parent().recta2.p1().y() - self.parent().parent().recta2.p2().y()) / abs(self.parent().parent().recta2.p1().x() - self.parent().parent().recta2.p2().x())
+                    pendienteRecta2PuntoClick = abs(self.parent().parent().recta2.p1().y()-self.begin.y())/abs(self.parent().parent().recta2.p1().x()-self.begin.x())
+                    condicionClickDentroRecta2Pendiente = pendienteRecta2 * 0.9 < pendienteRecta2PuntoClick < pendienteRecta2 * 1.1
+                    
+                    self.moviendoRecta1 = condicionClickDentroRecta1XY & condicionClickDentroRecta1Pendiente
+                    self.moviendoRecta2 = condicionClickDentroRecta2XY & condicionClickDentroRecta2Pendiente
+                    #movemos la recta
+                    if self.moviendoRecta1:
+                        self.flag = False
+                        self.posAnteriorRecta1 = self.begin #guardo la posicion del click comola posicion antes de mover el mouse
+                        if self.parent().parent().indiceRect == 0:
+                            print("estoy haciendo un click para mover la recta 1")
+                        else:
+                            print("estoy haciendo un click para mover la recta 2")
+                        self.flagRecta1VsRecta2 = True
+                    elif self.moviendoRecta2:
+                        self.flag = False
+                        self.posAnteriorRecta2 = self.begin
+                        if self.parent().parent().indiceRect == 0:
+                            print("estoy haciendo un click para mover la recta 1")
+                        else:
+                            print("estoy haciendo un click para mover la recta 2")
+                        self.flagRecta1VsRecta2 = False
+                    else:
+                        self.flag = True
+                else:
+                    print("no tengo que estar aca")
+        #detecto si se estan dibujando las ellipses
+        if self.parent().parent().toolROIs == 2:
+            ptoXEllipse = self.begin.x()
+            ptoYEllipse = self.begin.y()
+            #condicion de borde izquierdo - derecho para ellipse1-2
+            condicionClickBordeLeftRectEllipse1Inf = (int(self.parent().parent().ellipse1.rect().left()) - self.umbralLeftEllipse.x())
+            condicionClickBordeLeftRectEllipse1Sup = (int(self.parent().parent().ellipse1.rect().left()) + self.umbralLeftEllipse.x())
+            condicionClickBordeLeftRectEllipse1 = condicionClickBordeLeftRectEllipse1Inf < self.begin.x() < condicionClickBordeLeftRectEllipse1Sup
+            #
+            condicionClickBordeLeftRectEllipse2Inf = (int(self.parent().parent().ellipse2.rect().left()) - self.umbralLeftEllipse.x())
+            condicionClickBordeLeftRectEllipse2Sup = (int(self.parent().parent().ellipse2.rect().left()) + self.umbralLeftEllipse.x())
+            condicionClickBordeLeftRectEllipse2 = condicionClickBordeLeftRectEllipse2Inf < self.begin.x() < condicionClickBordeLeftRectEllipse2Sup
+            #
+            condicionClickBordeRightRectEllipse1Inf = (int(self.parent().parent().ellipse1.rect().right()) - self.umbralRightEllipse.x())
+            condicionClickBordeRightRectEllipse1Sup = (int(self.parent().parent().ellipse1.rect().right()) + self.umbralRightEllipse.x())
+            condicionClickBordeRightRectEllipse1 = condicionClickBordeRightRectEllipse1Inf < self.begin.x() < condicionClickBordeRightRectEllipse1Sup
+            #
+            condicionClickBordeRightRectEllipse2Inf = (int(self.parent().parent().ellipse2.rect().right()) - self.umbralRightEllipse.x())
+            condicionClickBordeRightRectEllipse2Sup = (int(self.parent().parent().ellipse2.rect().right()) + self.umbralRightEllipse.x())
+            condicionClickBordeRightRectEllipse2 = condicionClickBordeRightRectEllipse2Inf < self.begin.x() < condicionClickBordeRightRectEllipse2Sup
+            #condicion de borde superior - inferior para ellise1-2
+            condicionClickBordeTopRectEllipse1Inf = (int(self.parent().parent().ellipse1.rect().top()) - self.umbralTopEllipse.y())
+            condicionClickBordeTopRectEllipse1Sup = (int(self.parent().parent().ellipse1.rect().top()) + self.umbralTopEllipse.y())
+            condicionClickBordeTopRectEllipse1 = condicionClickBordeTopRectEllipse1Inf < self.begin.y() < condicionClickBordeTopRectEllipse1Sup
+            #
+            condicionClickBordeTopRectEllipse2Inf = (int(self.parent().parent().ellipse2.rect().top()) - self.umbralTopEllipse.y())
+            condicionClickBordeTopRectEllipse2Sup = (int(self.parent().parent().ellipse2.rect().top()) + self.umbralTopEllipse.y())
+            condicionClickBordeTopRectEllipse2 = condicionClickBordeTopRectEllipse2Inf < self.begin.y() < condicionClickBordeTopRectEllipse2Sup
+            #
+            condicionClickBordeBottomRectEllipse1Inf = (int(self.parent().parent().ellipse1.rect().bottom()) - self.umbralBottomEllipse.y()) 
+            condicionClickBordeBottomRectEllipse1Sup = (int(self.parent().parent().ellipse1.rect().bottom()) + self.umbralBottomEllipse.y())
+            condicionClickBordeBottomRectEllipse1 = condicionClickBordeBottomRectEllipse1Inf < self.begin.y() < condicionClickBordeBottomRectEllipse1Sup
+            #
+            condicionClickBordeBottomRectEllipse2Inf = (int(self.parent().parent().ellipse2.rect().bottom()) - self.umbralBottomEllipse.y())
+            condicionClickBordeBottomRectEllipse2Sup = (int(self.parent().parent().ellipse2.rect().bottom()) + self.umbralBottomEllipse.y())
+            condicionClickBordeBottomRectEllipse2 = condicionClickBordeBottomRectEllipse2Inf < self.begin.y() < condicionClickBordeBottomRectEllipse2Sup            
+            #verifico la condicion de click en el borde superior o derecho
+            if condicionClickBordeLeftRectEllipse1 | condicionClickBordeLeftRectEllipse2 | condicionClickBordeRightRectEllipse1 | condicionClickBordeRightRectEllipse2 | condicionClickBordeTopRectEllipse1 | condicionClickBordeTopRectEllipse2 | condicionClickBordeBottomRectEllipse1 | condicionClickBordeBottomRectEllipse2:
+                #si se realiza un click en el borde
+                self.clickBordeEllipse = True
+                #esto esta mal realizado pero por motivos de clarificar el codigo lo hacemos asi
+                self.clickBordeLeftRectEllipse1 = False
+                self.clickBordeLeftRectEllipse2 = False
+                self.clickBordeRightRectEllipse1 = False
+                self.clickBordeRightRectEllipse2 = False
+                self.clickBordeTopRectEllipse1 = False
+                self.clickBordeTopRectEllipse2 = False
+                self.clickBordeBottomRectEllipse1 = False
+                self.clickBordeBottomRectEllipse2 = False
+                #verifico las condiciones
+                #detecto el borde izquierdo ellipse 1
+                if condicionClickBordeLeftRectEllipse1:
+                    print("click borde superior rect ellipse 1")
+                    self.clickBordeLeftRectEllipse1 = True
+                #detecto el borde izquierdo ellipse 2
+                elif condicionClickBordeLeftRectEllipse2:
+                    print("click bordesuperior rect ellipse 2")
+                    self.clickBordeLeftRectEllipse2 = True
+                #detecto el borde derecho ellipse 1
+                elif condicionClickBordeRightRectEllipse1:
+                    print("click borde derecho rect ellipse 1")
+                    self.clickBordeRightRectEllipse1 = True
+                #detecto el borde derecho ellipse 2
+                elif condicionClickBordeRightRectEllipse2:
+                    print("click borde derecho rect ellipse 2")
+                    self.clickBordeRightRectEllipse2 = True
+                #detecto el borde superio ellipse 1
+                elif condicionClickBordeTopRectEllipse1:
+                    print("click borde top rect ellipse 1")
+                    self.clickBordeTopRectEllipse1 = True
+                #detecto el borde superior ellipse 2
+                elif condicionClickBordeTopRectEllipse2:
+                    print("click borde top rect ellipse 2")
+                    self.clickBordeTopRectEllipse2 = True
+                #detecto el borde inferior ellipse 1
+                elif condicionClickBordeBottomRectEllipse1:
+                    print("click borde bottom rect ellipse 1")
+                    self.clickBordeBottomRectEllipse1 = True
+                #detecto el borde inferior ellipse 2
+                elif condicionClickBordeBottomRectEllipse2:
+                    print("click borde bottom rect ellipse 2")
+                    self.clickBordeBottomRectEllipse2 = True
+                else:
+                    print("no se presiono ningun borde, no deberias estas aca!")
+            #no es un click en el borde entonces hay dos opciones
+            #se esta graficando una nueva ellipse o se esta intentando
+            #desplazar la ellipse existente
+            #click dentro de ellipse o fuera de ellipse pero no en ningun borde
+            else:
+                #estoy haciendo un click dentro de la ellipse 1
+                if self.parent().parent().rectanguloEllipse1.contains(ptoXEllipse,ptoYEllipse):
+                    #marco que se presiono el mouse sobre una elipse
+                    self.parent().parent().presionTeclaEnEllipse1Flag = True
+                    self.parent().parent().presionTeclaEnEllipse2Flag = False
+                    #detecto que se esta intentando mover la elipse 1
+                    self.flag = False
+                    #guardo la posicion anterior
+                    self.posAnteriorRectEllipse1 = self.begin     
+                    if self.parent().parent().indiceEllipse == 0:
+                        print("click ellipse 1 estoy haciendo un click para dibujar el rectangulo ellipse 1")
+                    else:
+                        print("click elipse 1 estoy haciendo un clikc para dibujar el rectantulo ellipse 2 ")  
+                    self.flagRectEllipse1VsRectEllipse2 = True
+                elif self.parent().parent().rectanguloEllipse2.contains(ptoXEllipse, ptoYEllipse):
+                    #marco que se presiono el mouse sobre una ellipse
+                    self.parent().parent().presionReclaEnEllipse1Flag = False
+                    self.parent().parent().presionTeclaEnEllipse2Flag = True
+                    self.flag = False
+                    #guardo la posicion anterior
+                    self.posAnteriorRectEllipse2 = self.begin
+                    if self.parent().parent().indiceEllipse == 0 :
+                        print("click elipse 2 estoy haciendo un click para dibujar el rectangulo ellipse 1")
+                    else:
+                        print("click elipse 2 estoy haciendo un click para dibujar el rectangulo ellipse 2")
+                    self.flagRectEllipse1VsRectEllipse2 = False
+                #no estoy haciendo un click dentro de ninguna elipse sino fuera para dibujar una nueva elipse 
+                else:
+                    self.flag = True
+                    #pongo en false tecla girar
+                    self.parent().parent().presionTeclaEnEllipse2Flag = False
+                    self.parent().parent().presionTeclaEnEllipse1Flag = False
+        ####
+        self.update()
+    #sobrecargamos el evento de move del mouse
+    def mouseMoveEvent(self, event):
+        #detecto la posiocion del mouse
+        self.end = event.pos()
+        print(self.end)
+        #rectangulo
+        if self.parent().parent().toolROIs == 0:
+            #determino si estoy en un borde
+            if self.clickBordeRect:
+                print("reducir tama;o")
+                if self.clickBordeTopLeftRect1:
+                    self.parent().parent().rectangulo1.setTopLeft(event.pos())
+                    self.posTextRect1 = self.parent().parent().rectangulo1.topLeft()
+                elif self.clickBordeTopLeftRect2:
+                    self.parent().parent().rectangulo2.setTopLeft(event.pos())
+                    self.posTextRect2 = self.parent().parent().rectangulo2.topLeft()
+                elif self.clickBordeBottomRightRect1:
+                    self.parent().parent().rectangulo1.setBottomRight(event.pos())
+                elif self.clickBordeBottomRightRect2:
+                    self.parent().parent().rectangulo2.setBottomRight(event.pos())
+                else:
+                    print("aca va la parte del borde inferior")
+            #no estoy en un borde
+            else:
+                #estoy arrastrando el mouse mientras dibujo una nueva roi
+                if self.flag:
+                    if self.parent().parent().indiceRect == 0:
+                        self.parent().parent().rectangulo1 = QRect(self.begin, self.end)
+                        self.posTextRect1 = self.begin
+                    else:
+                        self.parent().parent().rectangulo2 = QRect(self.begin, self.end)
+                        self.posTextRect2 = self.begin
+                #estoy realizando un desplazamiento del rectangulo mientras muevo el mouse
+                else:
+                    if self.parent().parent().rectangulo1.contains(self.begin, False) & self.flagRec1VsRec2:
+                        #calculo la distancia entre el punto x-y y el punto clickeado dentro del rectangulo
+                        desplazamientoXRect1 = self.end.x() - self.posAnteriorRect1.x()
+                        desplazamientoYRect1 = self.end.y() - self.posAnteriorRect1.y()
+                        self.parent().parent().rectangulo1.translate(desplazamientoXRect1, desplazamientoYRect1)
+                        self.posTextRect1 = self.parent().parent().rectangulo1.topLeft()
+                        self.posAnteriorRect1 = self.end
+                        self.begin = self.end
+                    else:
+                        desplazamientoXRect2 = self.end.x() - self.posAnteriorRect2.x()
+                        desplazamientoYRect2 = self.end.y() - self.posAnteriorRect2.y()
+                        self.parent().parent().rectangulo2.translate(desplazamientoXRect2, desplazamientoYRect2)
+                        self.posTextRect2 = self.parent().parent().rectangulo2.topLeft()
+                        self.posAnteriorRect2 = self.end
+                        self.begin = self.end
+        #recta
+        if self.parent().parent().toolROIs == 1:
+            #determina el borde
+            if self.clickBordeRecta:
+                print("reducir tamaño")
+                if self.clickBordeLeftRecta1:
+                    self.parent().parent().recta1.setP1(event.pos())
+                    self.posTextRecta1 = self.parent().parent().recta1.p1()
+                elif self.clickBordeLeftRecta2:
+                    self.parent().parent().recta2.setP1(event.pos())
+                    self.posTextRecta2 = self.parent().parent().recta2.p1()
+                elif self.clickBordeRightRecta1:
+                    self.parent().parent().recta1.setP2(event.pos())
+                elif self.clickBordeRightRecta2:
+                    self.parent().parent().recta2.setP2(event.pos())
+                else:
+                    print("aca va la parte del borde inferior")
+            #estoy arrastrando el mouse mientras dibujo una nueva recta
+            else:
+                if self.flag: 
+                    if self.parent().parent().indiceRect == 0:
+                        self.parent().parent().recta1 = QLine(self.begin, self.end)
+                        self.posTextRecta1 = self.begin
+                    else:
+                        self.parent().parent().recta2 = QLine(self.begin, self.end)
+                        self.posTextRecta2 = self.begin
+                else: #si estoy realizando un desplazamiento de la recta mientras muevo el mouse
+                    if self.moviendoRecta1 & self.flagRecta1VsRecta2:
+                        #estoy moviendo la recta 1
+                        desplazamientoXRecta1 = self.end.x() - self.posAnteriorRecta1.x()
+                        desplazamientoYRecta1 = self.end.y() - self.posAnteriorRecta1.y()
+                        print(desplazamientoXRecta1)
+                        print(desplazamientoYRecta1)
+                        self.parent().parent().recta1.translate(desplazamientoXRecta1,desplazamientoYRecta1)
+                        self.posTextRecta1 = self.parent().parent().recta1.p1()
+                        self.posAnteriorRecta1 = self.end
+                        self.begin = self.end
+                    else: 
+                        desplazamientoXRecta2 = self.end.x() - self.posAnteriorRecta2.x()
+                        desplazamientoYRecta2 = self.end.y() - self.posAnteriorRecta2.y()
+                        self.parent().parent().recta2.translate(desplazamientoXRecta2, desplazamientoYRecta2)
+                        self.posTextRecta2 = self.parent().parent().recta2.p1()
+                        self.posAnteriorRecta2 = self.end
+                        self.begin = self.end
+        #elipse        
+        if self.parent().parent().toolROIs == 2:
+            ptoXEllipse = self.end.x()
+            ptoYEllipse = self.end.y()
+            rect1TopLeftEllipse = self.parent().parent().rectanguloEllipse1.topLeft()
+            rect1BotRightEllipse = self.parent().parent().rectanguloEllipse1.bottomRight()
+            rect2TopLeftEllipse = self.parent().parent().rectanguloEllipse2.topLeft()
+            rect2BotRightEllipse = self.parent().parent().rectanguloEllipse2.bottomRight()
+            #verifico si previamente se hiso un click en el borde
+            if self.clickBordeEllipse:
+                if self.clickBordeLeftRectEllipse1:
+                    self.parent().parent().rectanguloEllipse1 = QRectF(QPointF(ptoXEllipse, rect1TopLeftEllipse.y()), rect1BotRightEllipse)
+                    self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
+                    self.posTextEllipse1 = self.parent().parent().rectanguloEllipse1.topLeft()
+                elif self.clickBordeLeftRectEllipse2:
+                    self.parent().parent().rectanguloEllipse2 = QRectF(QPointF(ptoXEllipse, rect2TopLeftEllipse.y()), rect2BotRightEllipse)
+                    self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
+                    self.posTextEllipse2 = self.parent().parent().rectanguloEllipse2.topLeft()
+                elif self.clickBordeRightRectEllipse1:
+                    self.parent().parent().rectanguloEllipse1 = QRectF(rect1TopLeftEllipse, QPointF(ptoXEllipse, rect1BotRightEllipse.y()))
+                    self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
+                elif self.clickBordeRightRectEllipse2:
+                    self.parent().parent().rectanguloEllipse2 = QRectF(rect2TopLeftEllipse, QPointF(ptoXEllipse, rect2BotRightEllipse.y()))
+                    self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
+                elif self.clickBordeTopRectEllipse1:
+                    self.parent().parent().rectanguloEllipse1 = QRectF(QPointF(rect1TopLeftEllipse.x(),ptoYEllipse), rect1BotRightEllipse)
+                    self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
+                    self.posTextEllipse1 = self.parent().parent().rectanguloEllipse1.topLeft()
+                elif self.clickBordeTopRectEllipse2:
+                    self.parent().parent().rectanguloEllipse2 = QRectF(QPointF(rect2TopLeftEllipse.x(), ptoYEllipse), rect2BotRightEllipse)
+                    self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
+                    self.posTextEllipse2 = self.parent().parent().rectanguloEllipse2.topLeft()
+                elif self.clickBordeBottomRectEllipse1:
+                    self.parent().parent().rectanguloEllipse1 = QRectF(rect1TopLeftEllipse, QPointF(rect1BotRightEllipse.x(), ptoYEllipse))
+                    self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
+                elif self.clickBordeBottomRectEllipse2:
+                    self.parent().parent().rectanguloEllipse2 = QRectF(rect2TopLeftEllipse, QPointF(rect2BotRightEllipse.x(), ptoYEllipse))
+                    self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
+                else:
+                    print("aca no deberiamos estar")
+            else:
+                #estoy arrastrando el mouse mientras dibujo una nueva elipse
+                if self.flag:
+                    if self.parent().parent().indiceEllipse == 0:
+                        self.parent().parent().rectanguloEllipse1 = QRectF(self.begin, self.end)
+                        self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
+                        self.posTextEllipse1 = self.begin
+                    else:
+                        self.parent().parent().rectanguloEllipse2 = QRectF(self.begin, self.end)
+                        self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
+                        self.posTextEllipse2 = self.begin
+                #si estoy realizando un desplazaimiento de la elipse
+                else:
+                    #estoy dentro de la elipse 1
+                    if self.parent().parent().ellipse1.contains(QPointF(ptoXEllipse, ptoYEllipse)) & self.flagRectEllipse1VsRectEllipse2:
+                        #calculo la distrancia entre el punto x-y y el punto clickeado dentro del rectangulo
+                        desplazamientoXRecEllip1 = self.end.x() - self.posAnteriorRectEllipse1.x()
+                        desplazamientoYRecEllip1 = self.end.y() - self.posAnteriorRectEllipse1.y()
+                        self.parent().parent().rectanguloEllipse1.translate(desplazamientoXRecEllip1, desplazamientoYRecEllip1)
+                        self.parent().parent().ellipse1.setRect(self.parent().parent().rectanguloEllipse1)
+                        self.posTextEllipse1 = self.parent().parent().rectanguloEllipse1.topLeft()
+                        self.posAnteriorRectEllipse1 = self.end
+                        self.begin = self.end
+                    #estoy dentro de la elipse 2
+                    else:
+                        desplazamientoXRecEllip2 = self.end.x() - self.posAnteriorRectEllipse2.x()
+                        desplazamientoYRecEllip2 = self.end.y() - self.posAnteriorRectEllipse2.y()
+                        self.parent().parent().rectanguloEllipse2.translate(desplazamientoXRecEllip2, desplazamientoYRecEllip2)
+                        self.parent().parent().ellipse2.setRect(self.parent().parent().rectanguloEllipse2)
+                        self.posTextEllipse2 = self.parent().parent().rectanguloEllipse2.topLeft()
+                        self.posAnteriorRectEllipse2 = self.end
+                        self.begin = self.end
+        ####
+        self.update()
+    #sobrecargamos el evento de soltar el mouse
+    def mouseReleaseEvent(self, event):
+        #detecto la posicion en la que se solto el mouse
+        self.end = event.pos()
+        #rectangulo
+        if self.parent().parent().toolROIs == 0:    
+            #determino si estoy soltando el borde
+            if self.clickBordeRect:
+                print("fin ajuste tama;o")
+                self.clickBordeRect = False
+                self.clickBordeTopLeftRect1 = False
+                self.clickBordeTopLeftRect2 = False
+                self.clickBordeBottomRightRect1 = False
+                self.clickBordeBottomRightRect2 = False
+            #estoy soltando una nueva roi
+            else:
+                if self.flag:
+                    if self.parent().parent().indiceRect == 0:
+                        self.parent().parent().rectangulo1 = QRect(self.begin, self.end)
+                        self.posTextRect1 = self.begin
+                        self.parent().parent().indiceRect = 1
+                    else:
+                        self.parent().parent().rectangulo2 = QRect(self.begin, self.end)
+                        self.parent().parent().indiceRect = 0
+                        self.posTextRect2 = self.begin
+        #recta
+        if self.parent().parent().toolROIs == 1:
+            if self.clickBordeRecta:
+                print("fin ajuste tamaño")
+                self.clickBordeRecta = False
+                self.clickBordeLeftRecta1 = False
+                self.clickBordeLeftRecta2 = False
+                self.clickBordeRightRecta1 = False
+                self.clickBordeRightRecta2 = False
+            else:
+                print(self.begin, self.end)
+                if self.flag:
+                    if self.parent().parent().indiceRect == 0:
+                        self.parent().parent().recta1 = QLine(self.begin,self.end)
+                        self.posTextRecta1 = self.begin
+                        self.parent().parent().indiceRect = 1
+                    else:
+                        self.parent().parent().recta2 = QLine(self.begin,self.end)
+                        self.parent().parent().indiceRect = 0
+                        self.posTextRecta2 = self.begin
+        #elipse
+        if self.parent().parent().toolROIs == 2:
+            if self.clickBordeEllipse:
+                self.clickBordeEllipse = False
+                self.clickBordeTopRectEllipse1 = False
+                self.clickBordeTopRectEllipse2 = False
+                self.clickBordeRightRectEllipse1 = False
+                self.clickBordeRightRectEllipse2 = False
+            #si no es un click en el borde es que se dibujo uno nuevo o se translado uno ya existente
+            else:
+                if self.flag:
+                    if self.parent().parent().indiceEllipse == 0:
+                        self.parent().parent().rectanguloEllipse1 = QRectF(self.begin, self.end)
+                        self.parent().parent().ellipse1 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse1)
+                        self.posTextEllipse1 = self.begin
+                        self.parent().parent().indiceEllipse = 1
+                    else:
+                        self.parent().parent().rectanguloEllipse2 = QRectF(self.begin, self.end)
+                        self.parent().parent().ellipse2 = QGraphicsEllipseItem(self.parent().parent().rectanguloEllipse2)
+                        self.parent().parent().indiceEllipse = 0
+                        self.posTextEllipse2 = self.begin
+                else:
+                    self.parent().parent().presionTeclaEnEllipse1Flag = False
+                    self.parent().parent().presionTeclaEnEllipse2Flag = False
+        ####
+        self.update()
 #***************************************************
 #Clase para comunicacion con camara optris
 class EvoIRFrameMetadata(ct.Structure):
@@ -732,7 +1448,7 @@ class MainWindow(QDialog):
             QSizePolicy.Preferred,
             QSizePolicy.Ignored
         )
-        self.bodyTabWidget.setFixedSize(700,500)
+        self.bodyTabWidget.setFixedSize(1300,720)#700,500)
         #***************************************
         #Creo el contenido de la primer pestaña
         #***************************************
@@ -741,11 +1457,78 @@ class MainWindow(QDialog):
         self.disply_width = 390
         self.display_height = 290
         # create the label that holds the image
-        self.image_label = QLabel(self)
-        self.image_label.resize(self.disply_width, self.display_height)
+        #self.image_label = QLabel(self)
+        #self.image_label.resize(self.disply_width, self.display_height)
         # create a text label
         self.textLabel = QLabel('ThermalCam')
         #**************************************
+        #widget contenedor para toolbar, para imagen y para label
+        self.subwindow = QWidget()
+        #defino los rectangulos
+        self.beginRect = QPoint()
+        self.endRect = QPoint()
+        #configuro los objetos para visualizar la imagen
+        self.image_label = TestImage()
+        self.image_label.resize(self.disply_width, self.display_height)
+        #configuro una imagen
+        #escala
+        self.zoomInEscala = 1.25
+        self.zoomOutEscala = 0.8
+        self.zoomInOut = 1
+        #
+        self.image_label.setBackgroundRole(QPalette.Base)
+        self.image_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+        self.image_label.setScaledContents(True)
+        #
+        self.scrollArea = QScrollArea()
+        self.scrollArea.setBackgroundRole(QPalette.Dark)
+        self.scrollArea.setWidget(self.image_label)
+        self.scrollArea.setVisible(True)
+        self.scrollArea.resize(self.scrollArea.sizeHint())
+        #
+        self.scrollArea.zoomInButton = False
+        self.scrollArea.zoomOutButton = False
+        ############Escala####################
+        #
+        self.scrollArea.indiceRect = 0
+        #
+        #defino los rectangulos
+        self.scrollArea.rectangulo1 = QRect(self.beginRect, self.endRect)
+        self.scrollArea.rectangulo2 = QRect(self.beginRect, self.endRect)
+        self.scrollArea.listaRects = [self.scrollArea.rectangulo1, self.scrollArea.rectangulo2]
+        #defino las lineas
+        self.beginLinea = QPoint()
+        self.endLinea = QPoint()
+        self.scrollArea.recta1 = QLine(self.beginLinea, self.endLinea)
+        self.scrollArea.recta2 = QLine(self.beginLinea, self.endLinea)
+        self.scrollArea.indiceRecta = 0
+        #defino las elipses o circulos
+        self.beginEllipse = QPoint()
+        self.endEllipse = QPoint()
+        #definimos la elipse 1
+        self.scrollArea.rectanguloEllipse1 = QRectF(self.beginEllipse, self.endEllipse)
+        self.scrollArea.ellipse1 = QGraphicsEllipseItem(self.scrollArea.rectanguloEllipse1)
+        #definimos la elipse 2
+        self.scrollArea.rectanguloEllipse2 = QRectF(self.beginEllipse, self.endEllipse)
+        self.scrollArea.ellipse2 = QGraphicsEllipseItem(self.scrollArea.rectanguloEllipse2)
+        #detecto el angulo
+        self.scrollArea.anguloEllipse1 = self.scrollArea.ellipse1.rotation()
+        self.scrollArea.anguloEllipse2 = self.scrollArea.ellipse2.rotation()
+        #numero de clicks
+        self.scrollArea.clickEllipse1 = 0
+        self.scrollArea.clickEllipse2 = 0
+        #detecto la tecla presionada
+        self.scrollArea.teclaUpGirarEllipse1 = False
+        self.scrollArea.teclaDownGirarEllipse1 = False
+        self.scrollArea.teclaUpGirarEllipse2 = False
+        self.scrollArea.teclaDownGirarEllipse2 = False
+        self.scrollArea.presionTeclaEnEllipse1Flag = False
+        self.scrollArea.presionTeclaEnEllipse2Flag = False
+        #indice para indicar que ellipse estoy usando
+        self.scrollArea.indiceEllipse = 0
+        #
+        self.scrollArea.toolROIs = 0
+        #
         #**************************************
         # create the video capture thread
         self.thread = VideoThread()
@@ -770,56 +1553,51 @@ class MainWindow(QDialog):
  
         sub1WindowTab1Boton = QWidget() #creo una subventana para mostrar la camara1 la curvas de la izquierda y la curva de la derecha
         #creo un contenedor para la imagen y para el toolbar
-        contenedorImageToolbarCentralTab1 = QWidget()
+        contenedorImageToolbarCentralTab1 = QWidget()        
         #creo el layout vertical para el tollbar y la imagen 
         contenedorImageToolbarCentralTab1layout = QVBoxLayout()
         #creo el toolbar
         toolBarImageTab1 = QToolBar("Toolbar Image Tab1")
         toolBarImageTab1.setIconSize(QSize(16,16))
         #cargo los iconos en la barra del toolbar
-        #button fit
-        buttonZoomFitActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-fit.png")),"zoom fit",self)
-        buttonZoomFitActionImageTab1.setStatusTip("Zoom fit to full image")
-        buttonZoomFitActionImageTab1.triggered.connect(self.zoomFitImage)
-        buttonZoomFitActionImageTab1.setCheckable(True)
         #button in
-        buttonZoomInActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
-        buttonZoomInActionImageTab1.setStatusTip("Zoom In")
-        buttonZoomInActionImageTab1.triggered.connect(self.zoomInImage)
-        buttonZoomInActionImageTab1.setCheckable(True)
+        self.buttonZoomInActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
+        self.buttonZoomInActionImageTab1.setStatusTip("Zoom In")
+        self.buttonZoomInActionImageTab1.nombreBoton = "zoomInTab1"
+        self.buttonZoomInActionImageTab1.triggered.connect(self.makeZoomIn)
+        self.buttonZoomInActionImageTab1.setCheckable(True)
         #button out
-        buttonZoomOutActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
-        buttonZoomOutActionImageTab1.setStatusTip("Zoom Out")
-        buttonZoomOutActionImageTab1.triggered.connect(self.zoomOutImage)
-        buttonZoomOutActionImageTab1.setCheckable(True)
+        self.buttonZoomOutActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
+        self.buttonZoomOutActionImageTab1.setStatusTip("Zoom Out")
+        self.buttonZoomOutActionImageTab1.nombreBoton = "zoomOutTab1"
+        self.buttonZoomOutActionImageTab1.triggered.connect(self.makeZoomOut)
+        self.buttonZoomOutActionImageTab1.setCheckable(True)
         #button roi rectangle
-        buttonRectRoiActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
-        buttonRectRoiActionImageTab1.setStatusTip("Rectangle Roi")
-        buttonRectRoiActionImageTab1.triggered.connect(self.roiRectImage)
-        buttonRectRoiActionImageTab1.setCheckable(True)
+        self.buttonRectRoiActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
+        self.buttonRectRoiActionImageTab1.setStatusTip("Rectangle Roi")
+        self.buttonRectRoiActionImageTab1.nombreBoton = "roiRectanguloTab1"
+        self.buttonRectRoiActionImageTab1.triggered.connect(self.drawROIRectangle)
+        self.buttonRectRoiActionImageTab1.setCheckable(True)
         #button roi ellipse
-        buttonEllipRoiActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
-        buttonEllipRoiActionImageTab1.setStatusTip("Ellipse Roi")
-        buttonEllipRoiActionImageTab1.triggered.connect(self.roiEllipImage)
-        buttonEllipRoiActionImageTab1.setCheckable(True)
+        self.buttonEllipRoiActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
+        self.buttonEllipRoiActionImageTab1.setStatusTip("Ellipse Roi")
+        self.buttonEllipRoiActionImageTab1.nombreBoton = "roiEllipseTab1"
+        self.buttonEllipRoiActionImageTab1.triggered.connect(self.drawROICircle)
+        self.buttonEllipRoiActionImageTab1.setCheckable(True)
         #button roi line
-        buttonLineRoiActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
-        buttonLineRoiActionImageTab1.setStatusTip("Line Roi")
-        buttonLineRoiActionImageTab1.triggered.connect(self.roiLineImage)
-        buttonLineRoiActionImageTab1.setCheckable(True)
-        #button roi pollygon
-        buttonPoliRoiActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-polygon.png")),"Roi Pollygon", self)
-        buttonPoliRoiActionImageTab1.setStatusTip("Pollygon Roi")
-        buttonPoliRoiActionImageTab1.triggered.connect(self.roiPollyImage)
-        buttonPoliRoiActionImageTab1.setCheckable(True)
+        self.buttonLineRoiActionImageTab1 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
+        self.buttonLineRoiActionImageTab1.setStatusTip("Line Roi")
+        self.buttonLineRoiActionImageTab1.nombreBoton = "roiLineTab1"
+        self.buttonLineRoiActionImageTab1.triggered.connect(self.drawROILine)
+        self.buttonLineRoiActionImageTab1.setCheckable(True)
         #agrego los botones al toolbar
-        toolBarImageTab1.addAction(buttonZoomFitActionImageTab1)
-        toolBarImageTab1.addAction(buttonZoomInActionImageTab1)
-        toolBarImageTab1.addAction(buttonZoomOutActionImageTab1)
-        toolBarImageTab1.addAction(buttonRectRoiActionImageTab1)
-        toolBarImageTab1.addAction(buttonEllipRoiActionImageTab1)
-        toolBarImageTab1.addAction(buttonLineRoiActionImageTab1)
-        toolBarImageTab1.addAction(buttonPoliRoiActionImageTab1)        
+        toolBarImageTab1.addAction(self.buttonZoomInActionImageTab1)
+        toolBarImageTab1.addAction(self.buttonZoomOutActionImageTab1)
+        toolBarImageTab1.addAction(self.buttonRectRoiActionImageTab1)
+        toolBarImageTab1.addAction(self.buttonEllipRoiActionImageTab1)
+        toolBarImageTab1.addAction(self.buttonLineRoiActionImageTab1)
+        #
+        toolBarImageTab1.resize(toolBarImageTab1.sizeHint())
         #*******
         self.scene = QGraphicsScene(0, 0, 0, 0)
         self.pixmap = QPixmap("imageCam1.jpg") #a reemplazar por la imagen
@@ -828,11 +1606,14 @@ class MainWindow(QDialog):
         viewPixMapItem.setRenderHint(QPainter.Antialiasing)
         #*******
         contenedorImageToolbarCentralTab1layout.addWidget(toolBarImageTab1)
-        contenedorImageToolbarCentralTab1layout.addWidget(self.image_label)#)viewPixMapItem) 
+        contenedorImageToolbarCentralTab1layout.addWidget(self.scrollArea)#)viewPixMapItem) 
         contenedorImageToolbarCentralTab1.setLayout(contenedorImageToolbarCentralTab1layout)
         #*******
+        #
+        contenedorImageToolbarCentralTab1.resize(824,768)
+        #
         #agrego grafico izquierda para la camara 1
-        graficoTab1Izq = MplCanvas(self, width=2, height=2, dpi=100)
+        graficoTab1Izq = MplCanvas(self, width=2, height=2, dpi=100) #width = 2, height=2
         #genero un dataframe de prueba para la curva de la camara 1
         dfTab1Izq = pd.DataFrame([
             [0, 10],
@@ -842,8 +1623,9 @@ class MainWindow(QDialog):
             [4, 10]
         ], columns=['A','B'])
         dfTab1Izq.plot(ax=graficoTab1Izq.axes)
+        
         #agrego grafico derecha
-        graficoTab1Der = MplCanvas(self,width=2, height=2, dpi=100)
+        graficoTab1Der = MplCanvas(self,width=2, height=2, dpi=100) #width = 2, height=2
         #genero un dataframe de prueba
         dfTab1Der = pd.DataFrame([
             [0,10],
@@ -856,7 +1638,7 @@ class MainWindow(QDialog):
         #agrego contenedor a la izquierda para curva
         #para label1 y boton1
         #para label2 y boton2
-        contenedorIzqTab1 = QWidget()
+        contenedorIzqTab1 = QWidget()        
         contenedorIzqTab1Layout = QVBoxLayout()
         #creo label 1
         label1Tab1 = QLabel("Edt1")
@@ -893,19 +1675,39 @@ class MainWindow(QDialog):
         disableBoton2Tab1 = partial(self.popUpResetBotonTab1, boton2Tab1)
         boton2Tab1.stateChanged.connect(lambda x: enableBoton2Tab1() if x else disableBoton2Tab1())
         #agrego el layout
-        contenedorIzqTab1Layout.addWidget(graficoTab1Izq)
-        contenedorIzqTab1LayoutSub1 = QHBoxLayout()
-        contenedorIzqTab1LayoutSub2 = QHBoxLayout()
-        contenedorIzqTab1LayoutSub1.addWidget(label1Tab1)
-        contenedorIzqTab1LayoutSub1.addWidget(boton1Tab1)        
-        contenedorIzqTab1LayoutSub1.addWidget(valor1IndTab1)
-        contenedorIzqTab1LayoutSub2.addWidget(label2Tab1)
-        contenedorIzqTab1LayoutSub2.addWidget(boton2Tab1)        
-        contenedorIzqTab1LayoutSub2.addWidget(valor2IndTab1)
-        contenedorIzqTab1Layout.addLayout(contenedorIzqTab1LayoutSub1)
-        contenedorIzqTab1Layout.addLayout(contenedorIzqTab1LayoutSub2)
+        contenedorIzqTab1LayoutSub0 = QHBoxLayout()
+        contenedorIzqTab1WidgetSub0 = QWidget()        
+        contenedorIzqTab1LayoutSub0.addWidget(graficoTab1Izq)
+        contenedorIzqTab1WidgetSub0.setLayout(contenedorIzqTab1LayoutSub0)
+        contenedorIzqTab1WidgetSub0.resize(300,668)
+        contenedorIzqTab1LayoutSub10 = QHBoxLayout()
+        contenedorIzqTab1WidgetSub10 = QWidget()                
+        contenedorIzqTab1LayoutSub10.addWidget(label1Tab1)
+        contenedorIzqTab1LayoutSub10.addWidget(boton1Tab1)        
+        contenedorIzqTab1LayoutSub10.addWidget(valor1IndTab1)
+        contenedorIzqTab1WidgetSub10.setLayout(contenedorIzqTab1LayoutSub10)
+        contenedorIzqTab1WidgetSub10.resize(300,50)
+        contenedorIzqTab1LayoutSub20 = QHBoxLayout()
+        contenedorIzqTab1WidgetSub20 = QWidget()        
+        contenedorIzqTab1LayoutSub20.addWidget(label2Tab1)
+        contenedorIzqTab1LayoutSub20.addWidget(boton2Tab1)        
+        contenedorIzqTab1LayoutSub20.addWidget(valor2IndTab1)
+        contenedorIzqTab1WidgetSub20.setLayout(contenedorIzqTab1LayoutSub20)
+        contenedorIzqTab1WidgetSub20.resize(300,50)        
+        contenedorIzqTab1LayoutSub1=QVBoxLayout()
+        contenedorIzqTab1WidgetSub1=QWidget()
+        contenedorIzqTab1LayoutSub1.addWidget(contenedorIzqTab1WidgetSub10)
+        contenedorIzqTab1LayoutSub1.addWidget(contenedorIzqTab1WidgetSub20)
+        contenedorIzqTab1WidgetSub1.setLayout(contenedorIzqTab1LayoutSub1)
+        contenedorIzqTab1WidgetSub1.resize(300,100)
+        contenedorIzqTab1Layout.addWidget(contenedorIzqTab1WidgetSub0)
+        contenedorIzqTab1Layout.addWidget(contenedorIzqTab1WidgetSub1)
         #cargo el layout
         contenedorIzqTab1.setLayout(contenedorIzqTab1Layout)
+        #
+        anchoContendor = QSize(300,768)
+        contenedorIzqTab1.resize(anchoContendor)
+        #
         #agrego contenedor a la derecha para curva
         #para label3 y boton3
         #para label4 y boton4
@@ -946,25 +1748,44 @@ class MainWindow(QDialog):
         disableBoton4Tab1 = partial(self.popUpResetBotonTab1, boton4Tab1)
         boton4Tab1.stateChanged.connect(lambda x: enableBoton4Tab1() if x else disableBoton4Tab1())
         #agrego el layout
-        contenedorDerTab1Layout.addWidget(graficoTab1Der)
-        contenedorDerTab1LayoutSub1 = QHBoxLayout()
-        contenedorDerTab1LayoutSub2 = QHBoxLayout()
-        contenedorDerTab1LayoutSub1.addWidget(label3Tab1)
-        contenedorDerTab1LayoutSub1.addWidget(boton3Tab1)
-        contenedorDerTab1LayoutSub1.addWidget(valor3IndTab1)
-        contenedorDerTab1LayoutSub2.addWidget(label4Tab1)
-        contenedorDerTab1LayoutSub2.addWidget(boton4Tab1)
-        contenedorDerTab1LayoutSub2.addWidget(valor4IndTab1)
-        contenedorDerTab1Layout.addLayout(contenedorDerTab1LayoutSub1)
-        contenedorDerTab1Layout.addLayout(contenedorDerTab1LayoutSub2)
+        contenedorDerTab1LayoutSub0 = QHBoxLayout()
+        contenedorDerTab1WidgetSub0 = QWidget()        
+        contenedorDerTab1LayoutSub0.addWidget(graficoTab1Der)
+        contenedorDerTab1WidgetSub0.setLayout(contenedorDerTab1LayoutSub0)
+        contenedorDerTab1WidgetSub0.resize(300,668)
+        contenedorDerTab1LayoutSub10 = QHBoxLayout()
+        contenedorDerTab1WidgetSub10 = QWidget()                
+        contenedorDerTab1LayoutSub10.addWidget(label3Tab1)
+        contenedorDerTab1LayoutSub10.addWidget(boton3Tab1)        
+        contenedorDerTab1LayoutSub10.addWidget(valor3IndTab1)
+        contenedorDerTab1WidgetSub10.setLayout(contenedorDerTab1LayoutSub10)
+        contenedorDerTab1WidgetSub10.resize(300,50)
+        contenedorDerTab1LayoutSub20 = QHBoxLayout()
+        contenedorDerTab1WidgetSub20 = QWidget()        
+        contenedorDerTab1LayoutSub20.addWidget(label4Tab1)
+        contenedorDerTab1LayoutSub20.addWidget(boton4Tab1)        
+        contenedorDerTab1LayoutSub20.addWidget(valor4IndTab1)
+        contenedorDerTab1WidgetSub20.setLayout(contenedorDerTab1LayoutSub20)
+        contenedorDerTab1WidgetSub20.resize(300,50)        
+        contenedorDerTab1LayoutSub1=QVBoxLayout()
+        contenedorDerTab1WidgetSub1=QWidget()
+        contenedorDerTab1LayoutSub1.addWidget(contenedorDerTab1WidgetSub10)
+        contenedorDerTab1LayoutSub1.addWidget(contenedorDerTab1WidgetSub20)
+        contenedorDerTab1WidgetSub1.setLayout(contenedorDerTab1LayoutSub1)
+        contenedorDerTab1WidgetSub1.resize(300,100)
+        contenedorDerTab1Layout.addWidget(contenedorDerTab1WidgetSub0)
+        contenedorDerTab1Layout.addWidget(contenedorDerTab1WidgetSub1)
         #cargo el layout
         contenedorDerTab1.setLayout(contenedorDerTab1Layout)
-
+        #
+        contenedorDerTab1.resize(anchoContendor)
+        #
         tab1BotonHboxSub1 = QHBoxLayout()
         tab1BotonHboxSub1.addWidget(contenedorIzqTab1)
         tab1BotonHboxSub1.addWidget(contenedorImageToolbarCentralTab1)#viewPixMapItem)
         tab1BotonHboxSub1.addWidget(contenedorDerTab1)
         sub1WindowTab1Boton.setLayout(tab1BotonHboxSub1)
+        #
         #agrego el texto q representa la barra de conexion y la ventana de trending e imagen                                                                               #
         tab1BotonVbox = QVBoxLayout()
         tab1BotonVbox.setContentsMargins(5,5,5,5)
@@ -1001,49 +1822,42 @@ class MainWindow(QDialog):
         toolBarImageTab2 = QToolBar("Toolbar Image Tab2")
         toolBarImageTab2.setIconSize(QSize(16,16))
         #cargo los iconos en la barra del toolbar
-        #button fit
-        buttonZoomFitActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-fit.png")),"zoom fit",self)
-        buttonZoomFitActionImageTab2.setStatusTip("Zoom fit to full image")
-        buttonZoomFitActionImageTab2.triggered.connect(self.zoomFitImage)
-        buttonZoomFitActionImageTab2.setCheckable(True)
         #button in
-        buttonZoomInActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
-        buttonZoomInActionImageTab2.setStatusTip("Zoom In")
-        buttonZoomInActionImageTab2.triggered.connect(self.zoomInImage)
-        buttonZoomInActionImageTab2.setCheckable(True)
+        self.buttonZoomInActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
+        self.buttonZoomInActionImageTab2.setStatusTip("Zoom In")
+        self.buttonZoomInActionImageTab2.nombreBoton = "zoomInTab2"
+        self.buttonZoomInActionImageTab2.triggered.connect(self.makeZoomIn)
+        self.buttonZoomInActionImageTab2.setCheckable(True)
         #button out
-        buttonZoomOutActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
-        buttonZoomOutActionImageTab2.setStatusTip("Zoom Out")
-        buttonZoomOutActionImageTab2.triggered.connect(self.zoomOutImage)
-        buttonZoomOutActionImageTab2.setCheckable(True)
+        self.buttonZoomOutActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
+        self.buttonZoomOutActionImageTab2.setStatusTip("Zoom Out")
+        self.buttonZoomInActionImageTab2.nombreBoton = "zoomOutTab2"
+        self.buttonZoomOutActionImageTab2.triggered.connect(self.makeZoomOut)
+        self.buttonZoomOutActionImageTab2.setCheckable(True)
         #button roi rectangle
-        buttonRectRoiActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
-        buttonRectRoiActionImageTab2.setStatusTip("Rectangle Roi")
-        buttonRectRoiActionImageTab2.triggered.connect(self.roiRectImage)
-        buttonRectRoiActionImageTab2.setCheckable(True)
+        self.buttonRectRoiActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
+        self.buttonRectRoiActionImageTab2.setStatusTip("Rectangle Roi")
+        self.buttonRectRoiActionImageTab2.nombreBoton = "roiRectanguloTab2"
+        self.buttonRectRoiActionImageTab2.triggered.connect(self.drawROIRectangle)
+        self.buttonRectRoiActionImageTab2.setCheckable(True)
         #button roi ellipse
-        buttonEllipRoiActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
-        buttonEllipRoiActionImageTab2.setStatusTip("Ellipse Roi")
-        buttonEllipRoiActionImageTab2.triggered.connect(self.roiEllipImage)
-        buttonEllipRoiActionImageTab2.setCheckable(True)
+        self.buttonEllipRoiActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
+        self.buttonEllipRoiActionImageTab2.setStatusTip("Ellipse Roi")
+        self.buttonEllipRoiActionImageTab2.nombreBoton = "roiEllipseTab2"
+        self.buttonEllipRoiActionImageTab2.triggered.connect(self.drawROICircle)
+        self.buttonEllipRoiActionImageTab2.setCheckable(True)
         #button roi line
-        buttonLineRoiActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
-        buttonLineRoiActionImageTab2.setStatusTip("Line Roi")
-        buttonLineRoiActionImageTab2.triggered.connect(self.roiLineImage)
-        buttonLineRoiActionImageTab2.setCheckable(True)
-        #button roi pollygon
-        buttonPoliRoiActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-polygon.png")),"Roi Pollygon", self)
-        buttonPoliRoiActionImageTab2.setStatusTip("Pollygon Roi")
-        buttonPoliRoiActionImageTab2.triggered.connect(self.roiPollyImage)
-        buttonPoliRoiActionImageTab2.setCheckable(True)
+        self.buttonLineRoiActionImageTab2 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
+        self.buttonLineRoiActionImageTab2.setStatusTip("Line Roi")
+        self.buttonLineRoiActionImageTab2.nombreBoton = "roiLineTab2"
+        self.buttonLineRoiActionImageTab2.triggered.connect(self.drawROILine)
+        self.buttonLineRoiActionImageTab2.setCheckable(True)
         #agrego los botones al toolbar
-        toolBarImageTab2.addAction(buttonZoomFitActionImageTab2)
-        toolBarImageTab2.addAction(buttonZoomInActionImageTab2)
-        toolBarImageTab2.addAction(buttonZoomOutActionImageTab2)
-        toolBarImageTab2.addAction(buttonRectRoiActionImageTab2)
-        toolBarImageTab2.addAction(buttonEllipRoiActionImageTab2)
-        toolBarImageTab2.addAction(buttonLineRoiActionImageTab2)
-        toolBarImageTab2.addAction(buttonPoliRoiActionImageTab2)        
+        toolBarImageTab2.addAction(self.buttonZoomInActionImageTab2)
+        toolBarImageTab2.addAction(self.buttonZoomOutActionImageTab2)
+        toolBarImageTab2.addAction(self.buttonRectRoiActionImageTab2)
+        toolBarImageTab2.addAction(self.buttonEllipRoiActionImageTab2)
+        toolBarImageTab2.addAction(self.buttonLineRoiActionImageTab2)
         #*******
         contenedorImageToolbarCentralTab2layout.addWidget(toolBarImageTab2)
         contenedorImageToolbarCentralTab2layout.addWidget(viewPixMapItem2)
@@ -1074,6 +1888,7 @@ class MainWindow(QDialog):
             [4,10]
         ], columns=['A','B'])
         dfTab2Izq2.plot(ax=graficoTab2Izq2.axes)
+        
         tab2BotonVBoxSub2 = QVBoxLayout()
         tab2BotonVBoxSub2.addWidget(graficoTab2Izq1)
         tab2BotonVBoxSub2.addWidget(graficoTab2Izq2)
@@ -1122,49 +1937,42 @@ class MainWindow(QDialog):
         toolBarImageTab3 = QToolBar("Toolbar Image Tab3")
         toolBarImageTab3.setIconSize(QSize(16,16))
         #cargo los iconos en la barra del toolbar
-        #button fit
-        buttonZoomFitActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-fit.png")),"zoom fit",self)
-        buttonZoomFitActionImageTab3.setStatusTip("Zoom fit to full image")
-        buttonZoomFitActionImageTab3.triggered.connect(self.zoomFitImage)
-        buttonZoomFitActionImageTab3.setCheckable(True)
         #button in
-        buttonZoomInActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
-        buttonZoomInActionImageTab3.setStatusTip("Zoom In")
-        buttonZoomInActionImageTab3.triggered.connect(self.zoomInImage)
-        buttonZoomInActionImageTab3.setCheckable(True)
+        self.buttonZoomInActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
+        self.buttonZoomInActionImageTab3.setStatusTip("Zoom In")
+        self.buttonZoomInActionImageTab3.nombreBoton = "zoomInTab3"
+        self.buttonZoomInActionImageTab3.triggered.connect(self.makeZoomIn)
+        self.buttonZoomInActionImageTab3.setCheckable(True)
         #button out
-        buttonZoomOutActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
-        buttonZoomOutActionImageTab3.setStatusTip("Zoom Out")
-        buttonZoomOutActionImageTab3.triggered.connect(self.zoomOutImage)
-        buttonZoomOutActionImageTab3.setCheckable(True)
+        self.buttonZoomOutActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
+        self.buttonZoomOutActionImageTab3.setStatusTip("Zoom Out")
+        self.buttonZoomOutActionImageTab3.nombreBoton = "zoomOutTab3"
+        self.buttonZoomOutActionImageTab3.triggered.connect(self.makeZoomOut)
+        self.buttonZoomOutActionImageTab3.setCheckable(True)
         #button roi rectangle
-        buttonRectRoiActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
-        buttonRectRoiActionImageTab3.setStatusTip("Rectangle Roi")
-        buttonRectRoiActionImageTab3.triggered.connect(self.roiRectImage)
-        buttonRectRoiActionImageTab3.setCheckable(True)
+        self.buttonRectRoiActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
+        self.buttonRectRoiActionImageTab3.setStatusTip("Rectangle Roi")
+        self.buttonRectRoiActionImageTab3.nombreBoton = "roiRectanguloTab3"
+        self.buttonRectRoiActionImageTab3.triggered.connect(self.drawROIRectangle)
+        self.buttonRectRoiActionImageTab3.setCheckable(True)
         #button roi ellipse
-        buttonEllipRoiActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
-        buttonEllipRoiActionImageTab3.setStatusTip("Ellipse Roi")
-        buttonEllipRoiActionImageTab3.triggered.connect(self.roiEllipImage)
-        buttonEllipRoiActionImageTab3.setCheckable(True)
+        self.buttonEllipRoiActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
+        self.buttonEllipRoiActionImageTab3.setStatusTip("Ellipse Roi")
+        self.buttonEllipRoiActionImageTab3.nombreBoton = "roiEllipseTab3"
+        self.buttonEllipRoiActionImageTab3.triggered.connect(self.drawROICircle)
+        self.buttonEllipRoiActionImageTab3.setCheckable(True)
         #button roi line
-        buttonLineRoiActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
-        buttonLineRoiActionImageTab3.setStatusTip("Line Roi")
-        buttonLineRoiActionImageTab3.triggered.connect(self.roiLineImage)
-        buttonLineRoiActionImageTab3.setCheckable(True)
-        #button roi pollygon
-        buttonPoliRoiActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-polygon.png")),"Roi Pollygon", self)
-        buttonPoliRoiActionImageTab3.setStatusTip("Pollygon Roi")
-        buttonPoliRoiActionImageTab3.triggered.connect(self.roiPollyImage)
-        buttonPoliRoiActionImageTab3.setCheckable(True)
+        self.buttonLineRoiActionImageTab3 = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
+        self.buttonLineRoiActionImageTab3.setStatusTip("Line Roi")
+        self.buttonLineRoiActionImageTab3.nombreBoton = "roiLineTab3"
+        self.buttonLineRoiActionImageTab3.triggered.connect(self.drawROILine)
+        self.buttonLineRoiActionImageTab3.setCheckable(True)
         #agrego los botones al toolbar
-        toolBarImageTab3.addAction(buttonZoomFitActionImageTab3)
-        toolBarImageTab3.addAction(buttonZoomInActionImageTab3)
-        toolBarImageTab3.addAction(buttonZoomOutActionImageTab3)
-        toolBarImageTab3.addAction(buttonRectRoiActionImageTab3)
-        toolBarImageTab3.addAction(buttonEllipRoiActionImageTab3)
-        toolBarImageTab3.addAction(buttonLineRoiActionImageTab3)
-        toolBarImageTab3.addAction(buttonPoliRoiActionImageTab3) 
+        toolBarImageTab3.addAction(self.buttonZoomInActionImageTab3)
+        toolBarImageTab3.addAction(self.buttonZoomOutActionImageTab3)
+        toolBarImageTab3.addAction(self.buttonRectRoiActionImageTab3)
+        toolBarImageTab3.addAction(self.buttonEllipRoiActionImageTab3)
+        toolBarImageTab3.addAction(self.buttonLineRoiActionImageTab3)
         #**************************
         contenedorImageToolbarCentralTab3layout.addWidget(toolBarImageTab3)
         contenedorImageToolbarCentralTab3layout.addWidget(viewPixMapItem3)
@@ -1343,50 +2151,43 @@ class MainWindow(QDialog):
         toolBarImageHistoryIzq = QToolBar("Toolbar Image History 1")
         toolBarImageHistoryIzq.setIconSize(QSize(16,16))
         #cargo los iconos en la barra del toolbar
-        #button Fit
-        buttonZoomFitActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-fit.png")),"zoom fit",self)
-        buttonZoomFitActionHistoryIzq.setStatusTip("Zoom fit to full image")
-        buttonZoomFitActionHistoryIzq.triggered.connect(self.zoomFitImage)
-        buttonZoomFitActionHistoryIzq.setCheckable(True)
         #button in
-        buttonZoomInActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
-        buttonZoomInActionHistoryIzq.setStatusTip("Zoom In")
-        buttonZoomInActionHistoryIzq.triggered.connect(self.zoomInImage)
-        buttonZoomInActionHistoryIzq.setCheckable(True)
+        self.buttonZoomInActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
+        self.buttonZoomInActionHistoryIzq.setStatusTip("Zoom In")
+        self.buttonZoomInActionHistoryIzq.nombreBoton = "zoomInTabHistoryIzq"
+        self.buttonZoomInActionHistoryIzq.triggered.connect(self.makeZoomIn)
+        self.buttonZoomInActionHistoryIzq.setCheckable(True)
         #button out
-        buttonZoomOutActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
-        buttonZoomOutActionHistoryIzq.setStatusTip("Zoom Out")
-        buttonZoomOutActionHistoryIzq.triggered.connect(self.zoomOutImage)
-        buttonZoomOutActionHistoryIzq.setCheckable(True)
+        self.buttonZoomOutActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out",self)
+        self.buttonZoomOutActionHistoryIzq.setStatusTip("Zoom Out")
+        self.buttonZoomOutActionHistoryIzq.nombreBoton = "zoomOutTabHistoryIzq"
+        self.buttonZoomOutActionHistoryIzq.triggered.connect(self.makeZoomOut)
+        self.buttonZoomOutActionHistoryIzq.setCheckable(True)
         #button roi rectangle
-        buttonRectRoiActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
-        buttonRectRoiActionHistoryIzq.setStatusTip("Rectangle Roi")
-        buttonRectRoiActionHistoryIzq.triggered.connect(self.roiRectImage)
-        buttonRectRoiActionHistoryIzq.setCheckable(True)
+        self.buttonRectRoiActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
+        self.buttonRectRoiActionHistoryIzq.setStatusTip("Rectangle Roi")
+        self.buttonRectRoiActionHistoryIzq.nombreBoton = "roiRectanguloTabHistoryIzq"
+        self.buttonRectRoiActionHistoryIzq.triggered.connect(self.drawROIRectangle)
+        self.buttonRectRoiActionHistoryIzq.setCheckable(True)
         #button roi ellipse
-        buttonEllipRoiActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
-        buttonEllipRoiActionHistoryIzq.setStatusTip("Ellipse Roi")
-        buttonEllipRoiActionHistoryIzq.triggered.connect(self.roiEllipImage)
-        buttonEllipRoiActionHistoryIzq.setCheckable(True)
+        self.buttonEllipRoiActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
+        self.buttonEllipRoiActionHistoryIzq.setStatusTip("Ellipse Roi")
+        self.buttonEllipRoiActionHistoryIzq.nombreBoton = "roiEllipseTabHistoryIzq"
+        self.buttonEllipRoiActionHistoryIzq.triggered.connect(self.drawROICircle)
+        self.buttonEllipRoiActionHistoryIzq.setCheckable(True)
         #button roi line
-        buttonLineRoiActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
-        buttonLineRoiActionHistoryIzq.setStatusTip("Line Roi")
-        buttonLineRoiActionHistoryIzq.triggered.connect(self.roiLineImage)
-        buttonLineRoiActionHistoryIzq.setCheckable(True)
-        #button roi pollygon
-        buttonPoliRoiActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-polygon.png")),"Roi Pollygon", self)
-        buttonPoliRoiActionHistoryIzq.setStatusTip("Pollygon Roi")
-        buttonPoliRoiActionHistoryIzq.triggered.connect(self.roiPollyImage)
-        buttonPoliRoiActionHistoryIzq.setCheckable(True)
+        self.buttonLineRoiActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line", self)
+        self.buttonLineRoiActionHistoryIzq.setStatusTip("Line Roi")
+        self.buttonLineRoiActionHistoryIzq.nombreBoton = "roiLineTabHistoryIzq"
+        self.buttonLineRoiActionHistoryIzq.triggered.connect(self.drawROILine)
+        self.buttonLineRoiActionHistoryIzq.setCheckable(True)
         #agrego los botones al toolbar
-        toolBarImageHistoryIzq.addAction(buttonZoomFitActionHistoryIzq)
-        toolBarImageHistoryIzq.addAction(buttonZoomInActionHistoryIzq)
-        toolBarImageHistoryIzq.addAction(buttonZoomOutActionHistoryIzq)
-        toolBarImageHistoryIzq.addAction(buttonRectRoiActionHistoryIzq)
-        toolBarImageHistoryIzq.addAction(buttonEllipRoiActionHistoryIzq)
-        toolBarImageHistoryIzq.addAction(buttonLineRoiActionHistoryIzq)
-        toolBarImageHistoryIzq.addAction(buttonPoliRoiActionHistoryIzq)
-
+        toolBarImageHistoryIzq.addAction(self.buttonZoomInActionHistoryIzq)
+        toolBarImageHistoryIzq.addAction(self.buttonZoomOutActionHistoryIzq)
+        toolBarImageHistoryIzq.addAction(self.buttonRectRoiActionHistoryIzq)
+        toolBarImageHistoryIzq.addAction(self.buttonEllipRoiActionHistoryIzq)
+        toolBarImageHistoryIzq.addAction(self.buttonLineRoiActionHistoryIzq)
+        
         self.imgHistIzqWidget = QWidget() #contenedor para el toolbar y la imagen
 
                 
@@ -1406,50 +2207,43 @@ class MainWindow(QDialog):
         toolBarImageHistoryDer = QToolBar("Toolbar Image History 2")
         toolBarImageHistoryDer.setIconSize(QSize(16,16))
         #cargo los iconos en la barra del toolbar
-        #button Fit
-        buttonZoomFitActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-fit.png")),"zoom fit",self)
-        buttonZoomFitActionHistoryDer.setStatusTip("Zoom fit to full image")
-        buttonZoomFitActionHistoryDer.triggered.connect(self.zoomFitImage)
-        buttonZoomFitActionHistoryDer.setCheckable(True)
         #button In
-        buttonZoomInActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
-        buttonZoomInActionHistoryDer.setStatusTip("Zoom In")
-        buttonZoomInActionHistoryDer.triggered.connect(self.zoomInImage)
-        buttonZoomInActionHistoryDer.setCheckable(True)
+        self.buttonZoomInActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-in.png")),"zoom in", self)
+        self.buttonZoomInActionHistoryDer.setStatusTip("Zoom In")
+        self.buttonZoomInActionHistoryDer.nombreBoton = "zoomInTabHistoryDer"
+        self.buttonZoomInActionHistoryDer.triggered.connect(self.makeZoomIn)
+        self.buttonZoomInActionHistoryDer.setCheckable(True)
         #button Out
-        buttonZoomOutActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out", self)
-        buttonZoomOutActionHistoryDer.setStatusTip("Zoom Out")
-        buttonZoomOutActionHistoryDer.triggered.connect(self.zoomOutImage)
-        buttonZoomOutActionHistoryDer.setCheckable(True)
+        self.buttonZoomOutActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","magnifier-zoom-out.png")),"zoom out", self)
+        self.buttonZoomOutActionHistoryDer.setStatusTip("Zoom Out")
+        self.buttonZoomOutActionHistoryDer.nombreBoton = "zoomOutTabHistoryDer"
+        self.buttonZoomOutActionHistoryDer.triggered.connect(self.makeZoomOut)
+        self.buttonZoomOutActionHistoryDer.setCheckable(True)
         #button Roi Rectangle 
-        buttonRectRoiActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
-        buttonRectRoiActionHistoryDer.setStatusTip("Rectangle Roi")
-        buttonRectRoiActionHistoryDer.triggered.connect(self.roiRectImage)
-        buttonRectRoiActionHistoryDer.setCheckable(True)
+        self.buttonRectRoiActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"Roi Rect", self)
+        self.buttonRectRoiActionHistoryDer.setStatusTip("Rectangle Roi")
+        self.buttonRectRoiActionHistoryDer.nombreBoton ="roiRectanguloTabHistoryDer"
+        self.buttonRectRoiActionHistoryDer.triggered.connect(self.drawROIRectangle)
+        self.buttonRectRoiActionHistoryDer.setCheckable(True)
         #button Roi Ellipse
-        buttonEllipRoiActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
-        buttonEllipRoiActionHistoryDer.setStatusTip("Ellipse Roi")
-        buttonEllipRoiActionHistoryDer.triggered.connect(self.roiEllipImage)
-        buttonEllipRoiActionHistoryDer.setCheckable(True)
+        self.buttonEllipRoiActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-ellipse.png")),"Roi Ellipse", self)
+        self.buttonEllipRoiActionHistoryDer.setStatusTip("Ellipse Roi")
+        self.buttonEllipRoiActionHistoryDer.nombreBoton = "roiEllipseTabHistoryDer"
+        self.buttonEllipRoiActionHistoryDer.triggered.connect(self.drawROICircle)
+        self.buttonEllipRoiActionHistoryDer.setCheckable(True)
         #button Roi Line
-        buttonLineRoiActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line",self)
-        buttonLineRoiActionHistoryDer.setStatusTip("Line Roi")
-        buttonLineRoiActionHistoryDer.triggered.connect(self.roiLineImage)
-        buttonLineRoiActionHistoryDer.setCheckable(True)
-        #button Roi Pollygon
-        buttonPoliRoiActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-polygon.png")),"Roi Pollygon",self)
-        buttonPoliRoiActionHistoryDer.setStatusTip("Pollygon Roi")
-        buttonPoliRoiActionHistoryDer.triggered.connect(self.roiPollyImage)
-        buttonPoliRoiActionHistoryDer.setCheckable(True)
+        self.buttonLineRoiActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")),"Roi Line",self)
+        self.buttonLineRoiActionHistoryDer.setStatusTip("Line Roi")
+        self.buttonLineRoiActionHistoryDer.nombreBoton = "roiLineTabHistoryDer"
+        self.buttonLineRoiActionHistoryDer.triggered.connect(self.drawROILine)
+        self.buttonLineRoiActionHistoryDer.setCheckable(True)
         #agrego los botones al toolbar
-        toolBarImageHistoryDer.addAction(buttonZoomFitActionHistoryDer)
-        toolBarImageHistoryDer.addAction(buttonZoomInActionHistoryDer)
-        toolBarImageHistoryDer.addAction(buttonZoomOutActionHistoryDer)
-        toolBarImageHistoryDer.addAction(buttonRectRoiActionHistoryDer)
-        toolBarImageHistoryDer.addAction(buttonEllipRoiActionHistoryDer)
-        toolBarImageHistoryDer.addAction(buttonLineRoiActionHistoryDer)
-        toolBarImageHistoryDer.addAction(buttonPoliRoiActionHistoryDer)
-
+        toolBarImageHistoryDer.addAction(self.buttonZoomInActionHistoryDer)
+        toolBarImageHistoryDer.addAction(self.buttonZoomOutActionHistoryDer)
+        toolBarImageHistoryDer.addAction(self.buttonRectRoiActionHistoryDer)
+        toolBarImageHistoryDer.addAction(self.buttonEllipRoiActionHistoryDer)
+        toolBarImageHistoryDer.addAction(self.buttonLineRoiActionHistoryDer)
+        
         self.imgHistDerWidget = QWidget() #contenedor para el toolbar y la imagen a la derecha del historico
 
         self.imgHistDerWidgetLayout = QVBoxLayout() #defino el layout del contenedor de toolbar e imagen a derecha
@@ -2124,27 +2918,182 @@ class MainWindow(QDialog):
         if checkbox.isChecked() == False:
             self.dlgDefaultPresetCam3 = PopUpResetPresetCam()
             self.dlgDefaultPresetCam3.show()
-    #defino la funcion asociada al zoom a full image
-    def zoomFitImage(self):
-        print("Zoom Fit to the full image") #ajusto el zoom al tama;o de la imagen
     #Defino la funcion para realizar zoom in
-    def zoomInImage(self):
-        print("Zoom In to the image")
+    def makeZoomIn(self, statusButton):
+        print("Zoom In to the image", statusButton)
+        #logica para hacer zoomIN
+        self.scrollArea.toolROIs = 3 #ningun herramienta roi
+        self.scrollArea.zoomInButton = True
+        self.scrollArea.zoomOutButton = False
+        target = self.sender() # identificamos quien esta llamando a la funcion
+        data = target.nombreBoton
+        if statusButton:#verificamos que se este presionando el boton, e identificamos de que widget estoy llamando
+            if data == "zoomInTab1":#determinamos quien llama a la funcion
+                self.buttonRectRoiActionImageTab1.setChecked(False)
+                self.buttonLineRoiActionImageTab1.setChecked(False)
+                self.buttonEllipRoiActionImageTab1.setChecked(False)
+                self.buttonZoomOutActionImageTab1.setChecked(False)
+            elif data == "zoomInTab2":
+                self.buttonRectRoiActionImageTab2.setChecked(False)
+                self.buttonLineRoiActionImageTab2.setChecked(False)
+                self.buttonEllipRoiActionImageTab2.setChecked(False)
+                self.buttonZoomOutActionImageTab2.setChecked(False)
+            elif data == "zoomInTab3":
+                self.buttonRectRoiActionImageTab3.setChecked(False)
+                self.buttonLineRoiActionImageTab3.setChecked(False)
+                self.buttonEllipRoiActionImageTab3.setChecked(False)
+                self.buttonZoomOutActionImageTab3.setChecked(False)
+            elif data == "zoomInTabHistoryIzq":
+                self.buttonRectRoiActionHistoryIzq.setChecked(False)
+                self.buttonLineRoiActionHistoryIzq.setChecked(False)
+                self.buttonEllipRoiActionHistoryIzq.setChecked(False)
+                self.buttonZoomOutActionHistoryIzq.setChecked(False)
+            elif data == "zoomInTabHistoryDer":
+                self.buttonRectRoiActionHistoryDer.setChecked(False)
+                self.buttonLineRoiActionHistoryDer.setChecked(False)
+                self.buttonEllipRoiActionHistoryDer.setChecked(False)
+                self.buttonZoomOutActionHistoryDer.setChecked(False)
     #Defino la funcion para realizar zoom out
-    def zoomOutImage(self):
-        print("Zoom Out to the image") 
+    def makeZoomOut(self, statusButton):
+        print("Zoom Out to the image", statusButton)
+        #logica para hacer zoomOut
+        self.scrollArea.toolROIs = 3 #ningun herramienta roi
+        self.scrollArea.zoomInButton = False
+        self.scrollArea.zoomOutButton = True
+        target = self.sender()
+        data = target.nombreBoton
+        if statusButton:#determino si se activa el boton
+            if data == "zoomOutTab1":#determino quien llama a la funcion
+                self.buttonRectRoiActionImageTab1.setChecked(False)
+                self.buttonLineRoiActionImageTab1.setChecked(False)
+                self.buttonEllipRoiActionImageTab1.setChecked(False)
+                self.buttonZoomInActionImageTab1.setChecked(False)
+            elif data == "zoomOutTab2":
+                self.buttonRectRoiActionImageTab2.setChecked(False)
+                self.buttonLineRoiActionImageTab2.setChecked(False)
+                self.buttonEllipRoiActionImageTab2.setChecked(False)
+                self.buttonZoomInActionImageTab2.setChecked(False)
+            elif data == "zoomOutTab3":
+                self.buttonRectRoiActionImageTab3.setChecked(False)
+                self.buttonLineRoiActionImageTab3.setChecked(False)
+                self.buttonEllipRoiActionImageTab3.setChecked(False)
+                self.buttonZoomInActionImageTab3.setChecked(False)
+            elif data == "zoomOutTabHistoryIzq":
+                self.buttonRectRoiActionHistoryIzq.setChecked(False)
+                self.buttonLineRoiActionHistoryIzq.setChecked(False)
+                self.buttonEllipRoiActionHistoryIzq.setChecked(False)
+                self.buttonZoomInActionHistoryIzq.setChecked(False)
+            elif data == "zoomOutTabHistoryDer":
+                self.buttonRectRoiActionHistoryDer.setChecked(False)
+                self.buttonLineRoiActionHistoryDer.setChecked(False)
+                self.buttonEllipRoiActionHistoryDer.setChecked(False)
+                self.buttonZoomInActionHistoryIzq.setChecked(False)
     #Defino la funcion para dibujar roi rectangulos
-    def roiRectImage(self):
-        print("Dibujar Roi Rectangulo")
+    def drawROIRectangle(self, statusButton):
+        print("Dibujar Roi Rectangulo", statusButton)
+        #logica para dibujar un rectangulo
+        self.scrollArea.toolROIs = 0
+        self.scrollArea.zoomInButton = False
+        self.scrollArea.zoomOutButton = False
+        target = self.sender()
+        data = target.nombreBoton
+        if statusButton:#si se activa el boton 
+            if data == "roiRectanguloTab1":#determino quien llama a la funcion
+                self.buttonLineRoiActionImageTab1.setChecked(False)
+                self.buttonEllipRoiActionImageTab1.setChecked(False)
+                self.buttonZoomInActionImageTab1.setChecked(False)
+                self.buttonZoomOutActionImageTab1.setChecked(False)
+            elif data == "roiRectanguloTab2":
+                self.buttonLineRoiActionImageTab2.setChecked(False)
+                self.buttonEllipRoiActionImageTab2.setChecked(False)
+                self.buttonZoomInActionImageTab2.setChecked(False)
+                self.buttonZoomOutActionImageTab2.setChecked(False)
+            elif data == "roiRectanguloTab3":
+                self.buttonLineRoiActionImageTab3.setChecked(False)
+                self.buttonEllipRoiActionImageTab3.setChecked(False)
+                self.buttonZoomInActionImageTab3.setChecked(False)
+                self.buttonZoomOutActionImageTab3.setChecked(False)                
+            elif data == "roiRectanguloTabHistoryIzq":
+                self.buttonLineRoiActionHistoryIzq.setChecked(False)
+                self.buttonEllipRoiActionHistoryIzq.setChecked(False)
+                self.buttonZoomInActionHistoryIzq.setChecked(False)
+                self.buttonZoomOutActionHistoryIzq.setChecked(False)
+            elif data == "roiRectanguloTabHistoryDer":
+                self.buttonLineRoiActionHistoryDer.setChecked(False)
+                self.buttonEllipRoiActionHistoryDer.setChecked(False)
+                self.buttonZoomInActionHistoryDer.setChecked(False)
+                self.buttonZoomOutActionHistoryDer.setChecked(False) 
     #Defino la funcion para dibujar roi ellipses
-    def roiEllipImage(self):
-        print("Dibujar Roi Ellipse")
+    def drawROICircle(self, statusButton):
+        print("Dibujar Roi Ellipse", statusButton)
+        #logica para dibujar un circulo
+        self.scrollArea.toolROIs = 2
+        self.scrollArea.zoomInButton = False
+        self.scrollArea.zoomOutButton = False
+        target = self.sender()
+        data = target.nombreBoton
+        if statusButton:#si se activa el boton desactivo el resto
+            if data == "roiEllipseTab1":#determino quien llama a la funcion
+                self.buttonRectRoiActionImageTab1.setChecked(False)
+                self.buttonLineRoiActionImageTab1.setChecked(False)
+                self.buttonZoomInActionImageTab1.setChecked(False)
+                self.buttonZoomOutActionImageTab1.setChecked(False)
+            elif data == "roiEllipseTab2":
+                self.buttonRectRoiActionImageTab2.setChecked(False)
+                self.buttonLineRoiActionImageTab2.setChecked(False)
+                self.buttonZoomInActionImageTab2.setChecked(False)
+                self.buttonZoomOutActionImageTab2.setChecked(False)
+            elif data == "roiEllipseTab3":
+                self.buttonRectRoiActionImageTab3.setChecked(False)
+                self.buttonLineRoiActionImageTab3.setChecked(False)
+                self.buttonZoomInActionImageTab3.setChecked(False)
+                self.buttonZoomOutActionImageTab3.setChecked(False)
+            elif data == "roiEllipseTabHistoryIzq":
+                self.buttonRectRoiActionHistoryIzq.setChecked(False)
+                self.buttonLineRoiActionHistoryIzq.setChecked(False)
+                self.buttonZoomInActionHistoryIzq.setChecked(False)
+                self.buttonZoomOutActionHistoryIzq.setChecked(False)
+            elif data == "roiEllipseTabHistoryDer":
+                self.buttonRectRoiActionHistoryDer.setChecked(False)
+                self.buttonLineRoiActionHistoryDer.setChecked(False)
+                self.buttonZoomInActionHistoryDer.setChecked(False)
+                self.buttonZoomOutActionHistoryDer.setChecked(False)
     #Defino la funcion para dibujar roi rectas
-    def roiLineImage(self):
-        print("Dibujar Roi Linea")
-    #Defino la funcion para dibujar roi polinomica
-    def roiPollyImage(self):
-        print("Dibujar Roi Poligono")
+    def drawROILine(self, statusButton):
+        print("Dibujar Roi Linea", statusButton)
+        #logica para dibujar una linea
+        self.scrollArea.toolROIs = 1
+        self.scrollArea.zoomInButton = False
+        self.scrollArea.zoomOutButton = False
+        target = self.sender()
+        data = target.nombreBoton
+        if statusButton:#Si se activa el boton desactivo los otros
+            if data == "roiLineTab1":#determino quien llama a la funcion
+                self.buttonRectRoiActionImageTab1.setChecked(False)
+                self.buttonEllipRoiActionImageTab1.setChecked(False)
+                self.buttonZoomInActionImageTab1.setChecked(False)
+                self.buttonZoomOutActionImageTab1.setChecked(False)
+            elif data == "roiLineTab2":
+                self.buttonRectRoiActionImageTab2.setChecked(False)
+                self.buttonEllipRoiActionImageTab2.setChecked(False)
+                self.buttonZoomInActionImageTab2.setChecked(False)
+                self.buttonZoomOutActionImageTab2.setChecked(False)
+            elif data == "roiLineTab3":
+                self.buttonRectRoiActionImageTab3.setChecked(False)
+                self.buttonEllipRoiActionImageTab3.setChecked(False)
+                self.buttonZoomInActionImageTab3.setChecked(False)
+                self.buttonZoomOutActionImageTab3.setChecked(False)
+            elif data == "roiLineTabHistoryIzq":
+                self.buttonRectRoiActionHistoryIzq.setChecked(False)
+                self.buttonEllipRoiActionHistoryIzq.setChecked(False)
+                self.buttonZoomInActionHistoryIzq.setChecked(False)
+                self.buttonZoomOutActionHistoryIzq.setChecked(False)
+            elif data == "roiLineTabHistoryDer":
+                self.buttonRectRoiActionHistoryDer.setChecked(False)
+                self.buttonEllipRoiActionHistoryDer.setChecked(False)
+                self.buttonZoomInActionHistoryDer.setChecked(False)
+                self.buttonZoomOutActionHistoryDer.setChecked(False)
+
     #Defino la funcion asociada a la barra de progreso para la camara 1
     def handleTimer1(self):
         value = self.pbarTab1.value()

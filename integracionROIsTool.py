@@ -18,7 +18,9 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QIcon, QPixmap, QPainter, QBrush, QColor, QPalette
 from PyQt5.QtCore import Qt, QSize, QThread, pyqtSignal, pyqtSlot, QPoint, QRect, QLine, QRectF, QPointF
 import numpy as np
-import cv2
+import cv2, os
+#
+basedir = os.path.dirname(__file__)
 #
 class TestImage(QLabel):
     def __init__(self):
@@ -105,7 +107,12 @@ class TestImage(QLabel):
             escala = self.scaleFactor * self.pixmap().size()
             print(escala)
             self.resize(escala)
-            #########################################################
+            flagEstado = True            
+        except:
+            print("error Image")
+            flagEstado = False #si tenemos un error en la adquisicion no agregamos los objetos en la imagen
+#########################################################
+        if flagEstado:
             #instancio a la clase QPainter
             qp = QPainter(self)
             #defino un color para el objeto instanciado
@@ -209,8 +216,6 @@ class TestImage(QLabel):
                 self.parent().parent().teclaDownGirarEllipse1 = False
                 self.parent().parent().teclaUpGirarEllipse2 = False
                 self.parent().parent().teclaDownGirarEllipse2 = False
-        except:
-            print("error Image")
 
     def mousePressEvent(self, event):
         #detecto la posicion del ultimo movimiento
@@ -834,35 +839,35 @@ class App(QWidget):
         toolbar.setIconSize(QSize(16,16))
         #self.addToolBar(toolbar)
         #creamos un boton en el toolbar para dibujar una roi rectangular
-        self.button_actionRect = QAction(QIcon("layer-shape.png"),"ROI Rect", self)
+        self.button_actionRect = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape.png")),"ROI Rect", self)
         self.button_actionRect.setStatusTip("Draw a rectangle")
         self.button_actionRect.triggered.connect(self.drawROIRectangle)
         self.button_actionRect.setCheckable(True)
         #agregamos este buttonAction dibujar rectangulo al toolbar
         toolbar.addAction(self.button_actionRect)
         #creamos un boton en el toolbar para dibujar una roi lineal
-        self.button_actionLine = QAction(QIcon("layer-shape-line.png"), "ROI Line", self)
+        self.button_actionLine = QAction(QIcon(os.path.join(basedir,"appIcons","layer-shape-line.png")), "ROI Line", self)
         self.button_actionLine.setStatusTip("Draw a line")
         self.button_actionLine.triggered.connect(self.drawROILine)
         self.button_actionLine.setCheckable(True)
         #agregamos este buttonAction dibujar linea al toolbar
         toolbar.addAction(self.button_actionLine)
         #creamos un boton en el toolbar para dibujar una roi circulo o ellipse
-        self.button_actionCircle = QAction(QIcon("layer-shape-ellipse.png"), "ROI Circle", self)
+        self.button_actionCircle = QAction(QIcon(os.path.join(basedir,"appIcons", "layer-shape-ellipse.png")), "ROI Circle", self)
         self.button_actionCircle.setStatusTip("Draw a circle")
         self.button_actionCircle.triggered.connect(self.drawROICircle)
         self.button_actionCircle.setCheckable(True)
         #agregamos este buttonAction dibujar circulo al toolbar
         toolbar.addAction(self.button_actionCircle)
 
-        self.button_actionZoomIn = QAction(QIcon("magnifier-zoom-in.png"), "ROI ZoomIn", self)
+        self.button_actionZoomIn = QAction(QIcon(os.path.join(basedir, "appIcons", "magnifier-zoom-in.png")), "ROI ZoomIn", self)
         self.button_actionZoomIn.setStatusTip("ZoomIn on Image")
         self.button_actionZoomIn.triggered.connect(self.makeZoomIn)
         self.button_actionZoomIn.setCheckable(True)
 
         toolbar.addAction(self.button_actionZoomIn)
 
-        self.button_actionZoomOut = QAction(QIcon("magnifier-zoom-out.png"), "ROI ZoomOut", self)
+        self.button_actionZoomOut = QAction(QIcon(os.path.join(basedir, "appIcons", "magnifier-zoom-out.png")), "ROI ZoomOut", self)
         self.button_actionZoomOut.setStatusTip("ZoomOut on Image")
         self.button_actionZoomOut.triggered.connect(self.makeZoomOut)
         self.button_actionZoomOut.setCheckable(True)
@@ -915,6 +920,8 @@ class App(QWidget):
             
     def drawROILine(self, statusButton):
         print("click make a ROI Line", statusButton)
+        statusTip = self.parent().statusTip()
+        print("status tip", statusTip)
         #logica para dibujar una linea
         self.scrollArea.toolROIs = 1
         self.scrollArea.zoomInButton = False
