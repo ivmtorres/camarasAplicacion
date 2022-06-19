@@ -37,6 +37,7 @@ from PyQt5.QtWidgets import (
     QScrollArea   
 )
 from PyQt5.QtGui import QIcon, QPaintEvent
+from cv2 import ellipse
 import matplotlib
 from matplotlib.widgets import Widget
 matplotlib.use('Qt5Agg')
@@ -48,6 +49,7 @@ import numpy as np
 import ctypes as ct
 import cv2
 import os
+import random
 #direccion base para los archivos de imagen
 basedir = os.path.dirname(__file__)
 #detecto si se cargo la imagen
@@ -142,7 +144,7 @@ class TestImage(QLabel):
         super().paintEvent(event)
         try:
             escala = self.scaleFactor * self.pixmap().size()
-            print(escala)
+            #print(escala)
             self.resize(escala)
             flagEstado = True            
         except:
@@ -252,12 +254,20 @@ class TestImage(QLabel):
                 self.parent().parent().teclaDownGirarEllipse1 = False
                 self.parent().parent().teclaUpGirarEllipse2 = False
                 self.parent().parent().teclaDownGirarEllipse2 = False
+            #actualizo la lista con los valores de posicion QPoint para cada Roi
+            self.parent().parent().listaRects=[self.parent().parent().rectangulo1,self.parent().parent().rectangulo2]
+            self.parent().parent().listaLineas=[self.parent().parent().recta1,self.parent().parent().recta2]
+            self.parent().parent().listaElipses=[self.parent().parent().rectanguloEllipse1,self.parent().parent().rectanguloEllipse2]
+            #mostramos la lista de cada uno de los rois
+            #print(self.parent().parent().listaRects)
+            #print(self.parent().parent().listaLineas)
+            #print(self.parent().parent().listaElipses)
     #sobrecargamos el evento de presion de mouse
     def mousePressEvent(self, event):
         #detecto la posicion del ultimo movimiento
         self.begin = event.pos()
         #####################################################
-        print("mouse click", self.scaleFactor)
+        #print("mouse click", self.scaleFactor)
         if  self.parent().parent().zoomInButton == True:
             self.scala = 1.25
         elif self.parent().parent().zoomOutButton == True:
@@ -463,35 +473,35 @@ class TestImage(QLabel):
                 #verifico las condiciones
                 #detecto el borde izquierdo ellipse 1
                 if condicionClickBordeLeftRectEllipse1:
-                    print("click borde superior rect ellipse 1")
+                    #print("click borde superior rect ellipse 1")
                     self.clickBordeLeftRectEllipse1 = True
                 #detecto el borde izquierdo ellipse 2
                 elif condicionClickBordeLeftRectEllipse2:
-                    print("click bordesuperior rect ellipse 2")
+                    #print("click bordesuperior rect ellipse 2")
                     self.clickBordeLeftRectEllipse2 = True
                 #detecto el borde derecho ellipse 1
                 elif condicionClickBordeRightRectEllipse1:
-                    print("click borde derecho rect ellipse 1")
+                    #print("click borde derecho rect ellipse 1")
                     self.clickBordeRightRectEllipse1 = True
                 #detecto el borde derecho ellipse 2
                 elif condicionClickBordeRightRectEllipse2:
-                    print("click borde derecho rect ellipse 2")
+                    #print("click borde derecho rect ellipse 2")
                     self.clickBordeRightRectEllipse2 = True
                 #detecto el borde superio ellipse 1
                 elif condicionClickBordeTopRectEllipse1:
-                    print("click borde top rect ellipse 1")
+                    #print("click borde top rect ellipse 1")
                     self.clickBordeTopRectEllipse1 = True
                 #detecto el borde superior ellipse 2
                 elif condicionClickBordeTopRectEllipse2:
-                    print("click borde top rect ellipse 2")
+                    #print("click borde top rect ellipse 2")
                     self.clickBordeTopRectEllipse2 = True
                 #detecto el borde inferior ellipse 1
                 elif condicionClickBordeBottomRectEllipse1:
-                    print("click borde bottom rect ellipse 1")
+                    #print("click borde bottom rect ellipse 1")
                     self.clickBordeBottomRectEllipse1 = True
                 #detecto el borde inferior ellipse 2
                 elif condicionClickBordeBottomRectEllipse2:
-                    print("click borde bottom rect ellipse 2")
+                    #print("click borde bottom rect ellipse 2")
                     self.clickBordeBottomRectEllipse2 = True
                 else:
                     print("no se presiono ningun borde, no deberias estas aca!")
@@ -538,7 +548,7 @@ class TestImage(QLabel):
     def mouseMoveEvent(self, event):
         #detecto la posiocion del mouse
         self.end = event.pos()
-        print(self.end)
+        #print(self.end)
         #rectangulo
         if self.parent().parent().toolROIs == 0:
             #determino si estoy en un borde
@@ -614,8 +624,8 @@ class TestImage(QLabel):
                         #estoy moviendo la recta 1
                         desplazamientoXRecta1 = self.end.x() - self.posAnteriorRecta1.x()
                         desplazamientoYRecta1 = self.end.y() - self.posAnteriorRecta1.y()
-                        print(desplazamientoXRecta1)
-                        print(desplazamientoYRecta1)
+                        #print(desplazamientoXRecta1)
+                        #print(desplazamientoYRecta1)
                         self.parent().parent().recta1.translate(desplazamientoXRecta1,desplazamientoYRecta1)
                         self.posTextRecta1 = self.parent().parent().recta1.p1()
                         self.posAnteriorRecta1 = self.end
@@ -736,7 +746,7 @@ class TestImage(QLabel):
                 self.clickBordeRightRecta1 = False
                 self.clickBordeRightRecta2 = False
             else:
-                print(self.begin, self.end)
+                #print(self.begin, self.end)
                 if self.flag:
                     if self.parent().parent().indiceRect == 0:
                         self.parent().parent().recta1 = QLine(self.begin,self.end)
@@ -786,7 +796,7 @@ class EvoIRFrameMetadata(ct.Structure):
                  ]
 class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
     change_pixmap_signal = pyqtSignal(np.ndarray)
-
+    change_thermal_signal = pyqtSignal(np.ndarray)
     def __init__(self): #sobre escribimos la clase
         super().__init__()
         self._run_flag = True #utilizamos este flag para indicar al hilo que termine la adquisicion
@@ -862,13 +872,14 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                 #calculate total mean value
                 mean_temp = np_thermal.mean() #sobre el contenido de la imagen que retorna calculo una media.
                 mean_temp = mean_temp / 10. - 100 #le saco un cero y le resto 100
-
                 #print('Mean Temp: ' + str(mean_temp)) #mostramos el promedio
 
                 #display palette image
-                #cv2.imshow('Optris Image Test For Meditecna',np_img.reshape(palette_height.value, palette_width.value, 3)[:,:,::-1])
+                #cv2.imshow('Optris Image Test',np_img.reshape(palette_height.value, palette_width.value, 3)[:,:,::-1])
                 frame = np_img.reshape(palette_height.value, palette_width.value, 3)[:,:,::-1]
                 self.change_pixmap_signal.emit(frame) #convierto el dato en formato numpy a un formato de qt5
+                frameThermal = np_thermal.reshape(int(thermal_width.value), int(thermal_height.value))
+                self.change_thermal_signal.emit(frameThermal/10. - 100)
         # clean shutdown
         libir.evo_irimager_terminate()   #si se detiene el hilo de adquisicion termino el hilo de ejecucion
 
@@ -917,7 +928,7 @@ class _Bar(QtWidgets.QWidget):
         dial = self.parent()._dial        
         vmin, vmax = dial.minimum(), dial.maximum()
         value = dial.value()
-        print(value)
+        #print(value)
         labelValue = self.parent().valorQDial
         labelValue.setText(str(value))
         #definimos nuestro canvas
@@ -1357,6 +1368,12 @@ class CamComboBox(QComboBox):
     def showPopup(self):
         self.popupAboutToBeShown.emit()
         super(CamComboBox,self).showPopup()
+class ROIComboBox(QComboBox):
+    popupAboutToBeShown = pyqtSignal()
+    def showPopup(self):
+        self.popupAboutToBeShown.emit()
+        super(ROIComboBox, self).showPopup()
+        
 #Clase principal
 class MainWindow(QDialog):
     def __init__(self, parent=None):
@@ -1367,7 +1384,13 @@ class MainWindow(QDialog):
         #hago una instancia a mi combobox ==> userComboBox
         self.userCombo = UserComboBox(self) #combo box de usuarios
         self.userCombo.popupAboutToBeShown.connect(self.populateUserCombo)
-
+        #
+        self.roiSelComboIzq = ROIComboBox(self)
+        self.roiSelComboIzq.popupAboutToBeShown.connect(self.populateRoiCombo1)
+        #
+        self.roiSelComboDer = ROIComboBox(self)
+        self.roiSelComboDer.popupAboutToBeShown.connect(self.populateRoiCombo2)
+        #
         self.camCombo1 = CamComboBox(self) #combo box de camaras para los historicos de la izquierda
         self.camCombo1.popupAboutToBeShown.connect(self.populateCamCombo1)
 
@@ -1448,7 +1471,7 @@ class MainWindow(QDialog):
             QSizePolicy.Preferred,
             QSizePolicy.Ignored
         )
-        self.bodyTabWidget.setFixedSize(1300,720)#700,500)
+        self.bodyTabWidget.setFixedSize(1900,920)#700,500)
         #***************************************
         #Creo el contenido de la primer pestaña
         #***************************************
@@ -1495,13 +1518,14 @@ class MainWindow(QDialog):
         #defino los rectangulos
         self.scrollArea.rectangulo1 = QRect(self.beginRect, self.endRect)
         self.scrollArea.rectangulo2 = QRect(self.beginRect, self.endRect)
-        self.scrollArea.listaRects = [self.scrollArea.rectangulo1, self.scrollArea.rectangulo2]
+        self.scrollArea.listaRects = [self.scrollArea.rectangulo1, self.scrollArea.rectangulo2] #llevo la lista de rectangulos
         #defino las lineas
         self.beginLinea = QPoint()
         self.endLinea = QPoint()
         self.scrollArea.recta1 = QLine(self.beginLinea, self.endLinea)
         self.scrollArea.recta2 = QLine(self.beginLinea, self.endLinea)
         self.scrollArea.indiceRecta = 0
+        self.scrollArea.listaLineas = [self.scrollArea.recta1, self.scrollArea.recta2] #llevo la lista de rectas
         #defino las elipses o circulos
         self.beginEllipse = QPoint()
         self.endEllipse = QPoint()
@@ -1511,6 +1535,8 @@ class MainWindow(QDialog):
         #definimos la elipse 2
         self.scrollArea.rectanguloEllipse2 = QRectF(self.beginEllipse, self.endEllipse)
         self.scrollArea.ellipse2 = QGraphicsEllipseItem(self.scrollArea.rectanguloEllipse2)
+        #        
+        self.scrollArea.listaElipses = [self.scrollArea.rectanguloEllipse1, self.scrollArea.rectanguloEllipse2] #llevo la lista de elipses
         #detecto el angulo
         self.scrollArea.anguloEllipse1 = self.scrollArea.ellipse1.rotation()
         self.scrollArea.anguloEllipse2 = self.scrollArea.ellipse2.rotation()
@@ -1534,11 +1560,12 @@ class MainWindow(QDialog):
         self.thread = VideoThread()
         # connect its signal to the update_image slot
         self.thread.change_pixmap_signal.connect(self.update_image)
+        #
+        self.thread.change_thermal_signal.connect(self.thermal_image)
         # start the thread
         self.thread.start()
         #***************************************
-        #***************************************
-
+        #
         tab1Boton = QWidget() #defino la pestaña de la tabla asociada al boton 1
         textEditTab1Boton = QLineEdit() #cargo el texto en el label, esto es de ejemplo vamos a reemplazarlo por la imagen
         textEditTab1Boton.setText("Status: Camara conectando ....") #este texto lo vamos a 
@@ -1612,36 +1639,97 @@ class MainWindow(QDialog):
         #
         contenedorImageToolbarCentralTab1.resize(824,768)
         #
+        #Agrego comboBox para seleccionar el trending que vamos a mostrar en dfTab1Izq
+        #
+        textEditTab1BotonSelROI = QLabel()
+        textEditTab1BotonSelROI.setText("Sel ROI: ")
+        textEditTab1BotonSelROI.setBuddy(self.roiSelComboIzq)
+        self.roiSelComboIzq.setToolTip("selected the roi to show min-avg-max value")
+        #
         #agrego grafico izquierda para la camara 1
-        graficoTab1Izq = MplCanvas(self, width=2, height=2, dpi=100) #width = 2, height=2
-        #genero un dataframe de prueba para la curva de la camara 1
-        dfTab1Izq = pd.DataFrame([
-            [0, 10],
-            [5, 15],
-            [2, 20],
-            [15, 25],
-            [4, 10]
-        ], columns=['A','B'])
-        dfTab1Izq.plot(ax=graficoTab1Izq.axes)
-        
+        #
+        self.dfTab1Izq = MplCanvas(self, width=5, height=4, dpi=100)
+
+        n_data = 50
+        self.xdataIzq = list(range(n_data))
+        self.ydataIzq = [random.randint(0,10) for i in range(n_data)]
+
+        self._plot_refIzq = None
+        self.update_plot_dfTab1Izq()
+
+        self.timerIzq = QtCore.QTimer()
+        self.timerIzq.setInterval(100)
+        self.timerIzq.timeout.connect(self.update_plot_dfTab1Izq)
+        self.timerIzq.start()
+        #
+        #agrego grafico sub izquierda para la camara 1
+        #
+        self.dfTab1Izq1 = MplCanvas(self, width=5, height=4, dpi=100)
+
+        n_data1 = 50
+        self.xdataIzq1 = list(range(n_data1))
+        self.ydataIzq1 = [random.randint(0,10) for i in range(n_data1)]
+
+        self._plot_refIzq1 = None
+        self.update_plot_dfTab1Izq1()
+        # No actualizo el grafico lo dejo estatico
+        # Ya que voy a mostrar el dato cuando se
+        # actualice la medicion con el eje X en pixel
+        # self.timerIzq1 = QtCore.QTimer()
+        # self.timerIzq1.setInterval(10)
+        # self.timerIzq1.timeout.connect(self.update_plot_dfTab1Izq1)
+        # self.timerIzq1.start()
+        #
+        #
+        #Agrego comboBox para seleccionar el trending que vamos a mostrar en dfTab1Der
+        #
+        textEditTab1BotonSelROIDer = QLabel()
+        textEditTab1BotonSelROIDer.setText("Sel ROI: ")
+        textEditTab1BotonSelROIDer.setBuddy(self.roiSelComboDer)
+        self.roiSelComboDer.setToolTip("selected the roi to show min-avg-max value")
+        #
         #agrego grafico derecha
-        graficoTab1Der = MplCanvas(self,width=2, height=2, dpi=100) #width = 2, height=2
         #genero un dataframe de prueba
-        dfTab1Der = pd.DataFrame([
-            [0,10],
-            [5,15],
-            [2,20],
-            [15,25],
-            [4,10]
-        ], columns=['A','B'])
-        dfTab1Der.plot(ax=graficoTab1Der.axes)
+        self.dfTab1Der = MplCanvas(self, width=5, height=4, dpi=100)
+
+        n_data = 50
+        self.xdata = list(range(n_data))
+        self.ydata = [random.randint(0,10) for i in range(n_data)]
+
+        self._plot_ref = None
+        self.update_plot_dfTab1Der() 
+
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(100)
+        self.timer.timeout.connect(self.update_plot_dfTab1Der)
+        self.timer.start()
+        #
+        #
+        #agrego grafico derecha 1
+        #genero un dataframe de prueba
+        self.dfTab1Der1 = MplCanvas(self, width=5, height=4, dpi=100)
+
+        n_data2 = 50
+        self.xdataDer1 = list(range(n_data2))
+        self.ydataDer1 = [random.randint(0,10) for i in range(n_data2)]
+
+        self._plot_refDer1 = None
+        self.update_plot_dfTab1Der1() 
+        # No actualizo el grafico lo dejo estatico
+        # Ya que voy a mostrar el dato cuando se
+        # actualice la medicion con el eje X en pixel
+        # self.timerDer1 = QtCore.QTimer()
+        # self.timerDer1.setInterval(10)
+        # self.timerDer1.timeout.connect(self.update_plot_dfTab1Der1)
+        # self.timerDer1.start()
+        #
         #agrego contenedor a la izquierda para curva
         #para label1 y boton1
         #para label2 y boton2
         contenedorIzqTab1 = QWidget()        
         contenedorIzqTab1Layout = QVBoxLayout()
         #creo label 1
-        label1Tab1 = QLabel("Edt1")
+        label1Tab1 = QLabel("Min")
         label1Tab1.setFixedSize(QSize(16,16))
         label1Tab1.setStyleSheet("border-style: none;")
         #creo boton 1
@@ -1654,11 +1742,45 @@ class MainWindow(QDialog):
         boton1Tab1.stateChanged.connect(lambda x: enableBoton1Tab1() if x else disableBoton1Tab1())        
         #agregamos el indicador 1 de medicion
         valor1Tab1 = "105.2"
-        valor1IndTab1 = QLabel(valor1Tab1)
-        valor1IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        valor1IndTab1.setFixedSize(QSize(40,23))
+        self.valor1IndTab1 = QLabel(valor1Tab1)
+        self.valor1IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor1IndTab1.setFixedSize(QSize(40,23))
+        #creo label 11
+        label11Tab1 = QLabel("Min")
+        label11Tab1.setFixedSize(QSize(16,16))
+        label11Tab1.setStyleSheet("border-style: none;")
+        #creo boton 11
+        boton11Tab1 = AnimatedToggle()
+        boton11Tab1.setFixedSize(boton11Tab1.sizeHint())
+        boton11Tab1.setToolTip("Toggle to change preset 1")
+        #definimos la funcion asociada al preset11 del tab1
+        enableBoton11Tab1 = partial(self.popUpSetBotonTab1, boton11Tab1 )
+        disableBoton11Tab1 = partial(self.popUpResetBotonTab1, boton11Tab1)
+        boton11Tab1.stateChanged.connect(lambda x: enableBoton11Tab1() if x else disableBoton11Tab1())        
+        #agregamos el indicador 11 de medicion
+        valor11Tab1 = "105.2"
+        self.valor11IndTab1 = QLabel(valor11Tab1)
+        self.valor11IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor11IndTab1.setFixedSize(QSize(40,23))
+        #creo label 12
+        label12Tab1 = QLabel("Min")
+        label12Tab1.setFixedSize(QSize(16,16))
+        label12Tab1.setStyleSheet("border-style: none;")
+        #creo boton 12
+        boton12Tab1 = AnimatedToggle()
+        boton12Tab1.setFixedSize(boton12Tab1.sizeHint())
+        boton12Tab1.setToolTip("Toggle to change preset 1")
+        #definimos la funcion asociada al preset12 del tab1
+        enableBoton12Tab1 = partial(self.popUpSetBotonTab1, boton12Tab1 )
+        disableBoton12Tab1 = partial(self.popUpResetBotonTab1, boton12Tab1)
+        boton12Tab1.stateChanged.connect(lambda x: enableBoton12Tab1() if x else disableBoton12Tab1())        
+        #agregamos el indicador 12 de medicion
+        valor12Tab1 = "105.2"
+        self.valor12IndTab1 = QLabel(valor12Tab1)
+        self.valor12IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor12IndTab1.setFixedSize(QSize(40,23))
         #creo label 2
-        label2Tab1 = QLabel("Edt2")
+        label2Tab1 = QLabel("Avg")
         label2Tab1.setFixedSize(QSize(16,16))
         label2Tab1.setStyleSheet("border-style: none;")
         #creo el boton 2
@@ -1667,37 +1789,154 @@ class MainWindow(QDialog):
         boton2Tab1.setToolTip("Toggle to change preset 2")       
         #agregamos el indicador 2 de medicion
         valor2Tab1 = "115.2"
-        valor2IndTab1 = QLabel(valor2Tab1)
-        valor2IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        valor2IndTab1.setFixedSize(QSize(40,23))
+        self.valor2IndTab1 = QLabel(valor2Tab1)
+        self.valor2IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor2IndTab1.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 2 del tab1
         enableBoton2Tab1 = partial(self.popUpSetBotonTab1, boton2Tab1)
         disableBoton2Tab1 = partial(self.popUpResetBotonTab1, boton2Tab1)
         boton2Tab1.stateChanged.connect(lambda x: enableBoton2Tab1() if x else disableBoton2Tab1())
+        #creo label 21
+        label21Tab1 = QLabel("Avg")
+        label21Tab1.setFixedSize(QSize(16,16))
+        label21Tab1.setStyleSheet("border-style: none;")
+        #creo el boton 21
+        boton21Tab1 = AnimatedToggle()
+        boton21Tab1.setFixedSize(boton21Tab1.sizeHint())
+        boton21Tab1.setToolTip("Toggle to change preset 2")       
+        #agregamos el indicador 21 de medicion
+        valor21Tab1 = "115.2"
+        self.valor21IndTab1 = QLabel(valor21Tab1)
+        self.valor21IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor21IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 21 del tab1
+        enableBoton21Tab1 = partial(self.popUpSetBotonTab1, boton21Tab1)
+        disableBoton21Tab1 = partial(self.popUpResetBotonTab1, boton21Tab1)
+        boton21Tab1.stateChanged.connect(lambda x: enableBoton21Tab1() if x else disableBoton21Tab1())
+         #creo label 22
+        label22Tab1 = QLabel("Avg")
+        label22Tab1.setFixedSize(QSize(16,16))
+        label22Tab1.setStyleSheet("border-style: none;")
+        #creo el boton 22
+        boton22Tab1 = AnimatedToggle()
+        boton22Tab1.setFixedSize(boton22Tab1.sizeHint())
+        boton22Tab1.setToolTip("Toggle to change preset 2")       
+        #agregamos el indicador 22 de medicion
+        valor22Tab1 = "115.2"
+        self.valor22IndTab1 = QLabel(valor22Tab1)
+        self.valor22IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor22IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 22 del tab1
+        enableBoton22Tab1 = partial(self.popUpSetBotonTab1, boton22Tab1)
+        disableBoton22Tab1 = partial(self.popUpResetBotonTab1, boton22Tab1)
+        boton22Tab1.stateChanged.connect(lambda x: enableBoton22Tab1() if x else disableBoton22Tab1())
+        #creo label 3
+        label3Tab1 = QLabel("Max")
+        label3Tab1.setFixedSize(QSize(16,16))
+        label3Tab1.setStyleSheet("border-style: none;")
+        #creo el boton 3
+        boton3Tab1 = AnimatedToggle()
+        boton3Tab1.setFixedSize(boton3Tab1.sizeHint())
+        boton3Tab1.setToolTip("Toggle to change preset 2")       
+        #agregamos el indicador 3 de medicion
+        valor3Tab1 = "115.2"
+        self.valor3IndTab1 = QLabel(valor3Tab1)
+        self.valor3IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor3IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 3 del tab1
+        enableBoton3Tab1 = partial(self.popUpSetBotonTab1, boton3Tab1)
+        disableBoton3Tab1 = partial(self.popUpResetBotonTab1, boton3Tab1)
+        boton3Tab1.stateChanged.connect(lambda x: enableBoton3Tab1() if x else disableBoton3Tab1())
+        #creo label 31
+        label31Tab1 = QLabel("Max")
+        label31Tab1.setFixedSize(QSize(16,16))
+        label31Tab1.setStyleSheet("border-style: none;")
+        #creo el boton 31
+        boton31Tab1 = AnimatedToggle()
+        boton31Tab1.setFixedSize(boton31Tab1.sizeHint())
+        boton31Tab1.setToolTip("Toggle to change preset 3")       
+        #agregamos el indicador 31 de medicion
+        valor31Tab1 = "115.2"
+        self.valor31IndTab1 = QLabel(valor31Tab1)
+        self.valor31IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor31IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 21 del tab1
+        enableBoton31Tab1 = partial(self.popUpSetBotonTab1, boton31Tab1)
+        disableBoton31Tab1 = partial(self.popUpResetBotonTab1, boton31Tab1)
+        boton31Tab1.stateChanged.connect(lambda x: enableBoton31Tab1() if x else disableBoton31Tab1())
+         #creo label 32
+        label32Tab1 = QLabel("Max")
+        label32Tab1.setFixedSize(QSize(16,16))
+        label32Tab1.setStyleSheet("border-style: none;")
+        #creo el boton 32
+        boton32Tab1 = AnimatedToggle()
+        boton32Tab1.setFixedSize(boton32Tab1.sizeHint())
+        boton32Tab1.setToolTip("Toggle to change preset 2")       
+        #agregamos el indicador 22 de medicion
+        valor32Tab1 = "115.2"
+        self.valor32IndTab1 = QLabel(valor32Tab1)
+        self.valor32IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor32IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 22 del tab1
+        enableBoton32Tab1 = partial(self.popUpSetBotonTab1, boton32Tab1)
+        disableBoton32Tab1 = partial(self.popUpResetBotonTab1, boton32Tab1)
+        boton32Tab1.stateChanged.connect(lambda x: enableBoton32Tab1() if x else disableBoton32Tab1())
         #agrego el layout
-        contenedorIzqTab1LayoutSub0 = QHBoxLayout()
-        contenedorIzqTab1WidgetSub0 = QWidget()        
-        contenedorIzqTab1LayoutSub0.addWidget(graficoTab1Izq)
+        contenedorIzqTab1LayoutSub0 = QVBoxLayout()
+        contenedorIzqTab1WidgetSub0 = QWidget()
+        contenedorIzqTab1LayoutSub01 = QHBoxLayout()
+        contenedorIzqTab1WidgetSub01 = QWidget()
+        contenedorIzqTab1LayoutSub01.addWidget(textEditTab1BotonSelROI)
+        contenedorIzqTab1LayoutSub01.addWidget(self.roiSelComboIzq)
+        contenedorIzqTab1WidgetSub01.setLayout(contenedorIzqTab1LayoutSub01)        
+        contenedorIzqTab1LayoutSub0.addWidget(contenedorIzqTab1WidgetSub01)
+        contenedorIzqTab1LayoutSub0.addWidget(self.dfTab1Izq)
+        contenedorIzqTab1LayoutSub0.addWidget(self.dfTab1Izq1)
         contenedorIzqTab1WidgetSub0.setLayout(contenedorIzqTab1LayoutSub0)
         contenedorIzqTab1WidgetSub0.resize(300,668)
         contenedorIzqTab1LayoutSub10 = QHBoxLayout()
         contenedorIzqTab1WidgetSub10 = QWidget()                
         contenedorIzqTab1LayoutSub10.addWidget(label1Tab1)
         contenedorIzqTab1LayoutSub10.addWidget(boton1Tab1)        
-        contenedorIzqTab1LayoutSub10.addWidget(valor1IndTab1)
+        contenedorIzqTab1LayoutSub10.addWidget(self.valor1IndTab1)
+        contenedorIzqTab1LayoutSub10.addWidget(label11Tab1)
+        contenedorIzqTab1LayoutSub10.addWidget(boton11Tab1)        
+        contenedorIzqTab1LayoutSub10.addWidget(self.valor11IndTab1)
+        contenedorIzqTab1LayoutSub10.addWidget(label12Tab1)
+        contenedorIzqTab1LayoutSub10.addWidget(boton12Tab1)        
+        contenedorIzqTab1LayoutSub10.addWidget(self.valor12IndTab1)
         contenedorIzqTab1WidgetSub10.setLayout(contenedorIzqTab1LayoutSub10)
         contenedorIzqTab1WidgetSub10.resize(300,50)
         contenedorIzqTab1LayoutSub20 = QHBoxLayout()
         contenedorIzqTab1WidgetSub20 = QWidget()        
         contenedorIzqTab1LayoutSub20.addWidget(label2Tab1)
         contenedorIzqTab1LayoutSub20.addWidget(boton2Tab1)        
-        contenedorIzqTab1LayoutSub20.addWidget(valor2IndTab1)
+        contenedorIzqTab1LayoutSub20.addWidget(self.valor2IndTab1)
+        contenedorIzqTab1LayoutSub20.addWidget(label21Tab1)
+        contenedorIzqTab1LayoutSub20.addWidget(boton21Tab1)        
+        contenedorIzqTab1LayoutSub20.addWidget(self.valor21IndTab1)
+        contenedorIzqTab1LayoutSub20.addWidget(label22Tab1)
+        contenedorIzqTab1LayoutSub20.addWidget(boton22Tab1)        
+        contenedorIzqTab1LayoutSub20.addWidget(self.valor22IndTab1)
         contenedorIzqTab1WidgetSub20.setLayout(contenedorIzqTab1LayoutSub20)
-        contenedorIzqTab1WidgetSub20.resize(300,50)        
+        contenedorIzqTab1WidgetSub20.resize(300,50)
+        contenedorIzqTab1LayoutSub30 = QHBoxLayout()
+        contenedorIzqTab1WidgetSub30 = QWidget()
+        contenedorIzqTab1LayoutSub30.addWidget(label3Tab1)
+        contenedorIzqTab1LayoutSub30.addWidget(boton3Tab1)        
+        contenedorIzqTab1LayoutSub30.addWidget(self.valor3IndTab1)
+        contenedorIzqTab1LayoutSub30.addWidget(label31Tab1)
+        contenedorIzqTab1LayoutSub30.addWidget(boton31Tab1)        
+        contenedorIzqTab1LayoutSub30.addWidget(self.valor31IndTab1)
+        contenedorIzqTab1LayoutSub30.addWidget(label32Tab1)
+        contenedorIzqTab1LayoutSub30.addWidget(boton32Tab1)        
+        contenedorIzqTab1LayoutSub30.addWidget(self.valor32IndTab1)
+        contenedorIzqTab1WidgetSub30.setLayout(contenedorIzqTab1LayoutSub30)
         contenedorIzqTab1LayoutSub1=QVBoxLayout()
         contenedorIzqTab1WidgetSub1=QWidget()
         contenedorIzqTab1LayoutSub1.addWidget(contenedorIzqTab1WidgetSub10)
         contenedorIzqTab1LayoutSub1.addWidget(contenedorIzqTab1WidgetSub20)
+        contenedorIzqTab1LayoutSub1.addWidget(contenedorIzqTab1WidgetSub30)        
         contenedorIzqTab1WidgetSub1.setLayout(contenedorIzqTab1LayoutSub1)
         contenedorIzqTab1WidgetSub1.resize(300,100)
         contenedorIzqTab1Layout.addWidget(contenedorIzqTab1WidgetSub0)
@@ -1709,68 +1948,221 @@ class MainWindow(QDialog):
         contenedorIzqTab1.resize(anchoContendor)
         #
         #agrego contenedor a la derecha para curva
-        #para label3 y boton3
         #para label4 y boton4
+        #para label5 y boton5
+        #para label6 y boton6        
         contenedorDerTab1 = QWidget()
         contenedorDerTab1Layout = QVBoxLayout()
-        #creo label 3
-        label3Tab1 = QLabel("Edt3")
-        label3Tab1.setFixedSize(QSize(16,16))
-        label3Tab1.setStyleSheet("border-style: none;")
-        #creo boton 3
-        boton3Tab1 = AnimatedToggle()
-        boton3Tab1.setFixedSize(boton3Tab1.sizeHint())
-        boton3Tab1.setToolTip("Toggle to change preset 3")
-        #agregamos el indicador 3 de medicion
-        valor3Tab1 = "115.2"
-        valor3IndTab1 = QLabel(valor3Tab1)
-        valor3IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        valor3IndTab1.setFixedSize(QSize(40,23))
-        #definimos la funcion asociada al preset 3 del tab1
-        enableBoton3Tab1 = partial(self.popUpSetBotonTab1, boton3Tab1)
-        disableBoton3Tab1 = partial(self.popUpResetBotonTab1, boton3Tab1)
-        boton3Tab1.stateChanged.connect(lambda x: enableBoton3Tab1() if x else disableBoton3Tab1())
         #creo label 4
-        label4Tab1 = QLabel("Edt4")
+        label4Tab1 = QLabel("Min")
         label4Tab1.setFixedSize(QSize(16,16))
         label4Tab1.setStyleSheet("border-style: none;")
-        #creo boton 4
+        #creo boton 3
         boton4Tab1 = AnimatedToggle()
         boton4Tab1.setFixedSize(boton4Tab1.sizeHint())
         boton4Tab1.setToolTip("Toggle to change preset 4")
-         #agregamos el indicador 4 de medicion
+        #agregamos el indicador 4 de medicion
         valor4Tab1 = "115.2"
-        valor4IndTab1 = QLabel(valor4Tab1)
-        valor4IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        valor4IndTab1.setFixedSize(QSize(40,23))
-        #definimos la funcion asociada al preset4 del tab1
+        self.valor4IndTab1 = QLabel(valor4Tab1)
+        self.valor4IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor4IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 4 del tab1
         enableBoton4Tab1 = partial(self.popUpSetBotonTab1, boton4Tab1)
         disableBoton4Tab1 = partial(self.popUpResetBotonTab1, boton4Tab1)
         boton4Tab1.stateChanged.connect(lambda x: enableBoton4Tab1() if x else disableBoton4Tab1())
+        #creo label 41
+        label41Tab1 = QLabel("Min")
+        label41Tab1.setFixedSize(QSize(16,16))
+        label41Tab1.setStyleSheet("border-style: none;")
+        #creo boton 41
+        boton41Tab1 = AnimatedToggle()
+        boton41Tab1.setFixedSize(boton41Tab1.sizeHint())
+        boton41Tab1.setToolTip("Toggle to change preset 4")
+        #agregamos el indicador 31 de medicion
+        valor41Tab1 = "115.2"
+        self.valor41IndTab1 = QLabel(valor41Tab1)
+        self.valor41IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor41IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 4 del tab1
+        enableBoton41Tab1 = partial(self.popUpSetBotonTab1, boton41Tab1)
+        disableBoton41Tab1 = partial(self.popUpResetBotonTab1, boton41Tab1)
+        boton41Tab1.stateChanged.connect(lambda x: enableBoton41Tab1() if x else disableBoton41Tab1())
+        #creo label 42
+        label42Tab1 = QLabel("Min")
+        label42Tab1.setFixedSize(QSize(16,16))
+        label42Tab1.setStyleSheet("border-style: none;")
+        #creo boton 42
+        boton42Tab1 = AnimatedToggle()
+        boton42Tab1.setFixedSize(boton42Tab1.sizeHint())
+        boton42Tab1.setToolTip("Toggle to change preset 3")
+        #agregamos el indicador 42 de medicion
+        valor42Tab1 = "115.2"
+        self.valor42IndTab1 = QLabel(valor42Tab1)
+        self.valor42IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor42IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 3 del tab1
+        enableBoton42Tab1 = partial(self.popUpSetBotonTab1, boton42Tab1)
+        disableBoton42Tab1 = partial(self.popUpResetBotonTab1, boton42Tab1)
+        boton42Tab1.stateChanged.connect(lambda x: enableBoton42Tab1() if x else disableBoton42Tab1())
+        #creo label 5
+        label5Tab1 = QLabel("Avg")
+        label5Tab1.setFixedSize(QSize(16,16))
+        label5Tab1.setStyleSheet("border-style: none;")
+        #creo boton 4
+        boton5Tab1 = AnimatedToggle()
+        boton5Tab1.setFixedSize(boton5Tab1.sizeHint())
+        boton5Tab1.setToolTip("Toggle to change preset 4")
+         #agregamos el indicador 4 de medicion
+        valor5Tab1 = "115.2"
+        self.valor5IndTab1 = QLabel(valor5Tab1)
+        self.valor5IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor5IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset4 del tab1
+        enableBoton5Tab1 = partial(self.popUpSetBotonTab1, boton5Tab1)
+        disableBoton5Tab1 = partial(self.popUpResetBotonTab1, boton5Tab1)
+        boton5Tab1.stateChanged.connect(lambda x: enableBoton5Tab1() if x else disableBoton5Tab1())
+        #creo label 5
+        label51Tab1 = QLabel("Avg")
+        label51Tab1.setFixedSize(QSize(16,16))
+        label51Tab1.setStyleSheet("border-style: none;")
+        #creo boton 4
+        boton51Tab1 = AnimatedToggle()
+        boton51Tab1.setFixedSize(boton51Tab1.sizeHint())
+        boton51Tab1.setToolTip("Toggle to change preset 4")
+         #agregamos el indicador 4 de medicion
+        valor51Tab1 = "115.2"
+        self.valor51IndTab1 = QLabel(valor51Tab1)
+        self.valor51IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor51IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset4 del tab1
+        enableBoton51Tab1 = partial(self.popUpSetBotonTab1, boton51Tab1)
+        disableBoton51Tab1 = partial(self.popUpResetBotonTab1, boton51Tab1)
+        boton51Tab1.stateChanged.connect(lambda x: enableBoton51Tab1() if x else disableBoton51Tab1())        
+        #creo label 52
+        label52Tab1 = QLabel("Avg")
+        label52Tab1.setFixedSize(QSize(16,16))
+        label52Tab1.setStyleSheet("border-style: none;")
+        #creo boton 4
+        boton52Tab1 = AnimatedToggle()
+        boton52Tab1.setFixedSize(boton52Tab1.sizeHint())
+        boton52Tab1.setToolTip("Toggle to change preset 4")
+         #agregamos el indicador 5 de medicion
+        valor52Tab1 = "115.2"
+        self.valor52IndTab1 = QLabel(valor52Tab1)
+        self.valor52IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor52IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset5 del tab1
+        enableBoton52Tab1 = partial(self.popUpSetBotonTab1, boton52Tab1)
+        disableBoton52Tab1 = partial(self.popUpResetBotonTab1, boton52Tab1)
+        boton52Tab1.stateChanged.connect(lambda x: enableBoton52Tab1() if x else disableBoton52Tab1())        
+        #creo label 6
+        label6Tab1 = QLabel("Max")
+        label6Tab1.setFixedSize(QSize(16,16))
+        label6Tab1.setStyleSheet("border-style: none;")
+        #creo boton 6
+        boton6Tab1 = AnimatedToggle()
+        boton6Tab1.setFixedSize(boton6Tab1.sizeHint())
+        boton6Tab1.setToolTip("Toggle to change preset 4")
+        #agregamos el indicador 6 de medicion
+        valor6Tab1 = "115.2"
+        self.valor6IndTab1 = QLabel(valor6Tab1)
+        self.valor6IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor6IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 6 del tab1
+        enableBoton6Tab1 = partial(self.popUpSetBotonTab1, boton6Tab1)
+        disableBoton6Tab1 = partial(self.popUpResetBotonTab1, boton6Tab1)
+        boton6Tab1.stateChanged.connect(lambda x: enableBoton6Tab1() if x else disableBoton6Tab1())
+        #creo label 61
+        label61Tab1 = QLabel("Max")
+        label61Tab1.setFixedSize(QSize(16,16))
+        label61Tab1.setStyleSheet("border-style: none;")
+        #creo boton 6
+        boton61Tab1 = AnimatedToggle()
+        boton61Tab1.setFixedSize(boton61Tab1.sizeHint())
+        boton61Tab1.setToolTip("Toggle to change preset 4")
+        #agregamos el indicador 6 de medicion
+        valor61Tab1 = "115.2"
+        self.valor61IndTab1 = QLabel(valor61Tab1)
+        self.valor61IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor61IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 6 del tab1
+        enableBoton61Tab1 = partial(self.popUpSetBotonTab1, boton61Tab1)
+        disableBoton61Tab1 = partial(self.popUpResetBotonTab1, boton61Tab1)
+        boton61Tab1.stateChanged.connect(lambda x: enableBoton61Tab1() if x else disableBoton61Tab1())
+        #creo label 62
+        label62Tab1 = QLabel("Max")
+        label62Tab1.setFixedSize(QSize(16,16))
+        label62Tab1.setStyleSheet("border-style: none;")
+        #creo boton 6
+        boton62Tab1 = AnimatedToggle()
+        boton62Tab1.setFixedSize(boton62Tab1.sizeHint())
+        boton62Tab1.setToolTip("Toggle to change preset 4")
+        #agregamos el indicador 6 de medicion
+        valor62Tab1 = "115.2"
+        self.valor62IndTab1 = QLabel(valor62Tab1)
+        self.valor62IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor62IndTab1.setFixedSize(QSize(40,23))
+        #definimos la funcion asociada al preset 6 del tab1
+        enableBoton62Tab1 = partial(self.popUpSetBotonTab1, boton62Tab1)
+        disableBoton62Tab1 = partial(self.popUpResetBotonTab1, boton62Tab1)
+        boton62Tab1.stateChanged.connect(lambda x: enableBoton62Tab1() if x else disableBoton62Tab1())
         #agrego el layout
-        contenedorDerTab1LayoutSub0 = QHBoxLayout()
-        contenedorDerTab1WidgetSub0 = QWidget()        
-        contenedorDerTab1LayoutSub0.addWidget(graficoTab1Der)
+        contenedorDerTab1LayoutSub0 = QVBoxLayout()
+        contenedorDerTab1WidgetSub0 = QWidget()
+        contenedorDerTab1LayoutSub01 = QHBoxLayout()
+        contenedorDerTab1WidgetSub01 = QWidget()
+        contenedorDerTab1LayoutSub01.addWidget(textEditTab1BotonSelROIDer)
+        contenedorDerTab1LayoutSub01.addWidget(self.roiSelComboDer)
+        contenedorDerTab1WidgetSub01.setLayout(contenedorDerTab1LayoutSub01)                
+        contenedorDerTab1LayoutSub0.addWidget(contenedorDerTab1WidgetSub01)
+        contenedorDerTab1LayoutSub0.addWidget(self.dfTab1Der)
+        contenedorDerTab1LayoutSub0.addWidget(self.dfTab1Der1)
         contenedorDerTab1WidgetSub0.setLayout(contenedorDerTab1LayoutSub0)
         contenedorDerTab1WidgetSub0.resize(300,668)
         contenedorDerTab1LayoutSub10 = QHBoxLayout()
         contenedorDerTab1WidgetSub10 = QWidget()                
-        contenedorDerTab1LayoutSub10.addWidget(label3Tab1)
-        contenedorDerTab1LayoutSub10.addWidget(boton3Tab1)        
-        contenedorDerTab1LayoutSub10.addWidget(valor3IndTab1)
+        contenedorDerTab1LayoutSub10.addWidget(label4Tab1)
+        contenedorDerTab1LayoutSub10.addWidget(boton4Tab1)        
+        contenedorDerTab1LayoutSub10.addWidget(self.valor4IndTab1)
+        contenedorDerTab1LayoutSub10.addWidget(label41Tab1)
+        contenedorDerTab1LayoutSub10.addWidget(boton41Tab1)        
+        contenedorDerTab1LayoutSub10.addWidget(self.valor41IndTab1)
+        contenedorDerTab1LayoutSub10.addWidget(label42Tab1)
+        contenedorDerTab1LayoutSub10.addWidget(boton42Tab1)        
+        contenedorDerTab1LayoutSub10.addWidget(self.valor42IndTab1)
         contenedorDerTab1WidgetSub10.setLayout(contenedorDerTab1LayoutSub10)
         contenedorDerTab1WidgetSub10.resize(300,50)
         contenedorDerTab1LayoutSub20 = QHBoxLayout()
         contenedorDerTab1WidgetSub20 = QWidget()        
-        contenedorDerTab1LayoutSub20.addWidget(label4Tab1)
-        contenedorDerTab1LayoutSub20.addWidget(boton4Tab1)        
-        contenedorDerTab1LayoutSub20.addWidget(valor4IndTab1)
+        contenedorDerTab1LayoutSub20.addWidget(label5Tab1)
+        contenedorDerTab1LayoutSub20.addWidget(boton5Tab1)        
+        contenedorDerTab1LayoutSub20.addWidget(self.valor5IndTab1)
+        contenedorDerTab1LayoutSub20.addWidget(label51Tab1)
+        contenedorDerTab1LayoutSub20.addWidget(boton51Tab1)        
+        contenedorDerTab1LayoutSub20.addWidget(self.valor51IndTab1)
+        contenedorDerTab1LayoutSub20.addWidget(label52Tab1)
+        contenedorDerTab1LayoutSub20.addWidget(boton52Tab1)        
+        contenedorDerTab1LayoutSub20.addWidget(self.valor52IndTab1)
         contenedorDerTab1WidgetSub20.setLayout(contenedorDerTab1LayoutSub20)
-        contenedorDerTab1WidgetSub20.resize(300,50)        
+        contenedorDerTab1WidgetSub20.resize(300,50)
+        contenedorDerTab1LayoutSub30 = QHBoxLayout()
+        contenedorDerTab1WidgetSub30 = QWidget()
+        contenedorDerTab1LayoutSub30.addWidget(label6Tab1)
+        contenedorDerTab1LayoutSub30.addWidget(boton6Tab1)        
+        contenedorDerTab1LayoutSub30.addWidget(self.valor6IndTab1)
+        contenedorDerTab1LayoutSub30.addWidget(label61Tab1)
+        contenedorDerTab1LayoutSub30.addWidget(boton61Tab1)        
+        contenedorDerTab1LayoutSub30.addWidget(self.valor61IndTab1)
+        contenedorDerTab1LayoutSub30.addWidget(label62Tab1)
+        contenedorDerTab1LayoutSub30.addWidget(boton62Tab1)        
+        contenedorDerTab1LayoutSub30.addWidget(self.valor62IndTab1)
+        contenedorDerTab1WidgetSub30.setLayout(contenedorDerTab1LayoutSub30)
+        contenedorDerTab1WidgetSub30.resize(300,50)        
         contenedorDerTab1LayoutSub1=QVBoxLayout()
         contenedorDerTab1WidgetSub1=QWidget()
         contenedorDerTab1LayoutSub1.addWidget(contenedorDerTab1WidgetSub10)
         contenedorDerTab1LayoutSub1.addWidget(contenedorDerTab1WidgetSub20)
+        contenedorDerTab1LayoutSub1.addWidget(contenedorDerTab1WidgetSub30)
         contenedorDerTab1WidgetSub1.setLayout(contenedorDerTab1LayoutSub1)
         contenedorDerTab1WidgetSub1.resize(300,100)
         contenedorDerTab1Layout.addWidget(contenedorDerTab1WidgetSub0)
@@ -2845,6 +3237,110 @@ class MainWindow(QDialog):
  
     #***************************************************
     #***************************************************
+    #update el grafico izquierda en el tiempo Eje X temporal
+    def update_plot_dfTab1Izq(self):
+        self.ydataIzq = self.ydataIzq[1:] + [random.randint(0,10)]
+        #
+        #aca tengo que realizar la captura de los datos que estan en la ROI
+        #
+        #Primero = Tengo que levantar la lista de ROIs.
+        #Tengo lista de Rois Rectangulos = Rectangulo 1 - Rectangulo 2
+        #Tengo lista de Rois Linea = Linea 1 - Linea 2
+        #Tengo lista de Rois Elipse = Elipse 1 - Elipse 2
+        #Segundo = Tengo que convertir las posicion QPoint a numpy
+        #
+        #Tercero = Tengo usar openCV para tomar la imagen y guardar la en un registro
+        #
+        #Cuarto = Con openCV y numpy sacar de la imagen cada Roi de la lista de Roi
+        #
+        #Quinto = Guardar el perfil de cada Roi Rectangulo seria perfil horizontal y perfil vertical
+        #           Guardar el perfil de Roi Elipse perfil horizontal y perfil vertical
+        #               Guardar el perfil de Roi Linea
+        #Sexto = Calcular para el perfil de Roi Rectangulo horizontal el valor minimo - promedio - maximo
+        #           Calcular para el perfil de Roi Rectangulo vertical el valor minimo - promedio - maximo
+        #               Calcular para el perfil de Roi Elipse horizontal el valor minimo - promedio - maximo
+        #                   Calcular para el perfil de Roi Elipse vertical el valor minimo - promedio - maximo
+        #                       Calcular para el perfil de Roi Linea el valor minimo - promedio - maximo
+        #Septimo =  Agregar al gafico de trending Roi horizontal minimo el valor minimo calculado 
+        #Roi        Agregar al grafico de trending Roi vertical minimo el valor minimo calculado
+        #Rectangulo Agregar al grafico de trending Roi horizontal promedio el valor promedio
+        #           Agregar el grafico de trending Roi vertical primedio el valor promedio
+        #           Agregar el grafico de trending Roi horizontal maximo el valor maximo
+        #           Agregar el grafico de trending Roi vertical maximo el valor maximo
+        #Octavo  =  Agregar al gafico de trending Roi horizontal minimo el valor minimo calculado 
+        #Roi        Agregar al grafico de trending Roi vertical minimo el valor minimo calculado
+        #Elipse     Agregar al grafico de trending Roi horizontal promedio el valor promedio
+        #           Agregar el grafico de trending Roi vertical promedio el valor promedio
+        #           Agregar el grafico de trending Roi horizontal maximo el valor maximo
+        #           Agregar el grafico de trending Roi vertical maximo el valor maximo
+        #Noveno =   Agregar al gafico de trending Roi minimo el valor minimo calculado 
+        #Roi        Agregar al grafico de trending Roi promedio el valor promedio calculado
+        #Linea      Agregar al grafico de trending Roi maximo el valor maximo calculado
+        #
+        #Decimo = Calculo para cada ROI los valores de 
+        #           Roi Rectangulo Minimo - Roi Rectangulo Promedio - Roi Rectangulo Maximo
+        #           Roi Elipse Minimo - Roi Elipse Promedio - Roi Elipse Maximo
+        #           Roi Linea Minimo - Roi Linea Promedio - Roi Linea Maximo
+        #           La posicion de cada valor
+        #           Posicion Roi Rectangulo Minimo - Posicion Roi Rectangulo Promedio - Posicion Roi Rectangulo Maximo
+        #           Posicion Roi Elipse Minimo - Posicion Roi Elipse Promedio - Posicion Roi Elipse Maximo
+        #           Posicion Roi Linea Minimo - Posicion Roi Linea Promedio - Posicion Roi Linea Maximo
+        #print(self.scrollArea.listaRects) #imprimo los rectangulos rois
+        #print(self.scrollArea.listaLineas) #imprimo las lineas rois
+        #print(self.scrollArea.listaElipses) #imprimo las elipses rois                      
+        numpyImage = self.QImageToCvMat(self.image_label.pixmap())
+        #print(numpyImage) #imprimo la matriz convertida de imagen para cada 100ms
+        if self._plot_refIzq is None:
+            plot_refs = self.dfTab1Izq.axes.plot(self.xdataIzq, self.ydataIzq, 'r')
+            self._plot_refIzq = plot_refs[0]
+        else:
+            self._plot_refIzq.set_ydata(self.ydataIzq)
+        self.dfTab1Izq.draw()
+    #update el grafico izquierda 1 Eje X pixel        
+    def update_plot_dfTab1Izq1(self):
+        self.ydataIzq1 = self.ydataIzq1[1:] + [random.randint(0,10)]
+        if self._plot_refIzq1 is None:
+            plot_refs = self.dfTab1Izq1.axes.plot(self.xdataIzq1, self.ydataIzq1, 'r')
+            self._plot_refIzq1 = plot_refs[0]
+        else:
+            self._plot_refIzq1.set_ydata(self.ydataIzq1)
+        self.dfTab1Izq1.draw()
+
+    #update el grafico
+    def update_plot_dfTab1Der(self):
+        self.ydata = self.ydata[1:] + [random.randint(0,10)]
+        if self._plot_ref is None:
+            plot_refs = self.dfTab1Der.axes.plot(self.xdata, self.ydata, 'r')
+            self._plot_ref = plot_refs[0]
+        else:
+            self._plot_ref.set_ydata(self.ydata)
+        self.dfTab1Der.draw()
+    #
+    def update_plot_dfTab1Der1(self):
+        self.ydataDer1 = self.ydataDer1[1:] + [random.randint(0,10)]
+        if self._plot_refDer1 is None:
+            plot_refs = self.dfTab1Der1.axes.plot(self.xdataDer1, self.ydataDer1, 'r')
+            self._plot_refDer1 = plot_refs[0]
+        else:
+            self._plot_refDer1.set_ydata(self.ydataDer1)
+        self.dfTab1Der1.draw()
+    #
+    #funcion para convertir imagen en QT a imagenes en opencv
+    #
+    def QImageToCvMat(self, incomingImage):
+        
+        imagenQImage = QtGui.QImage(incomingImage)
+        imagen = imagenQImage.convertToFormat(QtGui.QImage.Format.Format_RGBA8888)
+        width = imagen.width()
+        height = imagen.height()
+        if width == 0 | height == 0:
+            return 0
+        ptr = imagen.bits()
+        ptr.setsize(height * width * 4)
+        arr = np.frombuffer(ptr, np.uint8).reshape((height, width, 4))
+
+        return arr
+    #
     #Defino las funciones para manejar el evento de la thermal camera
     def closeEvent(self, event):
         self.thread.stop()
@@ -2853,7 +3349,7 @@ class MainWindow(QDialog):
     def update_image(self, cv_img):
         """Updates the image_label with a new opencv image"""
         qt_img = self.convert_cv_qt(cv_img)
-        self.image_label.setPixmap(qt_img)
+        self.image_label.setPixmap(qt_img)    
     #cargo la imagen en formato pixmap en el viewer
     #self.viewCam1.setPixmap(qt_img)
     def convert_cv_qt(self, cv_img):
@@ -2865,7 +3361,139 @@ class MainWindow(QDialog):
         p = convert_to_Qt_format.scaled(self.disply_width, self.display_height, Qt.KeepAspectRatio)
         return QPixmap.fromImage(p)
     #***************************************************
-    #***************************************************
+    @pyqtSlot(np.ndarray)
+    def thermal_image(self, thermal_img):
+        #print(thermal_img)#aca tengo que extraer los datos de la imagen para cada ROI y guardar la informacion
+        #Leer la lista de rectangulos 
+        #tengo que identificar el tamaño de la Roi rectangulo con su height and width si es mayor a 1 puedo extraer esa zona de la imagen
+        rect0PosX = self.scrollArea.listaRects[0].x()
+        rect0PosY = self.scrollArea.listaRects[0].y()
+        rect0Width = self.scrollArea.listaRects[0].width()
+        rect0Height = self.scrollArea.listaRects[0].height()
+        #****
+        rect1PosX = self.scrollArea.listaRects[1].x()
+        rect1PosY = self.scrollArea.listaRects[1].y()
+        rect1Width = self.scrollArea.listaRects[1].width()
+        rect1Height = self.scrollArea.listaRects[1].height()
+        #tengo que identificar el tamaño de la Roi recta con la distancia entre el punto 0 y el punto 1 es mayor a 1 puedo extraer esa zona de la imagen
+        line0PosX1 = self.scrollArea.listaLineas[0].x1()
+        line0PosY1 = self.scrollArea.listaLineas[0].y1()
+        line0PosX2 = self.scrollArea.listaLineas[0].x2()
+        line0PosY2 = self.scrollArea.listaLineas[0].y2()
+        #****
+        line1PosX1 = self.scrollArea.listaLineas[1].x1()
+        line1PosY1 = self.scrollArea.listaLineas[1].y1()
+        line1PosX2 = self.scrollArea.listaLineas[1].x2()
+        line1PosY2 = self.scrollArea.listaLineas[1].y2()
+        #tengo que identificar el tamaño de la Roi elipse con width y el height si es mayor a 1 puedo extraer esa zona de la imagen
+        elipse0PosX = self.scrollArea.listaElipses[0].x()
+        elipse0PosY = self.scrollArea.listaElipses[0].y()
+        elipse0Width = self.scrollArea.listaElipses[0].width()
+        elipse0Height = self.scrollArea.listaElipses[0].height()
+        #****
+        elipse1PosX = self.scrollArea.listaElipses[1].x()
+        elipse1PosY = self.scrollArea.listaElipses[1].y()
+        elipse1Width = self.scrollArea.listaElipses[1].width()
+        elipse1Height = self.scrollArea.listaElipses[1].height()
+        #***************************************************
+        #***************************************************
+        if (rect0Height > 1) and (rect0Width >1):
+            #sacamos los datos correspondientes a la primer roi y segunda roi rectangular
+            roiRect1ImageValue = thermal_img[rect0PosX:rect0PosX+rect0Width,rect0PosY:rect0Height]
+            if roiRect1ImageValue.shape[0]>0 and roiRect1ImageValue.shape[1]>0:
+                roiRect1ImageValueMin = np.amin(roiRect1ImageValue)
+                roiRect1ImageValueMax = np.amax(roiRect1ImageValue)
+                roiRect1ImageValueAvg = np.mean(roiRect1ImageValue)
+
+        if (rect1Height > 1) and (rect1Width > 1):
+            roiRect2ImageValue = thermal_img[rect1PosX:rect1PosX+rect1Width,rect0PosY:rect1Height]
+            if roiRect2ImageValue.shape[0]>0 and roiRect2ImageValue.shape[1]>0:
+                roiRect2ImageValueMin = np.amin(roiRect2ImageValue)
+                roiRect2ImageValueMax = np.amax(roiRect2ImageValue)
+                roiRect2ImageValueAvg = np.mean(roiRect2ImageValue)
+        #sacamos los datos correspondientres a la primer roi y segunda roi linea
+        largoLinea0 = line0PosY2 - line0PosY1 #cantidad de elementos
+        anchoLinea0 = line0PosX2 - line0PosX1
+        if (largoLinea0 > 1) and (anchoLinea0 > 1):
+            valoresLinea0 =[]
+            for tupla in zip(range(line0PosX1,line0PosX2),range(line0PosY1,line0PosY2)):
+                valor = thermal_img[tupla[0],tupla[1]]
+                valoresLinea0.append(valor)
+            if len(valoresLinea0) > 0:
+                roiLine0ImageValueMin = np.amin(valoresLinea0)
+                roiLine0ImageValueMax = np.amax(valoresLinea0)
+                roiLine0ImageValueAvg = np.mean(valoresLinea0)
+        #
+        largoLinea1 = line1PosY2 - line1PosY1 #cantidad de elementos
+        anchoLinea1 = line1PosX2 - line1PosX1
+        if (largoLinea1 > 1) and (anchoLinea1 > 1):
+            valoresLinea1 =[]
+            for tupla in zip(range(line1PosX1,line1PosX2),range(line1PosY1,line1PosY2)):
+                valor = thermal_img[tupla[0],tupla[1]]
+                valoresLinea1.append(valor)
+            if len(valoresLinea1) > 0:
+                roiLine1ImageValueMin = np.amin(valoresLinea1)
+                roiLine1ImageValueMax = np.amax(valoresLinea1)
+                roiLine1ImageValueAvg = np.mean(valoresLinea1)
+        #sacamos los datos correspondientres a la primer roi y segunda roi elipse
+        #primero creamos una elipse con los datos de x0,y0 -- width,height
+        #elipse 0
+        if (int(elipse0Height) > 1) and (int(elipse0Width) > 1):
+            x0 = elipse0PosX
+            y0 = elipse0PosY
+            a = elipse0Width
+            b = elipse0Height
+            #resolucion
+            nx = thermal_img.shape[1]
+            ny = thermal_img.shape[0]
+            #configuro sistema de coordenadas
+            x = np.linspace(0, nx, nx)
+            y = np.linspace(0, ny, ny)
+            #configuro array 
+            xgrid, ygrid = np.meshgrid(x, y)
+            #calculo la elipse
+            ellipseMascara = (xgrid-x0)**2 / a**2 + (ygrid-y0)**2 / b**2
+            #creo un array con ceros
+            zerosMatriz = np.zeros((ny,nx), dtype=np.int32)
+            #pongo 1 donde la elipse es menor que 1
+            #zerosMatriz[ellipseMascara < 1.0] = 1
+            #busco en la matriz termografica
+            valoresThermalElipse0 = thermal_img[ellipseMascara < 1.0]
+            if valoresThermalElipse0.shape[0]>0:
+                valoresThermalElipse0Min = np.amax(valoresThermalElipse0)
+                valoresThermalElipse0Max = np.amin(valoresThermalElipse0)
+                valoresThermalElipse0Avg = np.mean(valoresThermalElipse0)
+        #sacmos los datos correspondientes a la elipse 1
+        #elipse 0
+        if (elipse1Height > 1) and (elipse1Width > 1):
+            x01 = elipse1PosX
+            y01 = elipse1PosY
+            a1 = elipse1Width
+            b1 = elipse1Height
+            #resolucion
+            nx1 = thermal_img.shape[1]
+            ny1 = thermal_img.shape[0]
+            #configuro sistema de coordenadas
+            x1 = np.linspace(0, nx1, nx1)
+            y1 = np.linspace(0, ny1, ny1)
+            #configuro array 
+            xgrid1, ygrid1 = np.meshgrid(x1, y1)
+            #calculo la elipse
+            ellipseMascara1 = (xgrid1-x01)**2 / a1**2 + (ygrid1-y01)**2 / b1**2
+            #creo un array con ceros
+            zerosMatriz1 = np.zeros((nx1,ny1), dtype=np.int32)
+            #pongo 1 donde la elipse es menor que 1
+            #zerosMatriz1[ellipseMascara1 < 1.0] = 1
+            #busco en la matriz termografica
+            valoresThermalElipse1 = thermal_img[ellipseMascara1 < 1.0]
+            if valoresThermalElipse1.shape[0]>0:
+                valoresThermalElipse1Min = np.amin(valoresThermalElipse1)
+                valoresThermalElipse1Max = np.amax(valoresThermalElipse1)
+                valoresThermalElipse1Avg = np.mean(valoresThermalElipse1)
+        ##
+        ###Tenemos los datos listos para pasar y realizar los calculos necesarios
+        ##
+
     #defino la funcion asociada con el cambio de preset en el tab1
     def popUpSetBotonTab1(self, checkbox):
         print("ajustamos preset 1 tab1")
@@ -2880,7 +3508,7 @@ class MainWindow(QDialog):
     #defino la funcion asociada con el cambio de preset de la camara 1
     def popUpConfiguracionPresetCam1(self, checkbox):
         print("cambiar preset seleccionado en camara 1")
-        print(checkbox)
+        #print(checkbox)
         ##
         #Tenemos que agregar la popup W
         if checkbox.isChecked() == True:
@@ -3118,6 +3746,27 @@ class MainWindow(QDialog):
             self.pbarTab3.setValue(value)
         else:
             self.timerPbar3.stop()
+    #Defino la funcion asociada a la seleccion de ROI Izquierda Tab1
+    def populateRoiCombo1(self):
+        if not self.roiSelComboIzq.count():
+            self.roiSelComboIzq.addItems(['ROI Rect1 H', 'ROI Rect1 V','ROI Line1', 'ROI Ellip1 H', 'ROI Ellip1 V'])
+        #agergamos los iconos para cada herramienta de medicion
+        self.roiSelComboIzq.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboIzq.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboIzq.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboIzq.setItemIcon(3, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboIzq.setItemIcon(4, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+    #Defino la funcion asociada a la seleccion de ROI Derecha Tab1
+    def populateRoiCombo2(self):
+        if not self.roiSelComboDer.count():
+            self.roiSelComboDer.addItems(['ROI Rect1 H', 'ROI Rect1 V','ROI Line1', 'ROI Ellip1 H', 'ROI Ellip1 V'])
+        #agergamos los iconos para cada herramienta de medicion
+        self.roiSelComboDer.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboDer.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboDer.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboDer.setItemIcon(3, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboDer.setItemIcon(4, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+    
     #Defino la funcion asociada a la seleccion de camaras 1
     def populateCamCombo1(self):
         
@@ -3170,35 +3819,35 @@ class MainWindow(QDialog):
     def mostraPantallaCam1(self):
         page=self.bodyTabWidget.findChild(QWidget, 'tab1')
         index = self.bodyTabWidget.indexOf(page)
-        print(index)
+        #print(index)
         self.bodyTabWidget.setCurrentWidget(self.bodyTabWidget.findChild(QWidget,'tab1'))
         self.labelFunctionalWindowSelected.setText("Functional Window Cam 1")        
     #Defino la función asociado al botón para cambiar de pantalla Cam2
     def mostraPantallaCam2(self):
         page=self.bodyTabWidget.findChild(QWidget, 'tab2')
         index = self.bodyTabWidget.indexOf(page)
-        print(index)
+        #print(index)
         self.bodyTabWidget.setCurrentWidget(self.bodyTabWidget.findChild(QWidget,'tab2'))
         self.labelFunctionalWindowSelected.setText("Functional Window Cam 2")
     #Defino la función asociado al botón para cambiar de pantalla Cam3
     def mostraPantallaCam3(self):
         page=self.bodyTabWidget.findChild(QWidget, 'tab3')
         index = self.bodyTabWidget.indexOf(page)
-        print(index)
+        #print(index)
         self.bodyTabWidget.setCurrentWidget(self.bodyTabWidget.findChild(QWidget,'tab3'))
         self.labelFunctionalWindowSelected.setText("Functional Window Cam 3")
     #Defino la función asociado al botón para cambiar a pantalla Recorder
     def mostraPantallaRecorder(self):
         page=self.bodyTabWidget.findChild(QWidget, 'tab4')
         index = self.bodyTabWidget.indexOf(page)
-        print(index)
+        #print(index)
         self.bodyTabWidget.setCurrentWidget(self.bodyTabWidget.findChild(QWidget,'tab4'))
         self.labelFunctionalWindowSelected.setText("Functional Window Recorded")
     #Defino la función asociada al botón para cambiar a pantalla Configuración
     def mostraPantallaConfig(self):
         page=self.bodyTabWidget.findChild(QWidget, 'tab5')
         index = self.bodyTabWidget.indexOf(page)
-        print(index)
+        #print(index)
         self.bodyTabWidget.setCurrentWidget(self.bodyTabWidget.findChild(QWidget,'tab5'))
         self.labelFunctionalWindowSelected.setText("Functional Window Config Cameras")
     #***************************************************
