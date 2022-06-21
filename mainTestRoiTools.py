@@ -50,6 +50,7 @@ import ctypes as ct
 import cv2
 import os
 import random
+from matplotlib import pyplot as plt
 #direccion base para los archivos de imagen
 basedir = os.path.dirname(__file__)
 #detecto si se cargo la imagen
@@ -812,7 +813,7 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                 libir = ct.cdll.LoadLibrary(ct.util.find_library("irdirectsdk"))
 
         #path to config xml file ---> ../config/generic.xml 
-        pathXml = ct.c_char_p(b'C:\Users\lupus\OneDrive\Documentos\ProcesamientoDeImagenes\config\generic.xml ')
+        pathXml = ct.c_char_p(b'C:\Users\lupus\OneDrive\Documentos\ProcesamientoDeImagenes\config\generic.xml')
 
         # init vars
         pathFormat = ct.c_char_p()      #tipo de formato que usamos para el path a la libreria
@@ -878,8 +879,9 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                 #cv2.imshow('Optris Image Test',np_img.reshape(palette_height.value, palette_width.value, 3)[:,:,::-1])
                 frame = np_img.reshape(palette_height.value, palette_width.value, 3)[:,:,::-1]
                 self.change_pixmap_signal.emit(frame) #convierto el dato en formato numpy a un formato de qt5
-                frameThermal = np_thermal.reshape(int(thermal_width.value), int(thermal_height.value))
-                self.change_thermal_signal.emit(frameThermal/10. - 100)
+                np_thermalEscalado = np_thermal / 10. - 100
+                frameThermal = np_thermalEscalado.reshape( thermal_height.value, thermal_width.value)
+                self.change_thermal_signal.emit(frameThermal)
         # clean shutdown
         libir.evo_irimager_terminate()   #si se detiene el hilo de adquisicion termino el hilo de ejecucion
 
@@ -1373,20 +1375,30 @@ class ROIComboBox(QComboBox):
     def showPopup(self):
         self.popupAboutToBeShown.emit()
         super(ROIComboBox, self).showPopup()
-        
+class ProfileComboBox(QComboBox):
+    popupAboutToBeShown = pyqtSignal()
+    def showPopup(self):
+        self.popupAboutToBeShown.emit()
+        super(ProfileComboBox, self).showPopup()        
 #Clase principal
 class MainWindow(QDialog):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         #*****cargo la clase asociada a la comunicacion con la camara
         #*****optris
-        
+        #
+        self.cam1Width = 0
+        self.cam1Height = 0
+        #
         #hago una instancia a mi combobox ==> userComboBox
         self.userCombo = UserComboBox(self) #combo box de usuarios
         self.userCombo.popupAboutToBeShown.connect(self.populateUserCombo)
         #
         self.roiSelComboIzq = ROIComboBox(self)
         self.roiSelComboIzq.popupAboutToBeShown.connect(self.populateRoiCombo1)
+        #
+        self.profileSelComboIzq = ProfileComboBox(self)
+        self.profileSelComboIzq.popupAboutToBeShown.connect(self.profileRoiCombo1)
         #
         self.roiSelComboDer = ROIComboBox(self)
         self.roiSelComboDer.popupAboutToBeShown.connect(self.populateRoiCombo2)
@@ -1642,17 +1654,22 @@ class MainWindow(QDialog):
         #Agrego comboBox para seleccionar el trending que vamos a mostrar en dfTab1Izq
         #
         textEditTab1BotonSelROI = QLabel()
-        textEditTab1BotonSelROI.setText("Sel ROI: ")
+        textEditTab1BotonSelROI.setText("Selected ROI: ")
         textEditTab1BotonSelROI.setBuddy(self.roiSelComboIzq)
         self.roiSelComboIzq.setToolTip("selected the roi to show min-avg-max value")
         #
+        #Agrego comoboBox para seleccion el perfil que vamos a mostrar en dfTab11Izq
+        textEditTab1BotonSelProfile = QLabel()
+        textEditTab1BotonSelProfile.setText("Selected Profile:")
+        textEditTab1BotonSelProfile.setBuddy(self.profileSelComboIzq)
+        self.profileSelComboIzq.setToolTip("selected the profile to show Rois")
         #agrego grafico izquierda para la camara 1
         #
         self.dfTab1Izq = MplCanvas(self, width=5, height=4, dpi=100)
 
         n_data = 50
         self.xdataIzq = list(range(n_data))
-        self.ydataIzq = [random.randint(0,10) for i in range(n_data)]
+        self.ydataIzq = [random.randint(0,100) for i in range(n_data)]
 
         self._plot_refIzq = None
         self.update_plot_dfTab1Izq()
@@ -1665,20 +1682,36 @@ class MainWindow(QDialog):
         #agrego grafico sub izquierda para la camara 1
         #
         self.dfTab1Izq1 = MplCanvas(self, width=5, height=4, dpi=100)
-
+        #defino los datos para el grafico de perfiles a izquierda de la imagen
         n_data1 = 50
         self.xdataIzq1 = list(range(n_data1))
-        self.ydataIzq1 = [random.randint(0,10) for i in range(n_data1)]
-
+        self.ydataIzq1 = [random.randint(0,100) for i in range(n_data1)]
+        #defino los datos para llevar los perfiles de cada roi
+        #roi rectangulo horizontal
+        self.xdataIzq1RectHor = list(range(n_data1))
+        self.ydataIzq1RectHor = [random.randint(0,10) for i in range(n_data1)]
+        #roi rectangulo vertical
+        self.xdataIzq1RectVert = list(range(n_data1))
+        self.ydataIzq1RectVert = [random.randint(0,10) for i in range(n_data1)]
+        #roi elipse horizontal
+        self.xdataIzq1ElipHor = list(range(n_data1))
+        self.ydataIzq1ElipHor = [random.randint(0,10) for i in range(n_data1)]
+        #roi elipse vertical
+        self.xdataIzq1ElipVer = list(range(n_data1))
+        self.ydataIzq1ElipVer = [random.randint(0,10) for i in range(n_data1)]
+        #roi linea
+        self.xdataIzq1Line = list(range(n_data1))
+        self.ydataIzq1Line = [random.randint(0,10) for i in range(n_data1)]
+        #dibujo el perfil
         self._plot_refIzq1 = None
         self.update_plot_dfTab1Izq1()
         # No actualizo el grafico lo dejo estatico
         # Ya que voy a mostrar el dato cuando se
         # actualice la medicion con el eje X en pixel
-        # self.timerIzq1 = QtCore.QTimer()
-        # self.timerIzq1.setInterval(10)
-        # self.timerIzq1.timeout.connect(self.update_plot_dfTab1Izq1)
-        # self.timerIzq1.start()
+        self.timerIzq1 = QtCore.QTimer()
+        self.timerIzq1.setInterval(1000)
+        self.timerIzq1.timeout.connect(self.update_plot_dfTab1Izq1)
+        self.timerIzq1.start()
         #
         #
         #Agrego comboBox para seleccionar el trending que vamos a mostrar en dfTab1Der
@@ -1711,7 +1744,25 @@ class MainWindow(QDialog):
 
         n_data2 = 50
         self.xdataDer1 = list(range(n_data2))
-        self.ydataDer1 = [random.randint(0,10) for i in range(n_data2)]
+        self.ydataDer1 = [random.randint(0,100) for i in range(n_data2)]
+        #defino los datos para llevar los perfiles de cada roi
+        #roi rectangulo horizontal
+        self.xdataDer1RectHor = list(range(n_data2))
+        self.ydataDer1RectHor = [random.randint(0,10) for i in range(n_data2)]
+        #roi rectangulo vertical
+        self.xdataDer1RectVert = list(range(n_data2))
+        self.ydataDer1RectVert = [random.randint(0,10) for i in range(n_data2)]
+        #roi elipse horizontal
+        self.xdataDer1ElipHor = list(range(n_data2))
+        self.ydataDer1ElipHor = [random.randint(0,10) for i in range(n_data2)]
+        #roi elipse vertical
+        self.xdataDer1ElipVer = list(range(n_data2))
+        self.ydataDer1ElipVer = [random.randint(0,10) for i in range(n_data2)]
+        #roi linea
+        self.xdataDer1Line = list(range(n_data2))
+        self.ydataDer1Line = [random.randint(0,10) for i in range(n_data2)]
+           
+
 
         self._plot_refDer1 = None
         self.update_plot_dfTab1Der1() 
@@ -1741,10 +1792,10 @@ class MainWindow(QDialog):
         disableBoton1Tab1 = partial(self.popUpResetBotonTab1, boton1Tab1)
         boton1Tab1.stateChanged.connect(lambda x: enableBoton1Tab1() if x else disableBoton1Tab1())        
         #agregamos el indicador 1 de medicion
-        valor1Tab1 = "105.2"
-        self.valor1IndTab1 = QLabel(valor1Tab1)
-        self.valor1IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor1IndTab1.setFixedSize(QSize(40,23))
+        valor1Tab1MinRoi1Rect = "105.2" #minimo roi rect
+        self.valor1IndTab1MinRoi1Rect = QLabel(valor1Tab1MinRoi1Rect)
+        self.valor1IndTab1MinRoi1Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor1IndTab1MinRoi1Rect.setFixedSize(QSize(40,23))
         #creo label 11
         label11Tab1 = QLabel("Min")
         label11Tab1.setFixedSize(QSize(16,16))
@@ -1758,10 +1809,10 @@ class MainWindow(QDialog):
         disableBoton11Tab1 = partial(self.popUpResetBotonTab1, boton11Tab1)
         boton11Tab1.stateChanged.connect(lambda x: enableBoton11Tab1() if x else disableBoton11Tab1())        
         #agregamos el indicador 11 de medicion
-        valor11Tab1 = "105.2"
-        self.valor11IndTab1 = QLabel(valor11Tab1)
-        self.valor11IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor11IndTab1.setFixedSize(QSize(40,23))
+        valor11Tab1MinRoi1Line = "105.2" #minimo roi line
+        self.valor11IndTab1MinRoi1Line = QLabel(valor11Tab1MinRoi1Line)
+        self.valor11IndTab1MinRoi1Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor11IndTab1MinRoi1Line.setFixedSize(QSize(40,23))
         #creo label 12
         label12Tab1 = QLabel("Min")
         label12Tab1.setFixedSize(QSize(16,16))
@@ -1775,10 +1826,10 @@ class MainWindow(QDialog):
         disableBoton12Tab1 = partial(self.popUpResetBotonTab1, boton12Tab1)
         boton12Tab1.stateChanged.connect(lambda x: enableBoton12Tab1() if x else disableBoton12Tab1())        
         #agregamos el indicador 12 de medicion
-        valor12Tab1 = "105.2"
-        self.valor12IndTab1 = QLabel(valor12Tab1)
-        self.valor12IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor12IndTab1.setFixedSize(QSize(40,23))
+        valor12Tab1MinRoi1Ellipse = "105.2" #minimo roi elipse
+        self.valor12IndTab1MinRoi1Ellipse = QLabel(valor12Tab1MinRoi1Ellipse)
+        self.valor12IndTab1MinRoi1Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor12IndTab1MinRoi1Ellipse.setFixedSize(QSize(40,23))
         #creo label 2
         label2Tab1 = QLabel("Avg")
         label2Tab1.setFixedSize(QSize(16,16))
@@ -1788,10 +1839,10 @@ class MainWindow(QDialog):
         boton2Tab1.setFixedSize(boton2Tab1.sizeHint())
         boton2Tab1.setToolTip("Toggle to change preset 2")       
         #agregamos el indicador 2 de medicion
-        valor2Tab1 = "115.2"
-        self.valor2IndTab1 = QLabel(valor2Tab1)
-        self.valor2IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor2IndTab1.setFixedSize(QSize(40,23))
+        valor2Tab1AvgRoi1Rect = "115.2" #avg roi rect
+        self.valor2IndTab1AvgRoi1Rect = QLabel(valor2Tab1AvgRoi1Rect)
+        self.valor2IndTab1AvgRoi1Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor2IndTab1AvgRoi1Rect.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 2 del tab1
         enableBoton2Tab1 = partial(self.popUpSetBotonTab1, boton2Tab1)
         disableBoton2Tab1 = partial(self.popUpResetBotonTab1, boton2Tab1)
@@ -1805,10 +1856,10 @@ class MainWindow(QDialog):
         boton21Tab1.setFixedSize(boton21Tab1.sizeHint())
         boton21Tab1.setToolTip("Toggle to change preset 2")       
         #agregamos el indicador 21 de medicion
-        valor21Tab1 = "115.2"
-        self.valor21IndTab1 = QLabel(valor21Tab1)
-        self.valor21IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor21IndTab1.setFixedSize(QSize(40,23))
+        valor21Tab1AvgRoi1Line = "115.2" #avg roi line
+        self.valor21IndTab1AvgRoi1Line = QLabel(valor21Tab1AvgRoi1Line)
+        self.valor21IndTab1AvgRoi1Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor21IndTab1AvgRoi1Line.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 21 del tab1
         enableBoton21Tab1 = partial(self.popUpSetBotonTab1, boton21Tab1)
         disableBoton21Tab1 = partial(self.popUpResetBotonTab1, boton21Tab1)
@@ -1822,10 +1873,10 @@ class MainWindow(QDialog):
         boton22Tab1.setFixedSize(boton22Tab1.sizeHint())
         boton22Tab1.setToolTip("Toggle to change preset 2")       
         #agregamos el indicador 22 de medicion
-        valor22Tab1 = "115.2"
-        self.valor22IndTab1 = QLabel(valor22Tab1)
-        self.valor22IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor22IndTab1.setFixedSize(QSize(40,23))
+        valor22Tab1AvgRoi1Ellipse = "115.2" #avg roi elipse
+        self.valor22IndTab1AvgRoi1Ellipse = QLabel(valor22Tab1AvgRoi1Ellipse)
+        self.valor22IndTab1AvgRoi1Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor22IndTab1AvgRoi1Ellipse.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 22 del tab1
         enableBoton22Tab1 = partial(self.popUpSetBotonTab1, boton22Tab1)
         disableBoton22Tab1 = partial(self.popUpResetBotonTab1, boton22Tab1)
@@ -1839,10 +1890,10 @@ class MainWindow(QDialog):
         boton3Tab1.setFixedSize(boton3Tab1.sizeHint())
         boton3Tab1.setToolTip("Toggle to change preset 2")       
         #agregamos el indicador 3 de medicion
-        valor3Tab1 = "115.2"
-        self.valor3IndTab1 = QLabel(valor3Tab1)
-        self.valor3IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor3IndTab1.setFixedSize(QSize(40,23))
+        valor3Tab1MaxRoi1Rect = "115.2" #max roi rect
+        self.valor3IndTab1MaxRoi1Rect = QLabel(valor3Tab1MaxRoi1Rect)
+        self.valor3IndTab1MaxRoi1Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor3IndTab1MaxRoi1Rect.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 3 del tab1
         enableBoton3Tab1 = partial(self.popUpSetBotonTab1, boton3Tab1)
         disableBoton3Tab1 = partial(self.popUpResetBotonTab1, boton3Tab1)
@@ -1856,10 +1907,10 @@ class MainWindow(QDialog):
         boton31Tab1.setFixedSize(boton31Tab1.sizeHint())
         boton31Tab1.setToolTip("Toggle to change preset 3")       
         #agregamos el indicador 31 de medicion
-        valor31Tab1 = "115.2"
-        self.valor31IndTab1 = QLabel(valor31Tab1)
-        self.valor31IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor31IndTab1.setFixedSize(QSize(40,23))
+        valor31Tab1MaxRoi1Line = "115.2" #max roi Line
+        self.valor31IndTab1MaxRoi1Line = QLabel(valor31Tab1MaxRoi1Line)
+        self.valor31IndTab1MaxRoi1Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor31IndTab1MaxRoi1Line.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 21 del tab1
         enableBoton31Tab1 = partial(self.popUpSetBotonTab1, boton31Tab1)
         disableBoton31Tab1 = partial(self.popUpResetBotonTab1, boton31Tab1)
@@ -1873,10 +1924,10 @@ class MainWindow(QDialog):
         boton32Tab1.setFixedSize(boton32Tab1.sizeHint())
         boton32Tab1.setToolTip("Toggle to change preset 2")       
         #agregamos el indicador 22 de medicion
-        valor32Tab1 = "115.2"
-        self.valor32IndTab1 = QLabel(valor32Tab1)
-        self.valor32IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor32IndTab1.setFixedSize(QSize(40,23))
+        valor32Tab1MaxRoi1Ellipse = "115.2" #max roi ellipse
+        self.valor32IndTab1MaxRoi1Ellipse = QLabel(valor32Tab1MaxRoi1Ellipse)
+        self.valor32IndTab1MaxRoi1Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor32IndTab1MaxRoi1Ellipse.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 22 del tab1
         enableBoton32Tab1 = partial(self.popUpSetBotonTab1, boton32Tab1)
         disableBoton32Tab1 = partial(self.popUpResetBotonTab1, boton32Tab1)
@@ -1888,6 +1939,8 @@ class MainWindow(QDialog):
         contenedorIzqTab1WidgetSub01 = QWidget()
         contenedorIzqTab1LayoutSub01.addWidget(textEditTab1BotonSelROI)
         contenedorIzqTab1LayoutSub01.addWidget(self.roiSelComboIzq)
+        contenedorIzqTab1LayoutSub01.addWidget(textEditTab1BotonSelProfile)
+        contenedorIzqTab1LayoutSub01.addWidget(self.profileSelComboIzq)
         contenedorIzqTab1WidgetSub01.setLayout(contenedorIzqTab1LayoutSub01)        
         contenedorIzqTab1LayoutSub0.addWidget(contenedorIzqTab1WidgetSub01)
         contenedorIzqTab1LayoutSub0.addWidget(self.dfTab1Izq)
@@ -1898,39 +1951,39 @@ class MainWindow(QDialog):
         contenedorIzqTab1WidgetSub10 = QWidget()                
         contenedorIzqTab1LayoutSub10.addWidget(label1Tab1)
         contenedorIzqTab1LayoutSub10.addWidget(boton1Tab1)        
-        contenedorIzqTab1LayoutSub10.addWidget(self.valor1IndTab1)
+        contenedorIzqTab1LayoutSub10.addWidget(self.valor1IndTab1MinRoi1Rect)
         contenedorIzqTab1LayoutSub10.addWidget(label11Tab1)
         contenedorIzqTab1LayoutSub10.addWidget(boton11Tab1)        
-        contenedorIzqTab1LayoutSub10.addWidget(self.valor11IndTab1)
+        contenedorIzqTab1LayoutSub10.addWidget(self.valor11IndTab1MinRoi1Line)
         contenedorIzqTab1LayoutSub10.addWidget(label12Tab1)
         contenedorIzqTab1LayoutSub10.addWidget(boton12Tab1)        
-        contenedorIzqTab1LayoutSub10.addWidget(self.valor12IndTab1)
+        contenedorIzqTab1LayoutSub10.addWidget(self.valor12IndTab1MinRoi1Ellipse)
         contenedorIzqTab1WidgetSub10.setLayout(contenedorIzqTab1LayoutSub10)
         contenedorIzqTab1WidgetSub10.resize(300,50)
         contenedorIzqTab1LayoutSub20 = QHBoxLayout()
         contenedorIzqTab1WidgetSub20 = QWidget()        
         contenedorIzqTab1LayoutSub20.addWidget(label2Tab1)
         contenedorIzqTab1LayoutSub20.addWidget(boton2Tab1)        
-        contenedorIzqTab1LayoutSub20.addWidget(self.valor2IndTab1)
+        contenedorIzqTab1LayoutSub20.addWidget(self.valor2IndTab1AvgRoi1Rect)
         contenedorIzqTab1LayoutSub20.addWidget(label21Tab1)
         contenedorIzqTab1LayoutSub20.addWidget(boton21Tab1)        
-        contenedorIzqTab1LayoutSub20.addWidget(self.valor21IndTab1)
+        contenedorIzqTab1LayoutSub20.addWidget(self.valor21IndTab1AvgRoi1Line)
         contenedorIzqTab1LayoutSub20.addWidget(label22Tab1)
         contenedorIzqTab1LayoutSub20.addWidget(boton22Tab1)        
-        contenedorIzqTab1LayoutSub20.addWidget(self.valor22IndTab1)
+        contenedorIzqTab1LayoutSub20.addWidget(self.valor22IndTab1AvgRoi1Ellipse)
         contenedorIzqTab1WidgetSub20.setLayout(contenedorIzqTab1LayoutSub20)
         contenedorIzqTab1WidgetSub20.resize(300,50)
         contenedorIzqTab1LayoutSub30 = QHBoxLayout()
         contenedorIzqTab1WidgetSub30 = QWidget()
         contenedorIzqTab1LayoutSub30.addWidget(label3Tab1)
         contenedorIzqTab1LayoutSub30.addWidget(boton3Tab1)        
-        contenedorIzqTab1LayoutSub30.addWidget(self.valor3IndTab1)
+        contenedorIzqTab1LayoutSub30.addWidget(self.valor3IndTab1MaxRoi1Rect)
         contenedorIzqTab1LayoutSub30.addWidget(label31Tab1)
         contenedorIzqTab1LayoutSub30.addWidget(boton31Tab1)        
-        contenedorIzqTab1LayoutSub30.addWidget(self.valor31IndTab1)
+        contenedorIzqTab1LayoutSub30.addWidget(self.valor31IndTab1MaxRoi1Line)
         contenedorIzqTab1LayoutSub30.addWidget(label32Tab1)
         contenedorIzqTab1LayoutSub30.addWidget(boton32Tab1)        
-        contenedorIzqTab1LayoutSub30.addWidget(self.valor32IndTab1)
+        contenedorIzqTab1LayoutSub30.addWidget(self.valor32IndTab1MaxRoi1Ellipse)
         contenedorIzqTab1WidgetSub30.setLayout(contenedorIzqTab1LayoutSub30)
         contenedorIzqTab1LayoutSub1=QVBoxLayout()
         contenedorIzqTab1WidgetSub1=QWidget()
@@ -1962,10 +2015,10 @@ class MainWindow(QDialog):
         boton4Tab1.setFixedSize(boton4Tab1.sizeHint())
         boton4Tab1.setToolTip("Toggle to change preset 4")
         #agregamos el indicador 4 de medicion
-        valor4Tab1 = "115.2"
-        self.valor4IndTab1 = QLabel(valor4Tab1)
-        self.valor4IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor4IndTab1.setFixedSize(QSize(40,23))
+        valor4Tab1MinRoi2Rect = "115.2"
+        self.valor4IndTab1MinRoi2Rect = QLabel(valor4Tab1MinRoi2Rect)
+        self.valor4IndTab1MinRoi2Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor4IndTab1MinRoi2Rect.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 4 del tab1
         enableBoton4Tab1 = partial(self.popUpSetBotonTab1, boton4Tab1)
         disableBoton4Tab1 = partial(self.popUpResetBotonTab1, boton4Tab1)
@@ -1979,10 +2032,10 @@ class MainWindow(QDialog):
         boton41Tab1.setFixedSize(boton41Tab1.sizeHint())
         boton41Tab1.setToolTip("Toggle to change preset 4")
         #agregamos el indicador 31 de medicion
-        valor41Tab1 = "115.2"
-        self.valor41IndTab1 = QLabel(valor41Tab1)
-        self.valor41IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor41IndTab1.setFixedSize(QSize(40,23))
+        valor41Tab1MinRoi2Line = "115.2"
+        self.valor41IndTab1MinRoi2Line = QLabel(valor41Tab1MinRoi2Line)
+        self.valor41IndTab1MinRoi2Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor41IndTab1MinRoi2Line.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 4 del tab1
         enableBoton41Tab1 = partial(self.popUpSetBotonTab1, boton41Tab1)
         disableBoton41Tab1 = partial(self.popUpResetBotonTab1, boton41Tab1)
@@ -1996,10 +2049,10 @@ class MainWindow(QDialog):
         boton42Tab1.setFixedSize(boton42Tab1.sizeHint())
         boton42Tab1.setToolTip("Toggle to change preset 3")
         #agregamos el indicador 42 de medicion
-        valor42Tab1 = "115.2"
-        self.valor42IndTab1 = QLabel(valor42Tab1)
-        self.valor42IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor42IndTab1.setFixedSize(QSize(40,23))
+        valor42Tab1MinRoi2Ellipse = "115.2"
+        self.valor42IndTab1MinRoi2Ellipse = QLabel(valor42Tab1MinRoi2Ellipse)
+        self.valor42IndTab1MinRoi2Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor42IndTab1MinRoi2Ellipse.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 3 del tab1
         enableBoton42Tab1 = partial(self.popUpSetBotonTab1, boton42Tab1)
         disableBoton42Tab1 = partial(self.popUpResetBotonTab1, boton42Tab1)
@@ -2013,10 +2066,10 @@ class MainWindow(QDialog):
         boton5Tab1.setFixedSize(boton5Tab1.sizeHint())
         boton5Tab1.setToolTip("Toggle to change preset 4")
          #agregamos el indicador 4 de medicion
-        valor5Tab1 = "115.2"
-        self.valor5IndTab1 = QLabel(valor5Tab1)
-        self.valor5IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor5IndTab1.setFixedSize(QSize(40,23))
+        valor5Tab1AvgRoi2Rect = "115.2"
+        self.valor5IndTab1AvgRoi2Rect = QLabel(valor5Tab1AvgRoi2Rect)
+        self.valor5IndTab1AvgRoi2Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor5IndTab1AvgRoi2Rect.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset4 del tab1
         enableBoton5Tab1 = partial(self.popUpSetBotonTab1, boton5Tab1)
         disableBoton5Tab1 = partial(self.popUpResetBotonTab1, boton5Tab1)
@@ -2030,10 +2083,10 @@ class MainWindow(QDialog):
         boton51Tab1.setFixedSize(boton51Tab1.sizeHint())
         boton51Tab1.setToolTip("Toggle to change preset 4")
          #agregamos el indicador 4 de medicion
-        valor51Tab1 = "115.2"
-        self.valor51IndTab1 = QLabel(valor51Tab1)
-        self.valor51IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor51IndTab1.setFixedSize(QSize(40,23))
+        valor51Tab1AvgRoi2Line = "115.2"
+        self.valor51IndTab1AvgRoi2Line = QLabel(valor51Tab1AvgRoi2Line)
+        self.valor51IndTab1AvgRoi2Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor51IndTab1AvgRoi2Line.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset4 del tab1
         enableBoton51Tab1 = partial(self.popUpSetBotonTab1, boton51Tab1)
         disableBoton51Tab1 = partial(self.popUpResetBotonTab1, boton51Tab1)
@@ -2047,10 +2100,10 @@ class MainWindow(QDialog):
         boton52Tab1.setFixedSize(boton52Tab1.sizeHint())
         boton52Tab1.setToolTip("Toggle to change preset 4")
          #agregamos el indicador 5 de medicion
-        valor52Tab1 = "115.2"
-        self.valor52IndTab1 = QLabel(valor52Tab1)
-        self.valor52IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor52IndTab1.setFixedSize(QSize(40,23))
+        valor52Tab1AvgRoi2Ellipse = "115.2"
+        self.valor52IndTab1AvgRoi2Ellipse = QLabel(valor52Tab1AvgRoi2Ellipse)
+        self.valor52IndTab1AvgRoi2Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor52IndTab1AvgRoi2Ellipse.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset5 del tab1
         enableBoton52Tab1 = partial(self.popUpSetBotonTab1, boton52Tab1)
         disableBoton52Tab1 = partial(self.popUpResetBotonTab1, boton52Tab1)
@@ -2064,10 +2117,10 @@ class MainWindow(QDialog):
         boton6Tab1.setFixedSize(boton6Tab1.sizeHint())
         boton6Tab1.setToolTip("Toggle to change preset 4")
         #agregamos el indicador 6 de medicion
-        valor6Tab1 = "115.2"
-        self.valor6IndTab1 = QLabel(valor6Tab1)
-        self.valor6IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor6IndTab1.setFixedSize(QSize(40,23))
+        valor6Tab1MaxRoi2Rect = "115.2"
+        self.valor6IndTab1MaxRoi2Rect = QLabel(valor6Tab1MaxRoi2Rect)
+        self.valor6IndTab1MaxRoi2Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor6IndTab1MaxRoi2Rect.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 6 del tab1
         enableBoton6Tab1 = partial(self.popUpSetBotonTab1, boton6Tab1)
         disableBoton6Tab1 = partial(self.popUpResetBotonTab1, boton6Tab1)
@@ -2081,10 +2134,10 @@ class MainWindow(QDialog):
         boton61Tab1.setFixedSize(boton61Tab1.sizeHint())
         boton61Tab1.setToolTip("Toggle to change preset 4")
         #agregamos el indicador 6 de medicion
-        valor61Tab1 = "115.2"
-        self.valor61IndTab1 = QLabel(valor61Tab1)
-        self.valor61IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor61IndTab1.setFixedSize(QSize(40,23))
+        valor61Tab1MaxRoi2Line = "115.2"
+        self.valor61IndTab1MaxRoi2Line = QLabel(valor61Tab1MaxRoi2Line)
+        self.valor61IndTab1MaxRoi2Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor61IndTab1MaxRoi2Line.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 6 del tab1
         enableBoton61Tab1 = partial(self.popUpSetBotonTab1, boton61Tab1)
         disableBoton61Tab1 = partial(self.popUpResetBotonTab1, boton61Tab1)
@@ -2098,10 +2151,10 @@ class MainWindow(QDialog):
         boton62Tab1.setFixedSize(boton62Tab1.sizeHint())
         boton62Tab1.setToolTip("Toggle to change preset 4")
         #agregamos el indicador 6 de medicion
-        valor62Tab1 = "115.2"
-        self.valor62IndTab1 = QLabel(valor62Tab1)
-        self.valor62IndTab1.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.valor62IndTab1.setFixedSize(QSize(40,23))
+        valor62Tab1MaxRoi2Ellipse = "115.2"
+        self.valor62IndTab1MaxRoi2Ellipse = QLabel(valor62Tab1MaxRoi2Ellipse)
+        self.valor62IndTab1MaxRoi2Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.valor62IndTab1MaxRoi2Ellipse.setFixedSize(QSize(40,23))
         #definimos la funcion asociada al preset 6 del tab1
         enableBoton62Tab1 = partial(self.popUpSetBotonTab1, boton62Tab1)
         disableBoton62Tab1 = partial(self.popUpResetBotonTab1, boton62Tab1)
@@ -2123,39 +2176,39 @@ class MainWindow(QDialog):
         contenedorDerTab1WidgetSub10 = QWidget()                
         contenedorDerTab1LayoutSub10.addWidget(label4Tab1)
         contenedorDerTab1LayoutSub10.addWidget(boton4Tab1)        
-        contenedorDerTab1LayoutSub10.addWidget(self.valor4IndTab1)
+        contenedorDerTab1LayoutSub10.addWidget(self.valor4IndTab1MinRoi2Rect)
         contenedorDerTab1LayoutSub10.addWidget(label41Tab1)
         contenedorDerTab1LayoutSub10.addWidget(boton41Tab1)        
-        contenedorDerTab1LayoutSub10.addWidget(self.valor41IndTab1)
+        contenedorDerTab1LayoutSub10.addWidget(self.valor41IndTab1MinRoi2Line)
         contenedorDerTab1LayoutSub10.addWidget(label42Tab1)
         contenedorDerTab1LayoutSub10.addWidget(boton42Tab1)        
-        contenedorDerTab1LayoutSub10.addWidget(self.valor42IndTab1)
+        contenedorDerTab1LayoutSub10.addWidget(self.valor42IndTab1MinRoi2Ellipse)
         contenedorDerTab1WidgetSub10.setLayout(contenedorDerTab1LayoutSub10)
         contenedorDerTab1WidgetSub10.resize(300,50)
         contenedorDerTab1LayoutSub20 = QHBoxLayout()
         contenedorDerTab1WidgetSub20 = QWidget()        
         contenedorDerTab1LayoutSub20.addWidget(label5Tab1)
         contenedorDerTab1LayoutSub20.addWidget(boton5Tab1)        
-        contenedorDerTab1LayoutSub20.addWidget(self.valor5IndTab1)
+        contenedorDerTab1LayoutSub20.addWidget(self.valor5IndTab1AvgRoi2Rect)
         contenedorDerTab1LayoutSub20.addWidget(label51Tab1)
         contenedorDerTab1LayoutSub20.addWidget(boton51Tab1)        
-        contenedorDerTab1LayoutSub20.addWidget(self.valor51IndTab1)
+        contenedorDerTab1LayoutSub20.addWidget(self.valor51IndTab1AvgRoi2Line)
         contenedorDerTab1LayoutSub20.addWidget(label52Tab1)
         contenedorDerTab1LayoutSub20.addWidget(boton52Tab1)        
-        contenedorDerTab1LayoutSub20.addWidget(self.valor52IndTab1)
+        contenedorDerTab1LayoutSub20.addWidget(self.valor52IndTab1AvgRoi2Ellipse)
         contenedorDerTab1WidgetSub20.setLayout(contenedorDerTab1LayoutSub20)
         contenedorDerTab1WidgetSub20.resize(300,50)
         contenedorDerTab1LayoutSub30 = QHBoxLayout()
         contenedorDerTab1WidgetSub30 = QWidget()
         contenedorDerTab1LayoutSub30.addWidget(label6Tab1)
         contenedorDerTab1LayoutSub30.addWidget(boton6Tab1)        
-        contenedorDerTab1LayoutSub30.addWidget(self.valor6IndTab1)
+        contenedorDerTab1LayoutSub30.addWidget(self.valor6IndTab1MaxRoi2Rect)
         contenedorDerTab1LayoutSub30.addWidget(label61Tab1)
         contenedorDerTab1LayoutSub30.addWidget(boton61Tab1)        
-        contenedorDerTab1LayoutSub30.addWidget(self.valor61IndTab1)
+        contenedorDerTab1LayoutSub30.addWidget(self.valor61IndTab1MaxRoi2Line)
         contenedorDerTab1LayoutSub30.addWidget(label62Tab1)
         contenedorDerTab1LayoutSub30.addWidget(boton62Tab1)        
-        contenedorDerTab1LayoutSub30.addWidget(self.valor62IndTab1)
+        contenedorDerTab1LayoutSub30.addWidget(self.valor62IndTab1MaxRoi2Ellipse)
         contenedorDerTab1WidgetSub30.setLayout(contenedorDerTab1LayoutSub30)
         contenedorDerTab1WidgetSub30.resize(300,50)        
         contenedorDerTab1LayoutSub1=QVBoxLayout()
@@ -3239,70 +3292,72 @@ class MainWindow(QDialog):
     #***************************************************
     #update el grafico izquierda en el tiempo Eje X temporal
     def update_plot_dfTab1Izq(self):
-        self.ydataIzq = self.ydataIzq[1:] + [random.randint(0,10)]
-        #
-        #aca tengo que realizar la captura de los datos que estan en la ROI
-        #
-        #Primero = Tengo que levantar la lista de ROIs.
-        #Tengo lista de Rois Rectangulos = Rectangulo 1 - Rectangulo 2
-        #Tengo lista de Rois Linea = Linea 1 - Linea 2
-        #Tengo lista de Rois Elipse = Elipse 1 - Elipse 2
-        #Segundo = Tengo que convertir las posicion QPoint a numpy
-        #
-        #Tercero = Tengo usar openCV para tomar la imagen y guardar la en un registro
-        #
-        #Cuarto = Con openCV y numpy sacar de la imagen cada Roi de la lista de Roi
-        #
-        #Quinto = Guardar el perfil de cada Roi Rectangulo seria perfil horizontal y perfil vertical
-        #           Guardar el perfil de Roi Elipse perfil horizontal y perfil vertical
-        #               Guardar el perfil de Roi Linea
-        #Sexto = Calcular para el perfil de Roi Rectangulo horizontal el valor minimo - promedio - maximo
-        #           Calcular para el perfil de Roi Rectangulo vertical el valor minimo - promedio - maximo
-        #               Calcular para el perfil de Roi Elipse horizontal el valor minimo - promedio - maximo
-        #                   Calcular para el perfil de Roi Elipse vertical el valor minimo - promedio - maximo
-        #                       Calcular para el perfil de Roi Linea el valor minimo - promedio - maximo
-        #Septimo =  Agregar al gafico de trending Roi horizontal minimo el valor minimo calculado 
-        #Roi        Agregar al grafico de trending Roi vertical minimo el valor minimo calculado
-        #Rectangulo Agregar al grafico de trending Roi horizontal promedio el valor promedio
-        #           Agregar el grafico de trending Roi vertical primedio el valor promedio
-        #           Agregar el grafico de trending Roi horizontal maximo el valor maximo
-        #           Agregar el grafico de trending Roi vertical maximo el valor maximo
-        #Octavo  =  Agregar al gafico de trending Roi horizontal minimo el valor minimo calculado 
-        #Roi        Agregar al grafico de trending Roi vertical minimo el valor minimo calculado
-        #Elipse     Agregar al grafico de trending Roi horizontal promedio el valor promedio
-        #           Agregar el grafico de trending Roi vertical promedio el valor promedio
-        #           Agregar el grafico de trending Roi horizontal maximo el valor maximo
-        #           Agregar el grafico de trending Roi vertical maximo el valor maximo
-        #Noveno =   Agregar al gafico de trending Roi minimo el valor minimo calculado 
-        #Roi        Agregar al grafico de trending Roi promedio el valor promedio calculado
-        #Linea      Agregar al grafico de trending Roi maximo el valor maximo calculado
-        #
-        #Decimo = Calculo para cada ROI los valores de 
-        #           Roi Rectangulo Minimo - Roi Rectangulo Promedio - Roi Rectangulo Maximo
-        #           Roi Elipse Minimo - Roi Elipse Promedio - Roi Elipse Maximo
-        #           Roi Linea Minimo - Roi Linea Promedio - Roi Linea Maximo
-        #           La posicion de cada valor
-        #           Posicion Roi Rectangulo Minimo - Posicion Roi Rectangulo Promedio - Posicion Roi Rectangulo Maximo
-        #           Posicion Roi Elipse Minimo - Posicion Roi Elipse Promedio - Posicion Roi Elipse Maximo
-        #           Posicion Roi Linea Minimo - Posicion Roi Linea Promedio - Posicion Roi Linea Maximo
-        #print(self.scrollArea.listaRects) #imprimo los rectangulos rois
-        #print(self.scrollArea.listaLineas) #imprimo las lineas rois
-        #print(self.scrollArea.listaElipses) #imprimo las elipses rois                      
-        numpyImage = self.QImageToCvMat(self.image_label.pixmap())
-        #print(numpyImage) #imprimo la matriz convertida de imagen para cada 100ms
-        if self._plot_refIzq is None:
-            plot_refs = self.dfTab1Izq.axes.plot(self.xdataIzq, self.ydataIzq, 'r')
-            self._plot_refIzq = plot_refs[0]
-        else:
-            self._plot_refIzq.set_ydata(self.ydataIzq)
-        self.dfTab1Izq.draw()
+        X=self.roiSelComboIzq.currentText()
+        try:
+            
+            if X == 'ROI Rect1 Min':
+                #cargamos el trendin de roi rect 1 minimo
+                self.ydataIzq = self.ydataIzq[1:] + [float(self.valor1IndTab1MinRoi1Rect.text())]
+            elif X == 'ROI Line1 Min':
+                #agergo la medicion de la roi min line 1
+                self.ydataIzq = self.ydataIzq[1:] + [float(self.valor11IndTab1MinRoi1Line.text())]
+            elif X == 'ROI Ellip1 Min':
+                #agergo la medicion de la roi min elipse 1
+                self.ydataIzq = self.ydataIzq[1:] + [float(self.valor12IndTab1MinRoi1Ellipse.text())]
+            elif X == 'ROI Rect1 Avg':
+                #agergo la medicion de la roi avg rect 1
+                self.ydataIzq = self.ydataIzq[1:] + [float(self.valor2IndTab1AvgRoi1Rect.text())]
+            elif X == 'ROI Line1 Avg':
+                #agergo la medicion de la roi avg line 1
+                self.ydataIzq = self.ydataIzq[1:] + [float(self.valor21IndTab1AvgRoi1Line.text())]
+            elif X == 'ROI Ellip1 Avg':
+                #agergo la medicion de la roi avg elipse 1
+                self.ydataIzq = self.ydataIzq[1:] + [float(self.valor22IndTab1AvgRoi1Ellipse.text())]
+            elif X == 'ROI Rect1 Max':
+                #agergo la medicion de la roi max rect 1
+                self.ydataIzq = self.ydataIzq[1:] + [float(self.valor3IndTab1MaxRoi1Rect.text())]
+            elif X == 'ROI Line1 Max':
+                #agergo la medicion de la roi max line 1
+                self.ydataIzq = self.ydataIzq[1:] + [float(self.valor31IndTab1MaxRoi1Line.text())]
+            elif X == 'ROI Ellipse Max':
+                #agergo la medicion de la roi max elipse 1
+                self.ydataIzq = self.ydataIzq[1:] + [float(self.valor32IndTab1MaxRoi1Ellipse.text())]
+            numpyImage = self.QImageToCvMat(self.image_label.pixmap())
+            #print(numpyImage) #imprimo la matriz convertida de imagen para cada 100ms
+            if self._plot_refIzq is None:
+                plot_refs = self.dfTab1Izq.axes.plot(self.xdataIzq, self.ydataIzq, 'r')
+                self._plot_refIzq = plot_refs[0]
+            else:
+                self._plot_refIzq.set_ydata(self.ydataIzq)
+            self.dfTab1Izq.draw()
+        except:
+            print("no definido")
+      
     #update el grafico izquierda 1 Eje X pixel        
     def update_plot_dfTab1Izq1(self):
-        self.ydataIzq1 = self.ydataIzq1[1:] + [random.randint(0,10)]
+        #self.ydataIzq1 = self.ydataIzq1[1:] + [random.randint(0,10)]
+        X = self.profileSelComboIzq.currentText()
+        if X == 'Profile Horizontal Rect1':
+            self.xdataIzq1 = self.xdataIzq1RectHor
+            self.ydataIzq1 = self.ydataIzq1RectHor
+        elif X == 'Profile Vertical Rect1':
+            self.xdataIzq1 = self.xdataIzq1RectVert
+            self.ydataIzq1 = self.ydataIzq1RectVert
+        elif X == 'Profile Horizontal Ellipse1':
+            self.xdataIzq1 = self.xdataIzq1ElipHor
+            self.ydataIzq1 = self.ydataIzq1ElipHor
+        elif X == 'Profile Vertical Ellipse1':
+            self.xdataIzq1 = self.xdataIzq1ElipVer
+            self.ydataIzq1 = self.ydataIzq1ElipVer
+        elif X == 'Profile Line1':
+            self.xdataIzq1 = self.xdataIzq1Line
+            self.ydataIzq1 = self.ydataIzq1Line
+
         if self._plot_refIzq1 is None:
             plot_refs = self.dfTab1Izq1.axes.plot(self.xdataIzq1, self.ydataIzq1, 'r')
             self._plot_refIzq1 = plot_refs[0]
         else:
+            self._plot_refIzq1.set_xdata(self.xdataIzq1)
             self._plot_refIzq1.set_ydata(self.ydataIzq1)
         self.dfTab1Izq1.draw()
 
@@ -3363,13 +3418,13 @@ class MainWindow(QDialog):
     #***************************************************
     @pyqtSlot(np.ndarray)
     def thermal_image(self, thermal_img):
-        #print(thermal_img)#aca tengo que extraer los datos de la imagen para cada ROI y guardar la informacion
+        #print(thermal_img[0][0])#aca tengo que extraer los datos de la imagen para cada ROI y guardar la informacion
         #Leer la lista de rectangulos 
         #tengo que identificar el tamaño de la Roi rectangulo con su height and width si es mayor a 1 puedo extraer esa zona de la imagen
         rect0PosX = self.scrollArea.listaRects[0].x()
         rect0PosY = self.scrollArea.listaRects[0].y()
         rect0Width = self.scrollArea.listaRects[0].width()
-        rect0Height = self.scrollArea.listaRects[0].height()
+        rect0Height = self.scrollArea.listaRects[0].height()        
         #****
         rect1PosX = self.scrollArea.listaRects[1].x()
         rect1PosY = self.scrollArea.listaRects[1].y()
@@ -3397,47 +3452,113 @@ class MainWindow(QDialog):
         elipse1Height = self.scrollArea.listaElipses[1].height()
         #***************************************************
         #***************************************************
+        #a zero los valores de medicion rect 1
+        roiRect1ImageValueMin = []
+        roiRect1ImageValueMax = []
+        roiRect1ImageValueAvg = []
+        #print(thermal_img.shape)        
         if (rect0Height > 1) and (rect0Width >1):
             #sacamos los datos correspondientes a la primer roi y segunda roi rectangular
-            roiRect1ImageValue = thermal_img[rect0PosX:rect0PosX+rect0Width,rect0PosY:rect0Height]
-            if roiRect1ImageValue.shape[0]>0 and roiRect1ImageValue.shape[1]>0:
+            roiRect1ImageValue = thermal_img[rect0PosY:rect0PosY+rect0Height, rect0PosX:rect0PosX+rect0Width] #ponemos alrevez los indices porque la imagen esta invertida
+            if (roiRect1ImageValue.shape[0]>1) and (roiRect1ImageValue.shape[1]>1):
                 roiRect1ImageValueMin = np.amin(roiRect1ImageValue)
                 roiRect1ImageValueMax = np.amax(roiRect1ImageValue)
                 roiRect1ImageValueAvg = np.mean(roiRect1ImageValue)
-
+        self.valor1IndTab1MinRoi1Rect.setText(str(roiRect1ImageValueMin))
+        self.valor2IndTab1AvgRoi1Rect.setText(str(roiRect1ImageValueAvg))
+        self.valor3IndTab1MaxRoi1Rect.setText(str(roiRect1ImageValueMax))
+        #guardo el perfil horizontal y el perfil vertical de la roi
+        if (rect0Height > 1) and (rect0Width >1):
+            widthRoiRect1ImageValue = roiRect1ImageValue.shape[0]
+            heightRoiRect1ImageValue = roiRect1ImageValue.shape[1]
+            indiceXRoiRect1ImageValue = widthRoiRect1ImageValue / 2
+            indiceYHeightRoiRect1ImageValue = heightRoiRect1ImageValue / 2
+            profileVerticalRoi1Rect = roiRect1ImageValue[int(indiceXRoiRect1ImageValue),:]
+            profileHorizontalRoi1Rect = roiRect1ImageValue[:,int(indiceYHeightRoiRect1ImageValue)]
+            self.xdataIzq1RectHor = list(range(widthRoiRect1ImageValue))
+            self.ydataIzq1RectHor = profileHorizontalRoi1Rect
+            self.xdataIzq1RectVert = list(range(heightRoiRect1ImageValue))
+            self.ydataIzq1RectVert = profileVerticalRoi1Rect  
+        
+        #a zero los valores de medicion rect 2
+        roiRect2ImageValueMin = []
+        roiRect2ImageValueMax = []
+        roiRect2ImageValueAvg = []       
         if (rect1Height > 1) and (rect1Width > 1):
-            roiRect2ImageValue = thermal_img[rect1PosX:rect1PosX+rect1Width,rect0PosY:rect1Height]
-            if roiRect2ImageValue.shape[0]>0 and roiRect2ImageValue.shape[1]>0:
+            roiRect2ImageValue = thermal_img[rect1PosY:rect1PosY+rect1Height,rect1PosX:rect1PosX+rect1Width]
+            if (roiRect2ImageValue.shape[0]>1) and (roiRect2ImageValue.shape[1]):
                 roiRect2ImageValueMin = np.amin(roiRect2ImageValue)
                 roiRect2ImageValueMax = np.amax(roiRect2ImageValue)
                 roiRect2ImageValueAvg = np.mean(roiRect2ImageValue)
+        self.valor4IndTab1MinRoi2Rect.setText(str(roiRect2ImageValueMin))
+        self.valor5IndTab1AvgRoi2Rect.setText(str(roiRect2ImageValueAvg))
+        self.valor6IndTab1MaxRoi2Rect.setText(str(roiRect2ImageValueMax))        
+        #guardo el perfil horizontal y el perfil vertical de la roi
+        if (rect1Height > 1) and (rect1Width > 1):
+            widthRoiRect2ImageValue = roiRect2ImageValue.shape[0]
+            heightRoiRect2ImageValue = roiRect2ImageValue.shape[1]
+            indiceXRoiRect2ImageValue = widthRoiRect2ImageValue / 2
+            indiceYHeightRoiRect2ImageValue = heightRoiRect2ImageValue / 2
+            profileVerticalRoi2Rect = roiRect2ImageValue[int(indiceXRoiRect2ImageValue),:]
+            profileHorizontalRoi2Rect = roiRect2ImageValue[:,int(indiceYHeightRoiRect2ImageValue)]
+            self.xdataDer1RectHor = list(range(widthRoiRect2ImageValue))
+            self.ydataDer1RectHor = profileHorizontalRoi2Rect
+            self.xdataDer1RectVert = list(range(heightRoiRect2ImageValue))
+            self.ydataDer1RectVert = profileVerticalRoi2Rect 
+        
         #sacamos los datos correspondientres a la primer roi y segunda roi linea
         largoLinea0 = line0PosY2 - line0PosY1 #cantidad de elementos
         anchoLinea0 = line0PosX2 - line0PosX1
+        roiLine0ImageValueMin = []
+        roiLine0ImageValueMax = []
+        roiLine0ImageValueAvg = []
         if (largoLinea0 > 1) and (anchoLinea0 > 1):
             valoresLinea0 =[]
-            for tupla in zip(range(line0PosX1,line0PosX2),range(line0PosY1,line0PosY2)):
+            for tupla in zip(range(line0PosY1,line0PosY2),range(line0PosX1,line0PosX2)):
                 valor = thermal_img[tupla[0],tupla[1]]
                 valoresLinea0.append(valor)
             if len(valoresLinea0) > 0:
                 roiLine0ImageValueMin = np.amin(valoresLinea0)
                 roiLine0ImageValueMax = np.amax(valoresLinea0)
                 roiLine0ImageValueAvg = np.mean(valoresLinea0)
+        self.valor11IndTab1MinRoi1Line.setText(str(roiLine0ImageValueMin))
+        self.valor21IndTab1AvgRoi1Line.setText(str(roiLine0ImageValueAvg))
+        self.valor31IndTab1MaxRoi1Line.setText(str(roiLine0ImageValueMax))
+        #
+        if (largoLinea0 > 1) and (anchoLinea0 > 1):
+            widthLine0 = len(valoresLinea0)
+            self.xdataIzq1Line = list(range(widthLine0))
+            self.ydataIzq1Line = valoresLinea0
         #
         largoLinea1 = line1PosY2 - line1PosY1 #cantidad de elementos
         anchoLinea1 = line1PosX2 - line1PosX1
+        roiLine1ImageValueMin = []
+        roiLine1ImageValueMax = []
+        roiLine1ImageValueAvg = []
         if (largoLinea1 > 1) and (anchoLinea1 > 1):
             valoresLinea1 =[]
-            for tupla in zip(range(line1PosX1,line1PosX2),range(line1PosY1,line1PosY2)):
+            for tupla in zip(range(line1PosY1,line1PosY2),range(line1PosX1,line1PosX2)):
                 valor = thermal_img[tupla[0],tupla[1]]
                 valoresLinea1.append(valor)
             if len(valoresLinea1) > 0:
                 roiLine1ImageValueMin = np.amin(valoresLinea1)
                 roiLine1ImageValueMax = np.amax(valoresLinea1)
                 roiLine1ImageValueAvg = np.mean(valoresLinea1)
+        self.valor41IndTab1MinRoi2Line.setText(str(roiLine1ImageValueMin))
+        self.valor51IndTab1AvgRoi2Line.setText(str(roiLine1ImageValueAvg))
+        self.valor61IndTab1MaxRoi2Line.setText(str(roiLine1ImageValueMax))
+        #
+        if (largoLinea1 > 1) and (anchoLinea1 > 1):
+            widthLine1 = len(valoresLinea1)
+            self.xdataDer1Line = list(range(widthLine1))
+            self.ydataDer1Line = valoresLinea1
+        #
         #sacamos los datos correspondientres a la primer roi y segunda roi elipse
         #primero creamos una elipse con los datos de x0,y0 -- width,height
         #elipse 0
+        valoresThermalElipse0Min = []
+        valoresThermalElipse0Max = []
+        valoresThermalElipse0Avg = []
         if (int(elipse0Height) > 1) and (int(elipse0Width) > 1):
             x0 = elipse0PosX
             y0 = elipse0PosY
@@ -3463,8 +3584,25 @@ class MainWindow(QDialog):
                 valoresThermalElipse0Min = np.amax(valoresThermalElipse0)
                 valoresThermalElipse0Max = np.amin(valoresThermalElipse0)
                 valoresThermalElipse0Avg = np.mean(valoresThermalElipse0)
+        self.valor12IndTab1MinRoi1Ellipse.setText(str(valoresThermalElipse0Min))
+        self.valor22IndTab1AvgRoi1Ellipse.setText(str(valoresThermalElipse0Avg))
+        self.valor32IndTab1MaxRoi1Ellipse.setText(str(valoresThermalElipse0Max))
+        #guardo el perfil horizontal y el perfil vertical de la roi
+        #calculamos los perfiles horizontal y vertical
+        if (int(elipse0Height) > 1) and (int(elipse0Width) > 1):
+            valoresThermalElipse0Vertical = thermal_img[int(elipse0PosY):int(elipse0PosY+elipse0Height),int(elipse0PosX+elipse0Width/2)]
+            valoresThermalElipse0Horizontal = thermal_img[int(elipse0PosY+elipse0Height/2),int(elipse0PosX):int(elipse0PosX+elipse0Width)]
+            self.xdataIzq1ElipHor = list(range(len(valoresThermalElipse0Horizontal)))
+            self.ydataIzq1ElipHor = valoresThermalElipse0Horizontal
+            self.xdataIzq1ElipVer = list(range(len(valoresThermalElipse0Vertical)))
+            self.ydataIzq1ElipVer = valoresThermalElipse0Vertical 
+             
+        #
         #sacmos los datos correspondientes a la elipse 1
-        #elipse 0
+        #elipse 1
+        valoresThermalElipse1Min = []
+        valoresThermalElipse1Max = []
+        valoresThermalElipse1Avg = []
         if (elipse1Height > 1) and (elipse1Width > 1):
             x01 = elipse1PosX
             y01 = elipse1PosY
@@ -3490,6 +3628,20 @@ class MainWindow(QDialog):
                 valoresThermalElipse1Min = np.amin(valoresThermalElipse1)
                 valoresThermalElipse1Max = np.amax(valoresThermalElipse1)
                 valoresThermalElipse1Avg = np.mean(valoresThermalElipse1)
+        self.valor42IndTab1MinRoi2Ellipse.setText(str(valoresThermalElipse1Min))
+        self.valor52IndTab1AvgRoi2Ellipse.setText(str(valoresThermalElipse1Avg))
+        self.valor62IndTab1MaxRoi2Ellipse.setText(str(valoresThermalElipse1Max))
+        #guardo el perfil horizontal y el perfil vertical de la roi
+        #calculamos los perfiles horizontal y vertical
+        if (elipse1Height > 1) and (elipse1Width > 1):
+            valoresThermalElipse1Vertical = thermal_img[int(elipse1PosY):int(elipse1PosY+elipse1Height),int(elipse1PosX+elipse1Width/2)]
+            valoresThermalElipse1Horizontal = thermal_img[int(elipse1PosY+elipse1Height/2),int(elipse1PosX):int(elipse1PosX+elipse1Width)]
+            self.xdataDer1ElipHor = list(range(len(valoresThermalElipse1Horizontal)))
+            self.ydataDer1ElipHor = valoresThermalElipse1Horizontal
+            self.xdataDer1ElipVer = list(range(len(valoresThermalElipse1Vertical)))
+            self.ydataDer1ElipVer = valoresThermalElipse1Vertical 
+        #
+        
         ##
         ###Tenemos los datos listos para pasar y realizar los calculos necesarios
         ##
@@ -3749,13 +3901,25 @@ class MainWindow(QDialog):
     #Defino la funcion asociada a la seleccion de ROI Izquierda Tab1
     def populateRoiCombo1(self):
         if not self.roiSelComboIzq.count():
-            self.roiSelComboIzq.addItems(['ROI Rect1 H', 'ROI Rect1 V','ROI Line1', 'ROI Ellip1 H', 'ROI Ellip1 V'])
+            self.roiSelComboIzq.addItems(['ROI Rect1 Max', 'ROI Rect1 Min','ROI Rect1 Avg', 'ROI Line1 Max', 'ROI Line1 Min', 'ROI Line1 Avg', 'ROI Ellipse Max', 'ROI Ellip1 Min', 'ROI Ellip1 Avg'])
         #agergamos los iconos para cada herramienta de medicion
         self.roiSelComboIzq.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roiSelComboIzq.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roiSelComboIzq.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roiSelComboIzq.setItemIcon(3, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roiSelComboIzq.setItemIcon(4, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboIzq.setItemIcon(5, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboIzq.setItemIcon(6, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboIzq.setItemIcon(7, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboIzq.setItemIcon(8, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+    def profileRoiCombo1(self):
+        if not self.profileSelComboIzq.count():
+            self.profileSelComboIzq.addItems(['Profile Horizontal Rect1', 'Profile Vertical Rect1', 'Profile Horizontal Ellipse1', 'Profile Vertical Ellipse1', 'Profile Line1'])
+        self.profileSelComboIzq.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
+        self.profileSelComboIzq.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
+        self.profileSelComboIzq.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
+        self.profileSelComboIzq.setItemIcon(3, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
+        self.profileSelComboIzq.setItemIcon(4, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
     #Defino la funcion asociada a la seleccion de ROI Derecha Tab1
     def populateRoiCombo2(self):
         if not self.roiSelComboDer.count():
