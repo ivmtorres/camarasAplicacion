@@ -1403,6 +1403,10 @@ class MainWindow(QDialog):
         self.roiSelComboDer = ROIComboBox(self)
         self.roiSelComboDer.popupAboutToBeShown.connect(self.populateRoiCombo2)
         #
+        self.profileSelComboDer = ProfileComboBox(self)
+        self.profileSelComboDer.popupAboutToBeShown.connect(self.profileRoiCombo2)
+        #
+        #
         self.camCombo1 = CamComboBox(self) #combo box de camaras para los historicos de la izquierda
         self.camCombo1.popupAboutToBeShown.connect(self.populateCamCombo1)
 
@@ -1663,6 +1667,8 @@ class MainWindow(QDialog):
         textEditTab1BotonSelProfile.setText("Selected Profile:")
         textEditTab1BotonSelProfile.setBuddy(self.profileSelComboIzq)
         self.profileSelComboIzq.setToolTip("selected the profile to show Rois")
+        #agrego comoboBox para seleccion del perfil que vamos a mostrar
+
         #agrego grafico izquierda para la camara 1
         #
         self.dfTab1Izq = MplCanvas(self, width=5, height=4, dpi=100)
@@ -1717,17 +1723,22 @@ class MainWindow(QDialog):
         #Agrego comboBox para seleccionar el trending que vamos a mostrar en dfTab1Der
         #
         textEditTab1BotonSelROIDer = QLabel()
-        textEditTab1BotonSelROIDer.setText("Sel ROI: ")
+        textEditTab1BotonSelROIDer.setText("Selected ROI: ")
         textEditTab1BotonSelROIDer.setBuddy(self.roiSelComboDer)
         self.roiSelComboDer.setToolTip("selected the roi to show min-avg-max value")
         #
+        #Agrego comboBox para seleccionar el perfil que vamos a mostrar
+        textEditTab1BotonSelProfileDer = QLabel()
+        textEditTab1BotonSelProfileDer.setText("Selected Profile:")
+        textEditTab1BotonSelProfileDer.setBuddy(self.profileSelComboDer)
+        self.profileSelComboDer.setToolTip("selected the profile to show Rois")
         #agrego grafico derecha
         #genero un dataframe de prueba
         self.dfTab1Der = MplCanvas(self, width=5, height=4, dpi=100)
 
         n_data = 50
-        self.xdata = list(range(n_data))
-        self.ydata = [random.randint(0,10) for i in range(n_data)]
+        self.xdataDer = list(range(n_data))
+        self.ydataDer = [random.randint(0,100) for i in range(n_data)]
 
         self._plot_ref = None
         self.update_plot_dfTab1Der() 
@@ -1761,18 +1772,16 @@ class MainWindow(QDialog):
         #roi linea
         self.xdataDer1Line = list(range(n_data2))
         self.ydataDer1Line = [random.randint(0,10) for i in range(n_data2)]
-           
-
-
+ 
         self._plot_refDer1 = None
         self.update_plot_dfTab1Der1() 
         # No actualizo el grafico lo dejo estatico
         # Ya que voy a mostrar el dato cuando se
         # actualice la medicion con el eje X en pixel
-        # self.timerDer1 = QtCore.QTimer()
-        # self.timerDer1.setInterval(10)
-        # self.timerDer1.timeout.connect(self.update_plot_dfTab1Der1)
-        # self.timerDer1.start()
+        self.timerDer1 = QtCore.QTimer()
+        self.timerDer1.setInterval(1000)
+        self.timerDer1.timeout.connect(self.update_plot_dfTab1Der1)
+        self.timerDer1.start()
         #
         #agrego contenedor a la izquierda para curva
         #para label1 y boton1
@@ -2166,6 +2175,8 @@ class MainWindow(QDialog):
         contenedorDerTab1WidgetSub01 = QWidget()
         contenedorDerTab1LayoutSub01.addWidget(textEditTab1BotonSelROIDer)
         contenedorDerTab1LayoutSub01.addWidget(self.roiSelComboDer)
+        contenedorDerTab1LayoutSub01.addWidget(textEditTab1BotonSelProfileDer)
+        contenedorDerTab1LayoutSub01.addWidget(self.profileSelComboDer)
         contenedorDerTab1WidgetSub01.setLayout(contenedorDerTab1LayoutSub01)                
         contenedorDerTab1LayoutSub0.addWidget(contenedorDerTab1WidgetSub01)
         contenedorDerTab1LayoutSub0.addWidget(self.dfTab1Der)
@@ -3294,7 +3305,6 @@ class MainWindow(QDialog):
     def update_plot_dfTab1Izq(self):
         X=self.roiSelComboIzq.currentText()
         try:
-            
             if X == 'ROI Rect1 Min':
                 #cargamos el trendin de roi rect 1 minimo
                 self.ydataIzq = self.ydataIzq[1:] + [float(self.valor1IndTab1MinRoi1Rect.text())]
@@ -3360,23 +3370,74 @@ class MainWindow(QDialog):
             self._plot_refIzq1.set_xdata(self.xdataIzq1)
             self._plot_refIzq1.set_ydata(self.ydataIzq1)
         self.dfTab1Izq1.draw()
-
     #update el grafico
     def update_plot_dfTab1Der(self):
-        self.ydata = self.ydata[1:] + [random.randint(0,10)]
-        if self._plot_ref is None:
-            plot_refs = self.dfTab1Der.axes.plot(self.xdata, self.ydata, 'r')
-            self._plot_ref = plot_refs[0]
-        else:
-            self._plot_ref.set_ydata(self.ydata)
-        self.dfTab1Der.draw()
+        X=self.roiSelComboDer.currentText()
+        print(X)
+        try:
+            if X == 'ROI Rect2 Min':
+                #cargamos el trendin de roi rect 2 minimo
+                self.ydataDer = self.ydataDer[1:] + [float(self.valor4IndTab1MinRoi2Rect.text())]
+            elif X == 'ROI Line2 Min':
+                #agergo la medicion de la roi min line 2
+                self.ydataDer = self.ydataDer[1:] + [float(self.valor41IndTab1MinRoi2Line.text())]
+            elif X == 'ROI Ellip2 Min':
+                #agergo la medicion de la roi min elipse 2
+                self.ydataDer = self.ydataDer[1:] + [float(self.valor42IndTab1MinRoi2Ellipse.text())]
+            elif X == 'ROI Rect2 Avg':
+                #agergo la medicion de la roi avg rect 2
+                self.ydataDer = self.ydataDer[1:] + [float(self.valor5IndTab1AvgRoi2Rect.text())]
+            elif X == 'ROI Line2 Avg':
+                #agergo la medicion de la roi avg line 2
+                self.ydataDer = self.ydataDer[1:] + [float(self.valor51IndTab1AvgRoi2Line.text())]
+            elif X == 'ROI Ellip2 Avg':
+                #agergo la medicion de la roi avg elipse 2
+                self.ydataDer = self.ydataDer[1:] + [float(self.valor52IndTab1AvgRoi2Ellipse.text())]
+            elif X == 'ROI Rect2 Max':
+                #agergo la medicion de la roi max rect 2
+                self.ydataDer = self.ydataDer[1:] + [float(self.valor6IndTab1MaxRoi2Rect.text())]
+            elif X == 'ROI Line2 Max':
+                #agergo la medicion de la roi max line 2
+                self.ydataDer = self.ydataDer[1:] + [float(self.valor61IndTab1MaxRoi2Line.text())]
+            elif X == 'ROI Ellip2 Max':
+                #agergo la medicion de la roi max elipse 2
+                self.ydataDer = self.ydataDer[1:] + [float(self.valor62IndTab1MaxRoi2Ellipse.text())]
+            numpyImage = self.QImageToCvMat(self.image_label.pixmap())
+            #print(numpyImage) #imprimo la matriz convertida de imagen para cada 100ms
+            if self._plot_ref is None:
+                plot_refs = self.dfTab1Der.axes.plot(self.xdataDer, self.ydataDer, 'r')
+                self._plot_ref = plot_refs[0]
+            else:
+                self._plot_ref.set_ydata(self.ydataDer)
+            self.dfTab1Der.draw()
+        except:
+            print("no definido")
+       
     #
     def update_plot_dfTab1Der1(self):
-        self.ydataDer1 = self.ydataDer1[1:] + [random.randint(0,10)]
+        #self.ydataDer1 = self.ydataDer1[1:] + [random.randint(0,10)]
+        X = self.profileSelComboDer.currentText()
+        if X == 'Profile Horizontal Rect2':
+            self.xdataDer1 = self.xdataDer1RectHor
+            self.ydataDer1 = self.ydataDer1RectHor
+        elif X == 'Profile Vertical Rect2':
+            self.xdataDer1 = self.xdataDer1RectVert
+            self.ydataDer1 = self.ydataDer1RectVert
+        elif X == 'Profile Horizontal Ellipse2':
+            self.xdataDer1 = self.xdataDer1ElipHor
+            self.ydataDer1 = self.ydataDer1ElipHor
+        elif X == 'Profile Vertical Ellipse2':
+            self.xdataDer1 = self.xdataDer1ElipVer
+            self.ydataDer1 = self.ydataDer1ElipVer
+        elif X == 'Profile Line1':
+            self.xdataDer1 = self.xdataDer1Line
+            self.ydataDer1 = self.ydataDer1Line
+
         if self._plot_refDer1 is None:
             plot_refs = self.dfTab1Der1.axes.plot(self.xdataDer1, self.ydataDer1, 'r')
             self._plot_refDer1 = plot_refs[0]
         else:
+            self._plot_refDer1.set_xdata(self.xdataDer1)
             self._plot_refDer1.set_ydata(self.ydataDer1)
         self.dfTab1Der1.draw()
     #
@@ -3920,16 +3981,28 @@ class MainWindow(QDialog):
         self.profileSelComboIzq.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
         self.profileSelComboIzq.setItemIcon(3, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
         self.profileSelComboIzq.setItemIcon(4, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
+    def profileRoiCombo2(self):
+        if not self.profileSelComboDer.count():
+            self.profileSelComboDer.addItems(['Profile Horizontal Rect2', 'Profile Vertical Rect2', 'Profile Horizontal Ellipse2', 'Profile Vertical Ellipse2', 'Profile Line2'])
+        self.profileSelComboDer.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
+        self.profileSelComboDer.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
+        self.profileSelComboDer.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
+        self.profileSelComboDer.setItemIcon(3, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
+        self.profileSelComboDer.setItemIcon(4, QIcon(os.path.join(basedir, "appIcons", "ruler-triangle.png")))
     #Defino la funcion asociada a la seleccion de ROI Derecha Tab1
     def populateRoiCombo2(self):
         if not self.roiSelComboDer.count():
-            self.roiSelComboDer.addItems(['ROI Rect1 H', 'ROI Rect1 V','ROI Line1', 'ROI Ellip1 H', 'ROI Ellip1 V'])
+            self.roiSelComboDer.addItems(['ROI Rect2 Max', 'ROI Rect2 Min','ROI Rect2 Avg', 'ROI Line2 Max', 'ROI Line2 Min', 'ROI Line2 Avg', 'ROI Ellip2 Max', 'ROI Ellip2 Min', 'ROI Ellip2 Avg'])
         #agergamos los iconos para cada herramienta de medicion
         self.roiSelComboDer.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roiSelComboDer.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roiSelComboDer.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roiSelComboDer.setItemIcon(3, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roiSelComboDer.setItemIcon(4, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboDer.setItemIcon(5, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboDer.setItemIcon(6, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboDer.setItemIcon(7, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roiSelComboDer.setItemIcon(8, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
     
     #Defino la funcion asociada a la seleccion de camaras 1
     def populateCamCombo1(self):
