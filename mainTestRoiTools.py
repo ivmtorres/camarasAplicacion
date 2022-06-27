@@ -1,8 +1,6 @@
 
 import datetime
 from functools import partial
-from shutil import which
-from turtle import width
 from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette
 from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRect, QLine, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty, QThread
@@ -40,7 +38,6 @@ from PyQt5.QtWidgets import (
     QScrollArea   
 )
 from PyQt5.QtGui import QIcon, QPaintEvent
-from cv2 import ellipse
 import matplotlib
 from matplotlib.widgets import Widget
 matplotlib.use('Qt5Agg')
@@ -262,6 +259,9 @@ class TestImage(QLabel):
             self.parent().parent().listaRects=[self.parent().parent().rectangulo1,self.parent().parent().rectangulo2]
             self.parent().parent().listaLineas=[self.parent().parent().recta1,self.parent().parent().recta2]
             self.parent().parent().listaElipses=[self.parent().parent().rectanguloEllipse1,self.parent().parent().rectanguloEllipse2]
+            #calculo resolucion imagen
+            self.parent().parent().escalaImagen['ancho'] = self.size().width()
+            self.parent().parent().escalaImagen['alto'] = self.size().height()
             #mostramos la lista de cada uno de los rois
             #print(self.parent().parent().listaRects)
             #print(self.parent().parent().listaLineas)
@@ -279,7 +279,7 @@ class TestImage(QLabel):
         else:
             self.scala = 1
         #calculamos el factor de escala
-        self.scaleFactor *= self.scala
+        self.scaleFactor *= self.scala        
         #detectamos si se esta dibujando los rectangulos
         if self.parent().parent().toolROIs == 0:
             #defino las condiciones de borde, si es que estoy tocando el borde o no
@@ -801,6 +801,7 @@ class EvoIRFrameMetadata(ct.Structure):
 class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
     change_pixmap_signal = pyqtSignal(np.ndarray)
     change_thermal_signal = pyqtSignal(np.ndarray)
+    status_camera_signal = pyqtSignal(np.ndarray)
     def __init__(self): #sobre escribimos la clase
         super().__init__()
         self._run_flag = True #utilizamos este flag para indicar al hilo que termine la adquisicion
@@ -836,8 +837,11 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
 
         # init lib
         ret = libir.evo_irimager_usb_init(pathXml, pathFormat, pathLog) #instancio a la libreria de evo para
+        statusCamera = [True, "conexion ok"] #notifico por defecto que la conexion con la camara esta ok si falla el ret cambio el estado
         if ret != 0:                                                    #conectar con camara usb de optris
-                print("error at init")                                  #si hay error salgo y retorno el error
+                print("error at init")
+                statusCamera = [False, "conexion falla"]
+                self.status_camera_signal.emit(np.array(statusCamera))
                 exit(ret)                                               #de la camara
 
         # get the serial number
@@ -869,9 +873,12 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                 ret = libir.evo_irimager_get_thermal_palette_image_metadata(thermal_width, thermal_height, npThermalPointer, palette_width, palette_height, npImagePointer, ct.byref(metadata))
                 #obtenemos de evo la imagen, ademas los datos de ancho y algo termico. los datos de imagen ancho y alto. el dato np termico y el dato np de imagen
                 #le tenemos que pasar como dato la estructura evo que definimos antes
+                
                 if ret != 0:
                         print('error on evo_irimager_get_thermal_palette_image ' + str(ret))
+                        statusCamera = [False, "fallo la conexion"] #fallo la conexion                        
                         continue
+                self.status_camera_signal.emit(np.array(statusCamera))                                  #si hay error salgo y retorno el error
                 #si llega a responder con un error lo indicamos 
                 #calculate total mean value
                 mean_temp = np_thermal.mean() #sobre el contenido de la imagen que retorna calculo una media.
@@ -1565,6 +1572,9 @@ class MainWindow(QDialog):
         self.scrollArea.setVisible(True)
         self.scrollArea.resize(self.scrollArea.sizeHint())
         #
+        #Escala de imagen
+        self.scrollArea.escalaImagen = {"ancho":386,"alto":290}
+        #        
         self.scrollArea.zoomInButton = False
         self.scrollArea.zoomOutButton = False
         ############Escala####################
@@ -1618,18 +1628,20 @@ class MainWindow(QDialog):
         self.thread.change_pixmap_signal.connect(self.update_image)
         #
         self.thread.change_thermal_signal.connect(self.thermal_image)
+        #
+        self.thread.status_camera_signal.connect(self.status_camera)
         # start the thread
         self.thread.start()
         #***************************************
         #
         tab1Boton = QWidget() #defino la pestaña de la tabla asociada al boton 1
-        textEditTab1Boton = QLineEdit() #cargo el texto en el label, esto es de ejemplo vamos a reemplazarlo por la imagen
-        textEditTab1Boton.setText("Status: Camara conectando ....") #este texto lo vamos a 
+        self.textEditTab1Boton = QLineEdit() #cargo el texto en el label, esto es de ejemplo vamos a reemplazarlo por la imagen
+        self.textEditTab1Boton.setText("Status: Camara conectando ....") #este texto lo vamos a 
         #vamos a agregar la barra de conexion para la camara 1
         self.pbarTab1 = QProgressBar(self)      #creo una instancia al modelo barras y le doy un nombre
         self.pbarTab1.setGeometry(30,40,200,25) #defino una dimension para la barra creada
         self.pbarTab1.setValue(0)               #inicializo en un valor
-
+        self.statusConnectionCam1 = False       #Estado conexion con camara 1
         self.timerPbar1 = QTimer()              #arranco un temporizador para la conexion de la barra de la camara 1
         self.timerPbar1.timeout.connect(self.handleTimer1) #defino la funcion que maneja el temporizador
         self.timerPbar1.start(1000)             #le doy una determinada cantidad de tiempo
@@ -1716,20 +1728,21 @@ class MainWindow(QDialog):
         n_data = 50
         #self.xdataIzq = list(range(n_data))        
         self.xdataIzq = [self.now(-x*100) for x in range(1,n_data+1,1)]#[self.now(-1000), self.now(-900), self.now(-800),self.now(-700),self.now(-600),self.now(-500), self.now(-400), self.now(-300),self.now(-200),self.now(-100)]
+        self.formatoXDataIzq = [x.strftime("%S:.%f")[:-4] for x in self.xdataIzq]
         self.ydataIzq = [random.randint(0,100) for i in range(n_data)]
         self._plot_refIzq = None
         #self.update_plot_dfTab1Izq()
-
-        #self.timerIzq = QtCore.QTimer()
-        #self.timerIzq.setInterval(100)
-        #self.timerIzq.timeout.connect(self.update_plot_dfTab1Izq)
-        #self.timerIzq.start()
+        #inicializo temporizador para refresco de graficos cada 2 segundos. Los graficos se cargan cad 100ms pero se refrescan cada 2 segundos 
+        self.timerRefresh = QtCore.QTimer()
+        self.timerRefresh.setInterval(2000)
+        self.timerRefresh.timeout.connect(self.update_plots)
+        self.timerRefresh.start()
         #
         #agrego grafico sub izquierda para la camara 1
         #
         self.dfTab1Izq1 = MplCanvas(self, width=5, height=4, dpi=100)
         #defino los datos para el grafico de perfiles a izquierda de la imagen
-        n_data1 = 10
+        n_data1 = 50
         self.xdataIzq1 = list(range(n_data1))
         self.ydataIzq1 = [random.randint(0,100) for i in range(n_data1)]
         #defino los datos para llevar los perfiles de cada roi
@@ -1779,6 +1792,7 @@ class MainWindow(QDialog):
         n_data = 50
         #self.xdataDer = list(range(n_data))
         self.xdataDer = [self.now(-x*100) for x in range(1,n_data+1,1)]#[self.now(-1000), self.now(-900), self.now(-800),self.now(-700),self.now(-600),self.now(-500), self.now(-400), self.now(-300),self.now(-200),self.now(-100)]
+        self.formatoXDataDer = [x.strftime("%S:.%f")[:-4] for x in self.xdataDer]
         self.ydataDer = [random.randint(0,100) for i in range(n_data)]
 
         self._plot_refDer = None
@@ -1794,7 +1808,7 @@ class MainWindow(QDialog):
         #genero un dataframe de prueba
         self.dfTab1Der1 = MplCanvas(self, width=5, height=4, dpi=100)
 
-        n_data2 = 10
+        n_data2 = 50
         self.xdataDer1 = list(range(n_data2))
         self.ydataDer1 = [random.randint(0,100) for i in range(n_data2)]
         #defino los datos para llevar los perfiles de cada roi
@@ -1827,7 +1841,7 @@ class MainWindow(QDialog):
         self.update_plot_dfTab1Izq()
 
         self.timerIzq = QtCore.QTimer()
-        self.timerIzq.setInterval(1000)
+        self.timerIzq.setInterval(100)
         self.timerIzq.timeout.connect(self.update_plot_dfTab1Izq)
         self.timerIzq.start()
 
@@ -2293,7 +2307,7 @@ class MainWindow(QDialog):
         #agrego el texto q representa la barra de conexion y la ventana de trending e imagen                                                                               #
         tab1BotonVbox = QVBoxLayout()
         tab1BotonVbox.setContentsMargins(5,5,5,5)
-        tab1BotonVbox.addWidget(textEditTab1Boton)
+        tab1BotonVbox.addWidget(self.textEditTab1Boton)
         tab1BotonVbox.addWidget(self.pbarTab1)
         tab1BotonVbox.addWidget(sub1WindowTab1Boton)
         tab1Boton.setLayout(tab1BotonVbox)
@@ -3388,15 +3402,17 @@ class MainWindow(QDialog):
         #print(numpyImage) #imprimo la matriz convertida de imagen para cada 100ms           
         if self._plot_refIzq is None:#la idea es no llamar a la fucnion now, tomamos la ultima estampa de tiempo y le sumamos 1 segundo que es el tiempo de muestreo
             self.xdataIzq = self.xdataIzq[1:] + [self.xdataIzq[-1]+datetime.timedelta(milliseconds=100)]
-            formatoXDataIzq = [x.strftime("%S.%f")[:-4] for x in self.xdataIzq]
-            plot_refs = self.dfTab1Izq.axes.plot(formatoXDataIzq, self.ydataIzq, 'r') #.strftime("%M:%S")
+            #formatoXDataIzq = [x.strftime("%S.%f")[:-4] for x in self.xdataIzq]
+            self.formatoXDataIzq = self.formatoXDataIzq[1:] + [self.xdataIzq[-1].strftime("%S:.%f")[:-4]]
+            plot_refs = self.dfTab1Izq.axes.plot(self.formatoXDataIzq, self.ydataIzq, 'r') #.strftime("%M:%S")
             self._plot_refIzq = plot_refs[0]
                 
         else:
             self.xdataIzq = self.xdataIzq[1:] + [self.xdataIzq[-1]+datetime.timedelta(milliseconds=100)]
-            formatoXDataIzq = [x.strftime("%S.%f")[:-4] for x in self.xdataIzq]
+            #formatoXDataIzq = [x.strftime("%S.%f")[:-4] for x in self.xdataIzq]
+            self.formatoXDataIzq = self.formatoXDataIzq[1:] + [self.xdataIzq[-1].strftime("%S:.%f")[:-4]]
             self.dfTab1Izq.axes.cla()
-            plot_refs = self.dfTab1Izq.axes.plot(formatoXDataIzq, self.ydataIzq, 'r')
+            plot_refs = self.dfTab1Izq.axes.plot(self.formatoXDataIzq, self.ydataIzq, 'r')
             self.dfTab1Izq.axes.tick_params(axis='x', color='red')
             self.dfTab1Izq.axes.grid(True, linestyle='-.')
             self.dfTab1Izq.axes.xaxis.set_major_locator(plt.MaxNLocator(7)) #fijo el numero de espacio que muestra en el eje x
@@ -3474,16 +3490,17 @@ class MainWindow(QDialog):
         #print(numpyImage) #imprimo la matriz convertida de imagen para cada 100ms
         if self._plot_refDer is None:
             self.xdataDer = self.xdataDer[1:] + [self.xdataDer[-1]+datetime.timedelta(milliseconds=100)]
-            formatoXDataDer = [x.strftime("%S.%f")[:-4] for x in self.xdataDer]
-                
-            plot_refsAuxDer = self.dfTab1Der.axes.plot(self.xdataDer, self.ydataDer, 'r')
+            #formatoXDataDer = [x.strftime("%S.%f")[:-4] for x in self.xdataDer]
+            self.formatoXDataDer = self.formatoXDataDer[1:] + [self.xdataDer[-1].strftime("%S.%f")[:-4]]    
+            plot_refsAuxDer = self.dfTab1Der.axes.plot(self.formatoXDataDer, self.ydataDer, 'r')
             self._plot_refDer = plot_refsAuxDer[0]
         else:
             #self._plot_refDer.set_ydata(self.ydataDer)
             self.xdataDer = self.xdataDer[1:] + [self.xdataDer[-1]+datetime.timedelta(milliseconds=100)]
-            formatoXDataDer = [x.strftime("%S.%f")[:-4] for x in self.xdataDer]
+            #formatoXDataDer = [x.strftime("%S.%f")[:-4] for x in self.xdataDer]
+            self.formatoXDataDer = self.formatoXDataDer[1:] + [self.xdataDer[-1].strftime("%S.%f")[:-4]]    
             self.dfTab1Der.axes.cla()
-            plot_refs = self.dfTab1Der.axes.plot(formatoXDataDer, self.ydataDer, 'r')
+            plot_refs = self.dfTab1Der.axes.plot(self.formatoXDataDer, self.ydataDer, 'r')
             self.dfTab1Der.axes.tick_params(axis='x', color='red')
             self.dfTab1Der.axes.grid(True, linestyle='-.')
             self.dfTab1Der.axes.xaxis.set_major_locator(plt.MaxNLocator(7)) #fijo el numero de espacio que muestra en el eje x
@@ -3524,11 +3541,14 @@ class MainWindow(QDialog):
             self.dfTab1Der1.axes.set_xlabel('pixel')
             self.dfTab1Der1.axes.set_title("Profile Roi 2")
         #self.dfTab1Der1.draw()
+        
+    #
+    def update_plots(self):
         self.dfTab1Izq.draw()
         self.dfTab1Izq1.draw()
         self.dfTab1Der.draw()
         self.dfTab1Der1.draw()
-    #
+
     #funcion para convertir imagen en QT a imagenes en opencv
     #
     def QImageToCvMat(self, incomingImage):
@@ -3549,6 +3569,16 @@ class MainWindow(QDialog):
     def closeEvent(self, event):
         self.thread.stop()
         event.accept()
+
+    @pyqtSlot(np.ndarray)
+    def status_camera(self, statusConnectionCamera):
+        if statusConnectionCamera[0] == "True":
+            self.statusConnectionCam1 = True #la conexion fue establecida con la camra lo indicamos con un flag
+                                              #esto detiene la ejecucion del timer y la progresion de la barra de
+                                              #conexion
+            self.textEditTab1Boton.setText("Camara Conectada")
+        else:
+            self.textEditTab1Boton.setText("Camara Desconectada")
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
         """Updates the image_label with a new opencv image"""
@@ -3567,7 +3597,11 @@ class MainWindow(QDialog):
     #***************************************************
     @pyqtSlot(np.ndarray)
     def thermal_image(self, thermal_img):
-        #print(thermal_img[0][0])#aca tengo que extraer los datos de la imagen para cada ROI y guardar la informacion
+        ancho = self.scrollArea.escalaImagen['ancho']#self.image_label.size().width()
+        alto = self.scrollArea.escalaImagen['alto']#self.image_label.size().height()
+        thermal_img = np.resize(thermal_img,(alto,ancho))
+        #thermal_imgMirror = thermal_img
+        #thermal_imgMirror = np.resize(thermal_imgMirror,(alto,ancho))
         #Leer la lista de rectangulos 
         #tengo que identificar el tamaño de la Roi rectangulo con su height and width si es mayor a 1 puedo extraer esa zona de la imagen
         rect0PosX = self.scrollArea.listaRects[0].x()
@@ -4200,26 +4234,30 @@ class MainWindow(QDialog):
     #Defino la funcion asociada a la barra de progreso para la camara 1
     def handleTimer1(self):
         value = self.pbarTab1.value()
-        if value < 100:
+        print("estado=",self.statusConnectionCam1)
+        if value < 100 and self.statusConnectionCam1 == False:
             value = value + 1
             self.pbarTab1.setValue(value)
         else:
+            print("stop timer 1")
             self.timerPbar1.stop()
     #defino la funcion asociada a la barra de progreso para la camara 2
     def handleTimer2(self):
         value = self.pbarTab2.value()
-        if value < 100:
+        if value < 100 and self.statusConnectionCam1 == False:
             value = value + 1
             self.pbarTab2.setValue(value)
         else:
+            print("stop timer 2")
             self.timerPbar2.stop()
     #defino la funcion asociada a la barra de progreso para la camara 3
     def handleTimer3(self):
         value = self.pbarTab3.value()
-        if value < 100:
+        if value < 100 and self.statusConnectionCam1 == False:
             value = value + 1
             self.pbarTab3.setValue(value)
         else:
+            print("stop timer 3")
             self.timerPbar3.stop()
     #Defino la funcion asociada a la seleccion de ROI Izquierda Tab1
     def populateRoiCombo1(self):
