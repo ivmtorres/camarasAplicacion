@@ -1,5 +1,4 @@
 
-import datetime
 from functools import partial
 from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette
@@ -51,6 +50,10 @@ import cv2
 import os
 import random
 from matplotlib import pyplot as plt
+
+import datetime
+
+
 #direccion base para los archivos de imagen
 basedir = os.path.dirname(__file__)
 #detecto si se cargo la imagen
@@ -835,7 +838,7 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         # init EvoIRFrameMetadata structure
         metadata = EvoIRFrameMetadata() #instanciamos a la clase de EVO cortex la estructura
 
-        # init lib
+        # init lib 
         ret = libir.evo_irimager_usb_init(pathXml, pathFormat, pathLog) #instancio a la libreria de evo para
         statusCamera = [True, "conexion ok"] #notifico por defecto que la conexion con la camara esta ok si falla el ret cambio el estado
         if ret != 0:                                                    #conectar con camara usb de optris
@@ -900,6 +903,27 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         self._run_flag = False #cuando el hilo se termina indicamos con el flag que salga del while
         self.wait()
 #***************************************************
+#Clase para procesamiento de datos
+class ProcesamientoDatosThread(QThread):
+    #definimos el canal de comunicaciones
+    change_datos_signal = pyqtSignal(np.ndarray)
+    #sobre escribimos la clase y definimos el flag de stop del hilo
+    def __init__(self):
+        super().__init__()
+        self._run_flag_procesamiento = True #utilizamos este flag para indicar al hilo que termine la adquisicion
+    #sobre escribimos la clase para cuando esta en run el hilo
+    def run(self):
+        while self._run_flag_procesamiento == True:
+            datoEmitido = np.array(["este", "es","el", "dato"])
+            #cada 100ms actualizo el envio de datos si se apreto la letra q cambio el texto            
+            if cv2.waitKey(1000)&0xFF == ord('q'):
+                #realizo el procesamiento de datos por el hilo de procesamiento!")
+                datoEmitido = np.array(["este", "es","el", "editado"])
+            self.change_datos_signal.emit()
+    #sobre escribimos la clase para cuando esta en stop el hilo
+    def stop(self):
+        self._run_flag_procesamiento = False #cambio el estado del flag
+        self.wait()
 #***************************************************
 #Clase barra de niveles
 class _Bar(QtWidgets.QWidget):
@@ -1633,7 +1657,13 @@ class MainWindow(QDialog):
         # start the thread
         self.thread.start()
         #***************************************
-        #
+        #creamo el hilo para realizar el procesamien
+        #self.procesamientoThread = ProcesamientoDatosThread()
+        #conectamos la señal con el slot para actualizar los datos procesados
+        #self.procesamientoThread.change_datos_signal.connect(self.update_procesamiento)
+        #arrancamos el hilo
+        #self.procesamientoThread.start()
+        #***************************************
         tab1Boton = QWidget() #defino la pestaña de la tabla asociada al boton 1
         self.textEditTab1Boton = QLineEdit() #cargo el texto en el label, esto es de ejemplo vamos a reemplazarlo por la imagen
         self.textEditTab1Boton.setText("Status: Camara conectando ....") #este texto lo vamos a 
@@ -1724,43 +1754,56 @@ class MainWindow(QDialog):
         #agrego grafico izquierda para la camara 1
         #
         self.dfTab1Izq = MplCanvas(self, width=5, height=4, dpi=100)
-
+        self.dfTab1Izq.axes.tick_params(axis='x', color='red')
+        self.dfTab1Izq.axes.grid(True, linestyle='solid')
+        self.dfTab1Izq.axes.xaxis.set_major_locator(plt.MaxNLocator(5)) #fijo el numero de espacio que muestra en el eje x
+        self.dfTab1Izq.axes.set_ylim([0, 100])
+        self.dfTab1Izq.axes.set_ylabel("Roi1")
+        self.dfTab1Izq.axes.set_xlabel('sec')
+        self.dfTab1Izq.axes.set_title("Trending Roi 1") 
         n_data = 50
         #self.xdataIzq = list(range(n_data))        
-        self.xdataIzq = [self.now(-x*100) for x in range(1,n_data+1,1)]#[self.now(-1000), self.now(-900), self.now(-800),self.now(-700),self.now(-600),self.now(-500), self.now(-400), self.now(-300),self.now(-200),self.now(-100)]
-        self.formatoXDataIzq = [x.strftime("%S:.%f")[:-4] for x in self.xdataIzq]
-        self.ydataIzq = [random.randint(0,100) for i in range(n_data)]
+        self.xdataIzq = np.array([self.now(-x*100) for x in range(0,n_data,1)][::-1],dtype='datetime64')
+        self.formatoXDataIzq = np.array([x.item().strftime("%S:%f")[:-4] for x in self.xdataIzq])
+        self.ydataIzq = np.array([random.randint(0,100) for i in range(n_data)])
+        #       
         self._plot_refIzq = None
         #self.update_plot_dfTab1Izq()
+        #defino las variables donde voy a indicar que es necesario
+        #indicar en los graficos
+        self.XTab1Izq = self.roiSelComboIzq.currentText() 
+        self.XTab1Izq1 = self.profileSelComboIzq.currentText()
+        self.XTab1Der = self.roiSelComboDer.currentText()
+        self.XTab1Der1 = self.profileSelComboDer.currentText()
         #inicializo temporizador para refresco de graficos cada 2 segundos. Los graficos se cargan cad 100ms pero se refrescan cada 2 segundos 
-        self.timerRefresh = QtCore.QTimer()
-        self.timerRefresh.setInterval(2000)
-        self.timerRefresh.timeout.connect(self.update_plots)
-        self.timerRefresh.start()
+        #self.timerRefresh = QtCore.QTimer()
+        #self.timerRefresh.setInterval(2000)
+        #self.timerRefresh.timeout.connect(self.update_plots)
+        #self.timerRefresh.start() #No habilito el temporizador para muestrear mas lento los graficos
         #
         #agrego grafico sub izquierda para la camara 1
         #
         self.dfTab1Izq1 = MplCanvas(self, width=5, height=4, dpi=100)
         #defino los datos para el grafico de perfiles a izquierda de la imagen
         n_data1 = 50
-        self.xdataIzq1 = list(range(n_data1))
-        self.ydataIzq1 = [random.randint(0,100) for i in range(n_data1)]
+        self.xdataIzq1 = np.array(list(range(n_data1)))
+        self.ydataIzq1 = np.array([random.randint(0,100) for i in range(n_data1)])
         #defino los datos para llevar los perfiles de cada roi
         #roi rectangulo horizontal
-        self.xdataIzq1RectHor = list(range(n_data1))
-        self.ydataIzq1RectHor = [random.randint(0,10) for i in range(n_data1)]
+        self.xdataIzq1RectHor = np.array(list(range(n_data1)))
+        self.ydataIzq1RectHor = np.array([random.randint(0,10) for i in range(n_data1)])
         #roi rectangulo vertical
-        self.xdataIzq1RectVert = list(range(n_data1))
-        self.ydataIzq1RectVert = [random.randint(0,10) for i in range(n_data1)]
+        self.xdataIzq1RectVert = np.array(list(range(n_data1)))
+        self.ydataIzq1RectVert = np.array([random.randint(0,10) for i in range(n_data1)])
         #roi elipse horizontal
-        self.xdataIzq1ElipHor = list(range(n_data1))
-        self.ydataIzq1ElipHor = [random.randint(0,10) for i in range(n_data1)]
+        self.xdataIzq1ElipHor = np.array(list(range(n_data1)))
+        self.ydataIzq1ElipHor = np.array([random.randint(0,10) for i in range(n_data1)])
         #roi elipse vertical
-        self.xdataIzq1ElipVer = list(range(n_data1))
-        self.ydataIzq1ElipVer = [random.randint(0,10) for i in range(n_data1)]
+        self.xdataIzq1ElipVer = np.array(list(range(n_data1)))
+        self.ydataIzq1ElipVer = np.array([random.randint(0,10) for i in range(n_data1)])
         #roi linea
-        self.xdataIzq1Line = list(range(n_data1))
-        self.ydataIzq1Line = [random.randint(0,10) for i in range(n_data1)]
+        self.xdataIzq1Line = np.array(list(range(n_data1)))
+        self.ydataIzq1Line = np.array([random.randint(0,10) for i in range(n_data1)])
         #dibujo el perfil
         self._plot_refIzq1 = None
         #self.update_plot_dfTab1Izq1()
@@ -1788,12 +1831,18 @@ class MainWindow(QDialog):
         #agrego grafico derecha
         #genero un dataframe de prueba
         self.dfTab1Der = MplCanvas(self, width=5, height=4, dpi=100)
-
+        self.dfTab1Der.axes.tick_params(axis='x', color='red')
+        self.dfTab1Der.axes.grid(True, linestyle='-.')
+        self.dfTab1Der.axes.xaxis.set_major_locator(plt.MaxNLocator(5)) #fijo el numero de espacio que muestra en el eje x
+        self.dfTab1Der.axes.set_ylim([0, 100])
+        self.dfTab1Der.axes.set_ylabel("Roi2")
+        self.dfTab1Der.axes.set_xlabel('sec')
+        self.dfTab1Der.axes.set_title("Trending Roi 2")
         n_data = 50
         #self.xdataDer = list(range(n_data))
-        self.xdataDer = [self.now(-x*100) for x in range(1,n_data+1,1)]#[self.now(-1000), self.now(-900), self.now(-800),self.now(-700),self.now(-600),self.now(-500), self.now(-400), self.now(-300),self.now(-200),self.now(-100)]
-        self.formatoXDataDer = [x.strftime("%S:.%f")[:-4] for x in self.xdataDer]
-        self.ydataDer = [random.randint(0,100) for i in range(n_data)]
+        self.xdataDer = np.array([self.now(-x*100) for x in range(0,n_data,1)][::-1],dtype='datetime64')
+        self.formatoXDataDer = np.array([x.item().strftime("%S:.%f")[:-4] for x in self.xdataDer])
+        self.ydataDer = np.array([random.randint(0,100) for i in range(n_data)])
 
         self._plot_refDer = None
         #self.update_plot_dfTab1Der() 
@@ -1809,24 +1858,24 @@ class MainWindow(QDialog):
         self.dfTab1Der1 = MplCanvas(self, width=5, height=4, dpi=100)
 
         n_data2 = 50
-        self.xdataDer1 = list(range(n_data2))
-        self.ydataDer1 = [random.randint(0,100) for i in range(n_data2)]
+        self.xdataDer1 = np.array(list(range(n_data2)))
+        self.ydataDer1 = np.array([random.randint(0,100) for i in range(n_data2)])
         #defino los datos para llevar los perfiles de cada roi
         #roi rectangulo horizontal
-        self.xdataDer1RectHor = list(range(n_data2))
-        self.ydataDer1RectHor = [random.randint(0,10) for i in range(n_data2)]
+        self.xdataDer1RectHor = np.array(list(range(n_data2)))
+        self.ydataDer1RectHor = np.array([random.randint(0,10) for i in range(n_data2)])
         #roi rectangulo vertical
-        self.xdataDer1RectVert = list(range(n_data2))
-        self.ydataDer1RectVert = [random.randint(0,10) for i in range(n_data2)]
+        self.xdataDer1RectVert = np.array(list(range(n_data2)))
+        self.ydataDer1RectVert = np.array([random.randint(0,10) for i in range(n_data2)])
         #roi elipse horizontal
-        self.xdataDer1ElipHor = list(range(n_data2))
-        self.ydataDer1ElipHor = [random.randint(0,10) for i in range(n_data2)]
+        self.xdataDer1ElipHor = np.array(list(range(n_data2)))
+        self.ydataDer1ElipHor = np.array([random.randint(0,10) for i in range(n_data2)])
         #roi elipse vertical
-        self.xdataDer1ElipVer = list(range(n_data2))
-        self.ydataDer1ElipVer = [random.randint(0,10) for i in range(n_data2)]
+        self.xdataDer1ElipVer = np.array(list(range(n_data2)))
+        self.ydataDer1ElipVer = np.array([random.randint(0,10) for i in range(n_data2)])
         #roi linea
-        self.xdataDer1Line = list(range(n_data2))
-        self.ydataDer1Line = [random.randint(0,10) for i in range(n_data2)]
+        self.xdataDer1Line = np.array(list(range(n_data2)))
+        self.ydataDer1Line = np.array([random.randint(0,10) for i in range(n_data2)])
  
         self._plot_refDer1 = None
         #self.update_plot_dfTab1Der1() 
@@ -3366,188 +3415,165 @@ class MainWindow(QDialog):
     #funcion para obtener estampa de tiempo actual
     def now(self, x):
         n = datetime.datetime.now()
-        return n + datetime.timedelta(seconds=x)#milliseconds=x)
+        return n + datetime.timedelta(milliseconds=x)
     #update el grafico izquierda en el tiempo Eje X temporal
     def update_plot_dfTab1Izq(self):
-        XTab1Izq=self.roiSelComboIzq.currentText()                        
-        
-        if XTab1Izq == 'ROI Rect1 Min':
+        #self.XTab1Izq=self.roiSelComboIzq.currentText()                        
+        self.XTab1Izq = self.roiSelComboIzq.currentText() #actualizo que debo graficar
+        self.XTab1Izq1 = self.profileSelComboIzq.currentText()
+        self.XTab1Der = self.roiSelComboDer.currentText()
+        self.XTab1Der1 = self.profileSelComboDer.currentText()
+        if self.XTab1Izq == 'ROI Rect1 Min':
             #cargamos el trendin de roi rect 1 minimo
-            self.ydataIzq = self.ydataIzq[1:] + [float(self.valor1IndTab1MinRoi1Rect.text())]
-        elif XTab1Izq == 'ROI Line1 Min':
+            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor1IndTab1MinRoi1Rect.text()))
+        elif self.XTab1Izq == 'ROI Line1 Min':
             #agergo la medicion de la roi min line 1
-            self.ydataIzq = self.ydataIzq[1:] + [float(self.valor11IndTab1MinRoi1Line.text())]
-        elif XTab1Izq == 'ROI Ellip1 Min':
+            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor11IndTab1MinRoi1Line.text()))
+        elif self.XTab1Izq == 'ROI Ellip1 Min':
             #agergo la medicion de la roi min elipse 1
-            self.ydataIzq = self.ydataIzq[1:] + [float(self.valor12IndTab1MinRoi1Ellipse.text())]
-        elif XTab1Izq == 'ROI Rect1 Avg':
+            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor12IndTab1MinRoi1Ellipse.text()))
+        elif self.XTab1Izq == 'ROI Rect1 Avg':
             #agergo la medicion de la roi avg rect 1
-            self.ydataIzq = self.ydataIzq[1:] + [float(self.valor2IndTab1AvgRoi1Rect.text())]
-        elif XTab1Izq == 'ROI Line1 Avg':
+            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor2IndTab1AvgRoi1Rect.text()))
+        elif self.XTab1Izq == 'ROI Line1 Avg':
             #agergo la medicion de la roi avg line 1
-            self.ydataIzq = self.ydataIzq[1:] + [float(self.valor21IndTab1AvgRoi1Line.text())]
-        elif XTab1Izq == 'ROI Ellip1 Avg':
+            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor21IndTab1AvgRoi1Line.text()))
+        elif self.XTab1Izq == 'ROI Ellip1 Avg':
             #agergo la medicion de la roi avg elipse 1
-            self.ydataIzq = self.ydataIzq[1:] + [float(self.valor22IndTab1AvgRoi1Ellipse.text())]
-        elif XTab1Izq == 'ROI Rect1 Max':
+            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor22IndTab1AvgRoi1Ellipse.text()))
+        elif self.XTab1Izq == 'ROI Rect1 Max':
             #agergo la medicion de la roi max rect 1
-            self.ydataIzq = self.ydataIzq[1:] + [float(self.valor3IndTab1MaxRoi1Rect.text())]
-        elif XTab1Izq == 'ROI Line1 Max':
+            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor3IndTab1MaxRoi1Rect.text()))
+        elif self.XTab1Izq == 'ROI Line1 Max':
             #agergo la medicion de la roi max line 1
-            self.ydataIzq = self.ydataIzq[1:] + [float(self.valor31IndTab1MaxRoi1Line.text())]
-        elif XTab1Izq == 'ROI Ellipse Max':
+            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor31IndTab1MaxRoi1Line.text()))
+        elif self.XTab1Izq == 'ROI Ellipse Max':
             #agergo la medicion de la roi max elipse 1
-            self.ydataIzq = self.ydataIzq[1:] + [float(self.valor32IndTab1MaxRoi1Ellipse.text())]
-        numpyImage = self.QImageToCvMat(self.image_label.pixmap())
-        #print(numpyImage) #imprimo la matriz convertida de imagen para cada 100ms           
+            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor32IndTab1MaxRoi1Ellipse.text()))
+        #Procesamiento de datos para el grafico de tendencia izquierdo
+        #        
         if self._plot_refIzq is None:#la idea es no llamar a la fucnion now, tomamos la ultima estampa de tiempo y le sumamos 1 segundo que es el tiempo de muestreo
-            self.xdataIzq = self.xdataIzq[1:] + [self.xdataIzq[-1]+datetime.timedelta(milliseconds=100)]
-            #formatoXDataIzq = [x.strftime("%S.%f")[:-4] for x in self.xdataIzq]
-            self.formatoXDataIzq = self.formatoXDataIzq[1:] + [self.xdataIzq[-1].strftime("%S:.%f")[:-4]]
-            plot_refs = self.dfTab1Izq.axes.plot(self.formatoXDataIzq, self.ydataIzq, 'r') #.strftime("%M:%S")
-            self._plot_refIzq = plot_refs[0]
-                
+            self.xdataIzq = np.append(self.xdataIzq[1:],self.xdataIzq[-1]+np.array([datetime.timedelta(milliseconds=100)],dtype='timedelta64[ms]')[0])            
+            self.formatoXDataIzq = np.append(self.formatoXDataIzq[1:],self.xdataIzq[-1].item().strftime("%S:%f")[:-4])
+            plot_refsIzqCurva0, = self.dfTab1Izq.axes.plot(self.formatoXDataIzq, self.ydataIzq, 'r') #.strftime("%M:%S")
+            self._plot_refIzq = plot_refsIzqCurva0#[0]
         else:
-            self.xdataIzq = self.xdataIzq[1:] + [self.xdataIzq[-1]+datetime.timedelta(milliseconds=100)]
-            #formatoXDataIzq = [x.strftime("%S.%f")[:-4] for x in self.xdataIzq]
-            self.formatoXDataIzq = self.formatoXDataIzq[1:] + [self.xdataIzq[-1].strftime("%S:.%f")[:-4]]
-            self.dfTab1Izq.axes.cla()
-            plot_refs = self.dfTab1Izq.axes.plot(self.formatoXDataIzq, self.ydataIzq, 'r')
-            self.dfTab1Izq.axes.tick_params(axis='x', color='red')
-            self.dfTab1Izq.axes.grid(True, linestyle='-.')
-            self.dfTab1Izq.axes.xaxis.set_major_locator(plt.MaxNLocator(7)) #fijo el numero de espacio que muestra en el eje x
-            self.dfTab1Izq.axes.set_ylim([0, 100])
-            self.dfTab1Izq.axes.set_ylabel("Roi1")
-            self.dfTab1Izq.axes.set_xlabel('sec')
-            self.dfTab1Izq.axes.set_title("Trending Roi 1")
-        #self.dfTab1Izq.draw()
-       
-           
-    #def update_plot_dfTab1Izq1(self):
-        #self.ydataIzq1 = self.ydataIzq1[1:] + [random.randint(0,10)]
-        XTab1Izq1 = self.profileSelComboIzq.currentText()
-        if XTab1Izq1 == 'Profile Horizontal Rect1':
+            self.xdataIzq = np.append(self.xdataIzq[1:],self.xdataIzq[-1]+np.array([datetime.timedelta(milliseconds=100)],dtype='timedelta64[ms]')[0])            
+            self.formatoXDataIzq = np.append(self.formatoXDataIzq[1:],self.xdataIzq[-1].item().strftime("%S:%f")[:-4])
+            self._plot_refIzq.set_ydata(self.ydataIzq)            
+            self._plot_refIzq.set_xdata(self.formatoXDataIzq)
+            self._plot_refIzq.axes.set_xlim([self.formatoXDataIzq[0],self.formatoXDataIzq[49]]) #actualizo los limites
+        #
+        #muestro los datos del grafico izq arriba     
+        self.dfTab1Izq.draw()
+        if self.XTab1Izq1 == 'Profile Horizontal Rect1':
             self.xdataIzq1 = self.xdataIzq1RectHor
             self.ydataIzq1 = self.ydataIzq1RectHor
-        elif XTab1Izq1 == 'Profile Vertical Rect1':
+        elif self.XTab1Izq1 == 'Profile Vertical Rect1':
             self.xdataIzq1 = self.xdataIzq1RectVert
             self.ydataIzq1 = self.ydataIzq1RectVert
-        elif XTab1Izq1 == 'Profile Horizontal Ellipse1':
+        elif self.XTab1Izq1 == 'Profile Horizontal Ellipse1':
             self.xdataIzq1 = self.xdataIzq1ElipHor
             self.ydataIzq1 = self.ydataIzq1ElipHor
-        elif XTab1Izq1 == 'Profile Vertical Ellipse1':
+        elif self.XTab1Izq1 == 'Profile Vertical Ellipse1':
             self.xdataIzq1 = self.xdataIzq1ElipVer
             self.ydataIzq1 = self.ydataIzq1ElipVer
-        elif XTab1Izq1 == 'Profile Line1':
+        elif self.XTab1Izq1 == 'Profile Line1':
             self.xdataIzq1 = self.xdataIzq1Line
             self.ydataIzq1 = self.ydataIzq1Line
-
         if self._plot_refIzq1 is None:
             plot_refs = self.dfTab1Izq1.axes.plot(self.xdataIzq1, self.ydataIzq1, 'r')
             self._plot_refIzq1 = plot_refs[0]
-        else:
-            self._plot_refIzq1.set_xdata(self.xdataIzq1)
-            self._plot_refIzq1.set_ydata(self.ydataIzq1)
             self.dfTab1Izq1.axes.grid(True, linestyle='-.')
             self.dfTab1Izq1.axes.set_ylim([0,100])
             self.dfTab1Izq1.axes.set_ylabel("Roi1")
             self.dfTab1Izq1.axes.set_xlabel('pixel')
             self.dfTab1Izq1.axes.set_title("Profile Roi 1")
-        #self.dfTab1Izq1.draw()
-    #update el grafico
-    #def update_plot_dfTab1Der(self):
-        XTab1Der=self.roiSelComboDer.currentText()
-        
-        
-        if XTab1Der == 'ROI Rect2 Min':
-            #cargamos el trendin de roi rect 2 minimo
-            self.ydataDer = self.ydataDer[1:] + [float(self.valor4IndTab1MinRoi2Rect.text())]
-        elif XTab1Der == 'ROI Line2 Min':
-            #agergo la medicion de la roi min line 2
-            self.ydataDer = self.ydataDer[1:] + [float(self.valor41IndTab1MinRoi2Line.text())]
-        elif XTab1Der == 'ROI Ellip2 Min':
-            #agergo la medicion de la roi min elipse 2
-            self.ydataDer = self.ydataDer[1:] + [float(self.valor42IndTab1MinRoi2Ellipse.text())]
-        elif XTab1Der == 'ROI Rect2 Avg':
-            #agergo la medicion de la roi avg rect 2
-            self.ydataDer = self.ydataDer[1:] + [float(self.valor5IndTab1AvgRoi2Rect.text())]
-        elif XTab1Der == 'ROI Line2 Avg':
-            #agergo la medicion de la roi avg line 2
-            self.ydataDer = self.ydataDer[1:] + [float(self.valor51IndTab1AvgRoi2Line.text())]
-        elif XTab1Der == 'ROI Ellip2 Avg':
-            #agergo la medicion de la roi avg elipse 2
-            self.ydataDer = self.ydataDer[1:] + [float(self.valor52IndTab1AvgRoi2Ellipse.text())]
-        elif XTab1Der == 'ROI Rect2 Max':
-            #agergo la medicion de la roi max rect 2
-            self.ydataDer = self.ydataDer[1:] + [float(self.valor6IndTab1MaxRoi2Rect.text())]
-        elif XTab1Der == 'ROI Line2 Max':
-            #agergo la medicion de la roi max line 2
-            self.ydataDer = self.ydataDer[1:] + [float(self.valor61IndTab1MaxRoi2Line.text())]
-        elif XTab1Der == 'ROI Ellip2 Max':
-            #agergo la medicion de la roi max elipse 2
-            self.ydataDer = self.ydataDer[1:] + [float(self.valor62IndTab1MaxRoi2Ellipse.text())]
-        numpyImage = self.QImageToCvMat(self.image_label.pixmap())
-        #print(numpyImage) #imprimo la matriz convertida de imagen para cada 100ms
-        if self._plot_refDer is None:
-            self.xdataDer = self.xdataDer[1:] + [self.xdataDer[-1]+datetime.timedelta(milliseconds=100)]
-            #formatoXDataDer = [x.strftime("%S.%f")[:-4] for x in self.xdataDer]
-            self.formatoXDataDer = self.formatoXDataDer[1:] + [self.xdataDer[-1].strftime("%S.%f")[:-4]]    
-            plot_refsAuxDer = self.dfTab1Der.axes.plot(self.formatoXDataDer, self.ydataDer, 'r')
-            self._plot_refDer = plot_refsAuxDer[0]
         else:
-            #self._plot_refDer.set_ydata(self.ydataDer)
-            self.xdataDer = self.xdataDer[1:] + [self.xdataDer[-1]+datetime.timedelta(milliseconds=100)]
-            #formatoXDataDer = [x.strftime("%S.%f")[:-4] for x in self.xdataDer]
-            self.formatoXDataDer = self.formatoXDataDer[1:] + [self.xdataDer[-1].strftime("%S.%f")[:-4]]    
-            self.dfTab1Der.axes.cla()
-            plot_refs = self.dfTab1Der.axes.plot(self.formatoXDataDer, self.ydataDer, 'r')
-            self.dfTab1Der.axes.tick_params(axis='x', color='red')
-            self.dfTab1Der.axes.grid(True, linestyle='-.')
-            self.dfTab1Der.axes.xaxis.set_major_locator(plt.MaxNLocator(7)) #fijo el numero de espacio que muestra en el eje x
-            self.dfTab1Der.axes.set_ylim([0, 100])
-            self.dfTab1Der.axes.set_ylabel("Roi2")
-            self.dfTab1Der.axes.set_xlabel('sec')
-            self.dfTab1Der.axes.set_title("Trending Roi 2")
-        #self.dfTab1Der.draw()
-    #
-    #def update_plot_dfTab1Der1(self):
-        #self.ydataDer1 = self.ydataDer1[1:] + [random.randint(0,10)]
-        XTab1Der1 = self.profileSelComboDer.currentText()
-        if XTab1Der1 == 'Profile Horizontal Rect2':
+            self._plot_refIzq1.set_xdata(self.xdataIzq1)
+            self._plot_refIzq1.set_ydata(self.ydataIzq1)
+        #muestro los datos del grafico izquierda abajo            
+        self.dfTab1Izq1.draw()    
+        if self.XTab1Der == 'ROI Rect2 Min':
+            #cargamos el trendin de roi rect 2 minimo
+            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor4IndTab1MinRoi2Rect.text()))
+        elif self.XTab1Der == 'ROI Line2 Min':
+            #agergo la medicion de la roi min line 2
+            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor41IndTab1MinRoi2Line.text()))
+        elif self.XTab1Der == 'ROI Ellip2 Min':
+            #agergo la medicion de la roi min elipse 2
+            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor42IndTab1MinRoi2Ellipse.text()))
+        elif self.XTab1Der == 'ROI Rect2 Avg':
+            #agergo la medicion de la roi avg rect 2
+            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor5IndTab1AvgRoi2Rect.text()))
+        elif self.XTab1Der == 'ROI Line2 Avg':
+            #agergo la medicion de la roi avg line 2
+            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor51IndTab1AvgRoi2Line.text()))
+        elif self.XTab1Der == 'ROI Ellip2 Avg':
+            #agergo la medicion de la roi avg elipse 2
+            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor52IndTab1AvgRoi2Ellipse.text()))
+        elif self.XTab1Der == 'ROI Rect2 Max':
+            #agergo la medicion de la roi max rect 2
+            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor6IndTab1MaxRoi2Rect.text()))
+        elif self.XTab1Der == 'ROI Line2 Max':
+            #agergo la medicion de la roi max line 2
+            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor61IndTab1MaxRoi2Line.text()))
+        elif self.XTab1Der == 'ROI Ellip2 Max':
+            #agergo la medicion de la roi max elipse 2
+            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor62IndTab1MaxRoi2Ellipse.text()))
+        #Procesamiento de datos para el grafico de tendencia derecha
+        #         
+        if self._plot_refDer is None:
+            self.xdataDer = np.append(self.xdataDer[1:],self.xdataDer[-1]+np.array([datetime.timedelta(milliseconds=100)],dtype='timedelta64[ms]')[0])
+            self.formatoXDataDer = np.append(self.formatoXDataDer[1:],self.xdataDer[-1].item().strftime("%S:%f")[:-4])
+            plot_refsDerCurva0, = self.dfTab1Der.axes.plot(self.formatoXDataDer, self.ydataDer, 'r')
+            self._plot_refDer = plot_refsDerCurva0            
+        else:            
+            self.xdataDer = np.append(self.xdataDer[1:],self.xdataDer[-1]+np.array([datetime.timedelta(milliseconds=100)],dtype='timedelta64[ms]')[0])            
+            self.formatoXDataDer = np.append(self.formatoXDataDer[1:],self.xdataDer[-1].item().strftime("%S:%f")[:-4])    
+            self._plot_refDer.set_ydata(self.ydataIzq)
+            self._plot_refDer.set_xdata(self.formatoXDataDer)
+            self._plot_refDer.axes.set_xlim([self.formatoXDataDer[0],self.formatoXDataDer[49]]) #actualizo los limites
+        #
+        #muestro los datos del grafico derecha arriba
+        self.dfTab1Der.draw()    
+        if self.XTab1Der1 == 'Profile Horizontal Rect2':
             self.xdataDer1 = self.xdataDer1RectHor
             self.ydataDer1 = self.ydataDer1RectHor
-        elif XTab1Der1 == 'Profile Vertical Rect2':
+        elif self.XTab1Der1 == 'Profile Vertical Rect2':
             self.xdataDer1 = self.xdataDer1RectVert
             self.ydataDer1 = self.ydataDer1RectVert
-        elif XTab1Der1 == 'Profile Horizontal Ellipse2':
+        elif self.XTab1Der1 == 'Profile Horizontal Ellipse2':
             self.xdataDer1 = self.xdataDer1ElipHor
             self.ydataDer1 = self.ydataDer1ElipHor
-        elif XTab1Der1 == 'Profile Vertical Ellipse2':
+        elif self.XTab1Der1 == 'Profile Vertical Ellipse2':
             self.xdataDer1 = self.xdataDer1ElipVer
             self.ydataDer1 = self.ydataDer1ElipVer
-        elif XTab1Der1 == 'Profile Line1':
+        elif self.XTab1Der1 == 'Profile Line1':
             self.xdataDer1 = self.xdataDer1Line
             self.ydataDer1 = self.ydataDer1Line
-
         if self._plot_refDer1 is None:
             plot_refs = self.dfTab1Der1.axes.plot(self.xdataDer1, self.ydataDer1, 'r')
             self._plot_refDer1 = plot_refs[0]
-        else:
-            self._plot_refDer1.set_xdata(self.xdataDer1)
-            self._plot_refDer1.set_ydata(self.ydataDer1)
             self.dfTab1Der1.axes.grid(True, linestyle='-.')
             self.dfTab1Der1.axes.set_ylim([0,100])
             self.dfTab1Der1.axes.set_ylabel("Roi2")
             self.dfTab1Der1.axes.set_xlabel('pixel')
             self.dfTab1Der1.axes.set_title("Profile Roi 2")
-        #self.dfTab1Der1.draw()
+        else:
+            self._plot_refDer1.set_xdata(self.xdataDer1)
+            self._plot_refDer1.set_ydata(self.ydataDer1)
+        #muestro los graficos derecha abajo
+        self.dfTab1Der1.draw()
         
     #
     def update_plots(self):
-        self.dfTab1Izq.draw()
-        self.dfTab1Izq1.draw()
-        self.dfTab1Der.draw()
-        self.dfTab1Der1.draw()
+        #muestreo mas lento las funciones que grafican
+        #self.dfTab1Izq.draw()
+        #self.dfTab1Izq1.draw()
+        #self.dfTab1Der.draw()
+        #self.dfTab1Der1.draw()
+        print("no deberia estar aca, no vamos a usar un temporizador mas lento solo mostramos a 100 ms")
 
     #funcion para convertir imagen en QT a imagenes en opencv
     #
@@ -3569,6 +3595,10 @@ class MainWindow(QDialog):
     def closeEvent(self, event):
         self.thread.stop()
         event.accept()
+    #hilo procesamiento de datos
+    @pyqtSlot(np.ndarray)
+    def update_procesamiento(self, procesamientoDatos):
+        print(procesamientoDatos[0]+" "+procesamientoDatos[1]+" "+procesamientoDatos[2]+" "+procesamientoDatos[3])
 
     @pyqtSlot(np.ndarray)
     def status_camera(self, statusConnectionCamera):
@@ -3658,9 +3688,9 @@ class MainWindow(QDialog):
             indiceYHeightRoiRect1ImageValue = heightRoiRect1ImageValue / 2
             profileVerticalRoi1Rect = roiRect1ImageValue[int(indiceXRoiRect1ImageValue),:]
             profileHorizontalRoi1Rect = roiRect1ImageValue[:,int(indiceYHeightRoiRect1ImageValue)]
-            self.xdataIzq1RectHor = list(range(widthRoiRect1ImageValue))
+            self.xdataIzq1RectHor = np.array(list(range(widthRoiRect1ImageValue)))
             self.ydataIzq1RectHor = profileHorizontalRoi1Rect
-            self.xdataIzq1RectVert = list(range(heightRoiRect1ImageValue))
+            self.xdataIzq1RectVert = np.array(list(range(heightRoiRect1ImageValue)))
             self.ydataIzq1RectVert = profileVerticalRoi1Rect  
         #a zero los valores de medicion rect 2
         roiRect2ImageValueMin = 0
@@ -3683,9 +3713,9 @@ class MainWindow(QDialog):
             indiceYHeightRoiRect2ImageValue = heightRoiRect2ImageValue / 2
             profileVerticalRoi2Rect = roiRect2ImageValue[int(indiceXRoiRect2ImageValue),:]
             profileHorizontalRoi2Rect = roiRect2ImageValue[:,int(indiceYHeightRoiRect2ImageValue)]
-            self.xdataDer1RectHor = list(range(widthRoiRect2ImageValue))
+            self.xdataDer1RectHor = np.array(list(range(widthRoiRect2ImageValue)))
             self.ydataDer1RectHor = profileHorizontalRoi2Rect
-            self.xdataDer1RectVert = list(range(heightRoiRect2ImageValue))
+            self.xdataDer1RectVert = np.array(list(range(heightRoiRect2ImageValue)))
             self.ydataDer1RectVert = profileVerticalRoi2Rect 
         #sacamos los datos correspondientres a la primer roi y segunda roi linea
         largoLinea0 = line0PosY2 - line0PosY1 #cantidad de elementos
@@ -3708,7 +3738,7 @@ class MainWindow(QDialog):
         #
         if (largoLinea0 > 1) and (anchoLinea0 > 1):
             widthLine0 = len(valoresLinea0)
-            self.xdataIzq1Line = list(range(widthLine0))
+            self.xdataIzq1Line = np.array(list(range(widthLine0)))
             self.ydataIzq1Line = valoresLinea0
         #
         largoLinea1 = line1PosY2 - line1PosY1 #cantidad de elementos
@@ -3731,7 +3761,7 @@ class MainWindow(QDialog):
         #
         if (largoLinea1 > 1) and (anchoLinea1 > 1):
             widthLine1 = len(valoresLinea1)
-            self.xdataDer1Line = list(range(widthLine1))
+            self.xdataDer1Line = np.array(list(range(widthLine1)))
             self.ydataDer1Line = valoresLinea1
         #sacamos los datos correspondientres a la primer roi y segunda roi elipse
         #primero creamos una elipse con los datos de x0,y0 -- width,height
@@ -3772,9 +3802,9 @@ class MainWindow(QDialog):
         if (int(elipse0Height) > 1) and (int(elipse0Width) > 1):
             valoresThermalElipse0Vertical = thermal_img[int(elipse0PosY):int(elipse0PosY+elipse0Height),int(elipse0PosX+elipse0Width/2)]
             valoresThermalElipse0Horizontal = thermal_img[int(elipse0PosY+elipse0Height/2),int(elipse0PosX):int(elipse0PosX+elipse0Width)]
-            self.xdataIzq1ElipHor = list(range(len(valoresThermalElipse0Horizontal)))
+            self.xdataIzq1ElipHor = np.array(list(range(len(valoresThermalElipse0Horizontal))))
             self.ydataIzq1ElipHor = valoresThermalElipse0Horizontal
-            self.xdataIzq1ElipVer = list(range(len(valoresThermalElipse0Vertical)))
+            self.xdataIzq1ElipVer = np.array(list(range(len(valoresThermalElipse0Vertical))))
             self.ydataIzq1ElipVer = valoresThermalElipse0Vertical 
         #sacamos los datos correspondientes a la elipse 1
         #elipse 1
@@ -3814,9 +3844,9 @@ class MainWindow(QDialog):
         if (elipse1Height > 1) and (elipse1Width > 1):
             valoresThermalElipse1Vertical = thermal_img[int(elipse1PosY):int(elipse1PosY+elipse1Height),int(elipse1PosX+elipse1Width/2)]
             valoresThermalElipse1Horizontal = thermal_img[int(elipse1PosY+elipse1Height/2),int(elipse1PosX):int(elipse1PosX+elipse1Width)]
-            self.xdataDer1ElipHor = list(range(len(valoresThermalElipse1Horizontal)))
+            self.xdataDer1ElipHor = np.array(list(range(len(valoresThermalElipse1Horizontal))))
             self.ydataDer1ElipHor = valoresThermalElipse1Horizontal
-            self.xdataDer1ElipVer = list(range(len(valoresThermalElipse1Vertical)))
+            self.xdataDer1ElipVer = np.array(list(range(len(valoresThermalElipse1Vertical))))
             self.ydataDer1ElipVer = valoresThermalElipse1Vertical 
         #verifico si el valor minimo es menor al error
         #el valor de valorNuevoPreset1 es actualizado desde la popup de ajuste de alarma
@@ -4240,6 +4270,7 @@ class MainWindow(QDialog):
             self.pbarTab1.setValue(value)
         else:
             print("stop timer 1")
+            self.pbarTab1.setValue(100) #termino de conectar la camara indico con un valor de 100 %
             self.timerPbar1.stop()
     #defino la funcion asociada a la barra de progreso para la camara 2
     def handleTimer2(self):
@@ -4249,6 +4280,7 @@ class MainWindow(QDialog):
             self.pbarTab2.setValue(value)
         else:
             print("stop timer 2")
+            self.pbarTab2.setValue(100)
             self.timerPbar2.stop()
     #defino la funcion asociada a la barra de progreso para la camara 3
     def handleTimer3(self):
@@ -4259,6 +4291,7 @@ class MainWindow(QDialog):
         else:
             print("stop timer 3")
             self.timerPbar3.stop()
+            self.pbarTab3.setValue(100)
     #Defino la funcion asociada a la seleccion de ROI Izquierda Tab1
     def populateRoiCombo1(self):
         if not self.roiSelComboIzq.count():
