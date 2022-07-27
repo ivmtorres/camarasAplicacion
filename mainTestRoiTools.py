@@ -262,9 +262,13 @@ class TestImage(QLabel):
             self.parent().parent().listaRects=[self.parent().parent().rectangulo1,self.parent().parent().rectangulo2]
             self.parent().parent().listaLineas=[self.parent().parent().recta1,self.parent().parent().recta2]
             self.parent().parent().listaElipses=[self.parent().parent().rectanguloEllipse1,self.parent().parent().rectanguloEllipse2]
+            ancho = self.size().width()
+            alto = self.size().height()
+           
             #calculo resolucion imagen
-            self.parent().parent().escalaImagen['ancho'] = self.size().width()
-            self.parent().parent().escalaImagen['alto'] = self.size().height()
+            self.parent().parent().escalaImagen[0] = ancho
+            self.parent().parent().escalaImagen[1] = alto
+            
             #mostramos la lista de cada uno de los rois
             #print(self.parent().parent().listaRects)
             #print(self.parent().parent().listaLineas)
@@ -1597,7 +1601,7 @@ class MainWindow(QDialog):
         self.scrollArea.resize(self.scrollArea.sizeHint())
         #
         #Escala de imagen
-        self.scrollArea.escalaImagen = {"ancho":386,"alto":290}
+        self.scrollArea.escalaImagen = [386,290]#{"ancho":386,"alto":290}
         #        
         self.scrollArea.zoomInButton = False
         self.scrollArea.zoomOutButton = False
@@ -3627,8 +3631,8 @@ class MainWindow(QDialog):
     #***************************************************
     @pyqtSlot(np.ndarray)
     def thermal_image(self, thermal_img):
-        ancho = self.scrollArea.escalaImagen['ancho']#self.image_label.size().width()
-        alto = self.scrollArea.escalaImagen['alto']#self.image_label.size().height()
+        ancho = self.scrollArea.escalaImagen[0]#['ancho']#self.image_label.size().width()
+        alto = self.scrollArea.escalaImagen[1]#['alto']#self.image_label.size().height()
         thermal_img = np.resize(thermal_img,(alto,ancho))
         #thermal_imgMirror = thermal_img
         #thermal_imgMirror = np.resize(thermal_imgMirror,(alto,ancho))
