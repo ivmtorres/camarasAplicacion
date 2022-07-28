@@ -153,26 +153,86 @@ class TestImage(QLabel):
             #print(escala)
             self.resize(escala)     #ajusto la escala de la imagen
             if self.escalarRois == True: #determino si hay que escalar las rois, es true si si apreto el click en la imagen seleccionado zoom in o zoom out
+                #**************************Roi Rectangulos*****************************************************************************
                 #mostramos la escala de las ROIs
                 print("escala: {}".format(self.scaleFactor))    
                 print("escala anterior: {}".format(self.scaleFactorOld))
                 #mostramos las dimensiones de los rectangulos afectado por la escala
                 print("posX:{}-posY:{}".format(self.parent().parent().rectangulo1.x(), self.parent().parent().rectangulo1.y()))
                 print("ancho:{}-alto:{}".format(self.parent().parent().rectangulo1.width(),self.parent().parent().rectangulo1.height()))
-                xEscalado=self.parent().parent().rectangulo1.x()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia x
-                yEscalado=self.parent().parent().rectangulo1.y()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia y
-                anchoEscalado = self.parent().parent().rectangulo1.width()*(1+(self.scaleFactor-self.scaleFactorOld)) #idem para calcular la diferencia con ancho alto
-                altoEscalado = self.parent().parent().rectangulo1.height()*(1+(self.scaleFactor-self.scaleFactorOld))
-                print("posXEsc:{}-posYEsc:{}".format(xEscalado, yEscalado))
-                print("anchoEsc:{}-altoEsc:{}".format(anchoEscalado,altoEscalado))
-                beginRectangulo = QPoint(int(xEscalado),int(yEscalado))
-                endRectangulo = QPoint(int(xEscalado+anchoEscalado),int(yEscalado+altoEscalado))
-                self.parent().parent().rectangulo1=QRect(beginRectangulo, endRectangulo)                
+                #*****************************************************
+                #*****************ROI Rect1***************************
+                xEscaladoRec1=self.parent().parent().rectangulo1.x()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia x
+                yEscaladoRec1=self.parent().parent().rectangulo1.y()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia y
+                anchoEscaladoRec1 = self.parent().parent().rectangulo1.width()*(1+(self.scaleFactor-self.scaleFactorOld)) #idem para calcular la diferencia con ancho alto
+                altoEscaladoRec1 = self.parent().parent().rectangulo1.height()*(1+(self.scaleFactor-self.scaleFactorOld))
+                #
+                beginRectanguloRec1 = QPoint(int(xEscaladoRec1),int(yEscaladoRec1))
+                endRectanguloRec1 = QPoint(int(xEscaladoRec1+anchoEscaladoRec1),int(yEscaladoRec1+altoEscaladoRec1))
+                self.parent().parent().rectangulo1=QRect(beginRectanguloRec1, endRectanguloRec1)
+                self.posTextRect1 = beginRectanguloRec1 #utilizo la posicion de inicio del rectangulo para fijar la posicion del texto                
+                #*****************************************************
+                #*****************ROI Rect2***************************
+                xEscaladoRec2=self.parent().parent().rectangulo2.x()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia x
+                yEscaladoRec2=self.parent().parent().rectangulo2.y()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia y
+                anchoEscaladoRec2 = self.parent().parent().rectangulo2.width()*(1+(self.scaleFactor-self.scaleFactorOld)) #idem para calcular la diferencia con ancho alto
+                altoEscaladoRec2 = self.parent().parent().rectangulo2.height()*(1+(self.scaleFactor-self.scaleFactorOld))
+                #
+                beginRectanguloRec2 = QPoint(int(xEscaladoRec2),int(yEscaladoRec2))
+                endRectanguloRec2 = QPoint(int(xEscaladoRec2+anchoEscaladoRec2),int(yEscaladoRec2+altoEscaladoRec2))
+                self.parent().parent().rectangulo2=QRect(beginRectanguloRec2, endRectanguloRec2)
+                self.posTextRect2 = beginRectanguloRec2 #utilizo la posicion de inicio del rectangulo para fijar la posicion del texto                
+                #*****************************************************
+                #********************Roi Recta 1**********************
+                beginRecta1PosX = int(self.parent().parent().recta1.x1() * (1+(self.scaleFactor-self.scaleFactorOld)))
+                beginRecta1PosY = int(self.parent().parent().recta1.y1() * (1+(self.scaleFactor-self.scaleFactorOld)))
+                endRecta1PosX = int(self.parent().parent().recta1.x2() * (1+(self.scaleFactor-self.scaleFactorOld)))
+                endRecta1PosY = int(self.parent().parent().recta1.y2() * (1+(self.scaleFactor-self.scaleFactorOld)))
+                beginRecta1 = QPoint(beginRecta1PosX, beginRecta1PosY)
+                endRecta1 = QPoint(endRecta1PosX, endRecta1PosY)
+                self.parent().parent().recta1 = QLine(beginRecta1, endRecta1)
+                self.posTextRecta1 = beginRecta1
+                #*****************************************************
+                #********************Roi Recta 2**********************
+                beginRecta2PosX = int(self.parent().parent().recta2.x1() * (1+(self.scaleFactor-self.scaleFactorOld)))
+                beginRecta2PosY = int(self.parent().parent().recta2.y1() * (1+(self.scaleFactor-self.scaleFactorOld)))
+                endRecta2PosX = int(self.parent().parent().recta2.x2() * (1+(self.scaleFactor-self.scaleFactorOld)))
+                endRecta2PosY = int(self.parent().parent().recta2.y2() * (1+(self.scaleFactor-self.scaleFactorOld)))
+                beginRecta2 = QPoint(beginRecta2PosX, beginRecta2PosY)
+                endRecta2 = QPoint(endRecta2PosX, endRecta2PosY)
+                self.parent().parent().recta2 = QLine(beginRecta2, endRecta2)
+                self.posTextRecta2 = beginRecta2
+                #*****************************************************
+                #********************Roi Elipse 1*********************
+                xEscaladoElipse1=self.parent().parent().rectanguloEllipse1.x()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia x
+                yEscaladoElipse1=self.parent().parent().rectanguloEllipse1.y()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia y
+                anchoEscaladoElipse1 = self.parent().parent().rectanguloEllipse1.width()*(1+(self.scaleFactor-self.scaleFactorOld)) #idem para calcular la diferencia con ancho alto
+                altoEscaladoElipse1 = self.parent().parent().rectanguloEllipse1.height()*(1+(self.scaleFactor-self.scaleFactorOld))
+                #
+                beginElipse1 = QPoint(int(xEscaladoElipse1),int(yEscaladoElipse1))
+                endElipse1 = QPoint(int(xEscaladoElipse1+anchoEscaladoElipse1),int(yEscaladoElipse1+altoEscaladoElipse1))
+                self.parent().parent().rectanguloEllipse1=QRect(beginElipse1, endElipse1)
+                self.posTextEllipse1 = beginElipse1 #utilizo la posicion de inicio del rectangulo para fijar la posicion del texto                
+                #*****************************************************
+                #********************Roi Elipse 2*********************
+                xEscaladoElipse2=self.parent().parent().rectanguloEllipse2.x()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia x
+                yEscaladoElipse2=self.parent().parent().rectanguloEllipse2.y()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia y
+                anchoEscaladoElipse2 = self.parent().parent().rectanguloEllipse2.width()*(1+(self.scaleFactor-self.scaleFactorOld)) #idem para calcular la diferencia con ancho alto
+                altoEscaladoElipse2 = self.parent().parent().rectanguloEllipse2.height()*(1+(self.scaleFactor-self.scaleFactorOld))
+                #
+                beginElipse2 = QPoint(int(xEscaladoElipse2),int(yEscaladoElipse2))
+                endElipse2 = QPoint(int(xEscaladoElipse2+anchoEscaladoElipse2),int(yEscaladoElipse2+altoEscaladoElipse2))
+                self.parent().parent().rectanguloEllipse2=QRect(beginElipse2, endElipse2)
+                self.posTextEllipse2 = beginElipse2 #utilizo la posicion de inicio del rectangulo para fijar la posicion del texto 
+                #
                 print("posXPos:{}-posYPos:{}".format(self.parent().parent().rectangulo1.x(), self.parent().parent().rectangulo1.y()))
                 print("anchoPos:{}-altoPos:{}".format(self.parent().parent().rectangulo1.width(),self.parent().parent().rectangulo1.height()))
-                self.scaleFactorOld = self.scaleFactor
-                self.posTextRect1 = beginRectangulo #utilizo la posicion de inicio del rectangulo para fijar la posicion del texto
-                self.escalarRois = False #una vez escaladas bajo el flag             
+                #
+                self.scaleFactorOld = self.scaleFactor                
+                self.escalarRois = False #una vez escaladas bajo el flag
+                #*************************************************************************************
+                #****************Roi *****************************************************
+
             flagEstado = True            
         except:
             print("error Image")
@@ -731,19 +791,21 @@ class TestImage(QLabel):
                     #estoy dentro de la elipse 1
                     if self.parent().parent().ellipse1.contains(QPointF(ptoXEllipse, ptoYEllipse)) & self.flagRectEllipse1VsRectEllipse2:
                         #calculo la distrancia entre el punto x-y y el punto clickeado dentro del rectangulo
-                        desplazamientoXRecEllip1 = self.end.x() - self.posAnteriorRectEllipse1.x()
-                        desplazamientoYRecEllip1 = self.end.y() - self.posAnteriorRectEllipse1.y()
+                        desplazamientoXRecEllip1 = int(self.end.x() - self.posAnteriorRectEllipse1.x())
+                        desplazamientoYRecEllip1 = int(self.end.y() - self.posAnteriorRectEllipse1.y())
                         self.parent().parent().rectanguloEllipse1.translate(desplazamientoXRecEllip1, desplazamientoYRecEllip1)
-                        self.parent().parent().ellipse1.setRect(self.parent().parent().rectanguloEllipse1)
+                        x1Ellipse1,y1Ellipse1,x2Ellipse1,y2Ellipse1=self.parent().parent().rectanguloEllipse1.getCoords()
+                        self.parent().parent().ellipse1.setRect(QRectF(x1Ellipse1,y1Ellipse1,x2Ellipse1,y2Ellipse1))
                         self.posTextEllipse1 = self.parent().parent().rectanguloEllipse1.topLeft()
                         self.posAnteriorRectEllipse1 = self.end
                         self.begin = self.end
                     #estoy dentro de la elipse 2
                     else:
-                        desplazamientoXRecEllip2 = self.end.x() - self.posAnteriorRectEllipse2.x()
-                        desplazamientoYRecEllip2 = self.end.y() - self.posAnteriorRectEllipse2.y()
-                        self.parent().parent().rectanguloEllipse2.translate(desplazamientoXRecEllip2, desplazamientoYRecEllip2)
-                        self.parent().parent().ellipse2.setRect(self.parent().parent().rectanguloEllipse2)
+                        desplazamientoXRecEllip2 = int(self.end.x() - self.posAnteriorRectEllipse2.x())
+                        desplazamientoYRecEllip2 = int(self.end.y() - self.posAnteriorRectEllipse2.y())
+                        self.parent().parent().rectanguloEllipse2.translate(desplazamientoXRecEllip2, desplazamientoYRecEllip2)                        
+                        x1Ellipse2,y1Ellipse2,x2Ellipse2,y2Ellipse2=self.parent().parent().rectanguloEllipse2.getCoords()
+                        self.parent().parent().ellipse2.setRect(QRectF(x1Ellipse2,y1Ellipse2,x2Ellipse2,y2Ellipse2))
                         self.posTextEllipse2 = self.parent().parent().rectanguloEllipse2.topLeft()
                         self.posAnteriorRectEllipse2 = self.end
                         self.begin = self.end
