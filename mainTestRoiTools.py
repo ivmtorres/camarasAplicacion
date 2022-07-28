@@ -71,6 +71,8 @@ class TestImage(QLabel):
         ######################Escala########################
         self.scaleFactor = 1
         self.scala = 1.25
+        self.escalarRois = False #defino un flag para indicar que se tiene que re escalar las rois
+        self.scaleFactorOld = 1
         ######################Escala########################
         #punto para deteccion del click
         self.begin = QPoint()
@@ -149,7 +151,28 @@ class TestImage(QLabel):
         try:
             escala = self.scaleFactor * self.pixmap().size()
             #print(escala)
-            self.resize(escala)
+            self.resize(escala)     #ajusto la escala de la imagen
+            if self.escalarRois == True: #determino si hay que escalar las rois, es true si si apreto el click en la imagen seleccionado zoom in o zoom out
+                #mostramos la escala de las ROIs
+                print("escala: {}".format(self.scaleFactor))    
+                print("escala anterior: {}".format(self.scaleFactorOld))
+                #mostramos las dimensiones de los rectangulos afectado por la escala
+                print("posX:{}-posY:{}".format(self.parent().parent().rectangulo1.x(), self.parent().parent().rectangulo1.y()))
+                print("ancho:{}-alto:{}".format(self.parent().parent().rectangulo1.width(),self.parent().parent().rectangulo1.height()))
+                xEscalado=self.parent().parent().rectangulo1.x()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia x
+                yEscalado=self.parent().parent().rectangulo1.y()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia y
+                anchoEscalado = self.parent().parent().rectangulo1.width()*(1+(self.scaleFactor-self.scaleFactorOld)) #idem para calcular la diferencia con ancho alto
+                altoEscalado = self.parent().parent().rectangulo1.height()*(1+(self.scaleFactor-self.scaleFactorOld))
+                print("posXEsc:{}-posYEsc:{}".format(xEscalado, yEscalado))
+                print("anchoEsc:{}-altoEsc:{}".format(anchoEscalado,altoEscalado))
+                beginRectangulo = QPoint(int(xEscalado),int(yEscalado))
+                endRectangulo = QPoint(int(xEscalado+anchoEscalado),int(yEscalado+altoEscalado))
+                self.parent().parent().rectangulo1=QRect(beginRectangulo, endRectangulo)                
+                print("posXPos:{}-posYPos:{}".format(self.parent().parent().rectangulo1.x(), self.parent().parent().rectangulo1.y()))
+                print("anchoPos:{}-altoPos:{}".format(self.parent().parent().rectangulo1.width(),self.parent().parent().rectangulo1.height()))
+                self.scaleFactorOld = self.scaleFactor
+                self.posTextRect1 = beginRectangulo #utilizo la posicion de inicio del rectangulo para fijar la posicion del texto
+                self.escalarRois = False #una vez escaladas bajo el flag             
             flagEstado = True            
         except:
             print("error Image")
@@ -281,12 +304,15 @@ class TestImage(QLabel):
         #print("mouse click", self.scaleFactor)
         if  self.parent().parent().zoomInButton == True:
             self.scala = 1.25
+            self.escalarRois=True #indico que se modifique la dimension de las rois
         elif self.parent().parent().zoomOutButton == True:
             self.scala = 0.8
+            self.escalarRois=True #indico que se modifque la dimension de las rois
         else:
             self.scala = 1
+            self.escalarRois=False #indico que no se debe modificar la dimension de las rois
         #calculamos el factor de escala
-        self.scaleFactor *= self.scala        
+        self.scaleFactor *= self.scala                
         #detectamos si se esta dibujando los rectangulos
         if self.parent().parent().toolROIs == 0:
             #defino las condiciones de borde, si es que estoy tocando el borde o no
@@ -352,6 +378,7 @@ class TestImage(QLabel):
                 else:
                     #estoy dibujando un nuevo rectangulo
                     self.flag = True
+                    
         #detecto si se estan dibujando las rectas
         if self.parent().parent().toolROIs == 1:
             #determino si se esta presionando la esquina de la recta 1 - 2
@@ -1438,6 +1465,32 @@ class ProfileComboBox(QComboBox):
 class MainWindow(QDialog):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
+        #creamos las variables locales que llevan los calculos
+        #de cada roi que son min avg y max
+        #rectangulo 1
+        self.rect1ValueMin = 0
+        self.rect1ValueAvg = 0
+        self.rect1ValueMax = 0
+        #linea 1
+        self.line1ValueMin = 0
+        self.line1ValueAvg = 0
+        self.line1ValueMax = 0
+        #elipse 1
+        self.ellipse1ValueMin = 0
+        self.ellipse1ValueAvg = 0
+        self.ellipse1ValueMax = 0
+        #rectangulo2
+        self.rect2ValueMin = 0
+        self.rect2ValueAvg = 0
+        self.rect2ValueMax = 0
+        #linea 2
+        self.line2ValueMin = 0
+        self.line2ValueAvg = 0
+        self.line2ValueMax = 0
+        #elipse 2
+        self.ellipse2ValueMin = 0
+        self.ellipse2ValueAvg = 0
+        self.ellipse2ValueMax = 0
         #
         #creo los valores para ser cargados con el nivel de alarma
         #
@@ -3429,31 +3482,31 @@ class MainWindow(QDialog):
         self.XTab1Der1 = self.profileSelComboDer.currentText()
         if self.XTab1Izq == 'ROI Rect1 Min':
             #cargamos el trendin de roi rect 1 minimo
-            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor1IndTab1MinRoi1Rect.text()))
+            self.ydataIzq = np.append(self.ydataIzq[1:],self.rect1ValueMin)#float(self.valor1IndTab1MinRoi1Rect.text()))
         elif self.XTab1Izq == 'ROI Line1 Min':
             #agergo la medicion de la roi min line 1
-            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor11IndTab1MinRoi1Line.text()))
+            self.ydataIzq = np.append(self.ydataIzq[1:],self.line1ValueMin)#float(self.valor11IndTab1MinRoi1Line.text()))
         elif self.XTab1Izq == 'ROI Ellip1 Min':
             #agergo la medicion de la roi min elipse 1
-            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor12IndTab1MinRoi1Ellipse.text()))
+            self.ydataIzq = np.append(self.ydataIzq[1:],self.ellipse1ValueMin)#float(self.valor12IndTab1MinRoi1Ellipse.text()))
         elif self.XTab1Izq == 'ROI Rect1 Avg':
             #agergo la medicion de la roi avg rect 1
-            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor2IndTab1AvgRoi1Rect.text()))
+            self.ydataIzq = np.append(self.ydataIzq[1:],self.rect1ValueAvg)#float(self.valor2IndTab1AvgRoi1Rect.text()))
         elif self.XTab1Izq == 'ROI Line1 Avg':
             #agergo la medicion de la roi avg line 1
-            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor21IndTab1AvgRoi1Line.text()))
+            self.ydataIzq = np.append(self.ydataIzq[1:],self.line1ValueAvg)#float(self.valor21IndTab1AvgRoi1Line.text()))
         elif self.XTab1Izq == 'ROI Ellip1 Avg':
             #agergo la medicion de la roi avg elipse 1
-            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor22IndTab1AvgRoi1Ellipse.text()))
+            self.ydataIzq = np.append(self.ydataIzq[1:],self.ellipse1ValueAvg)#float(self.valor22IndTab1AvgRoi1Ellipse.text()))
         elif self.XTab1Izq == 'ROI Rect1 Max':
             #agergo la medicion de la roi max rect 1
-            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor3IndTab1MaxRoi1Rect.text()))
+            self.ydataIzq = np.append(self.ydataIzq[1:],self.rect1ValueMax)#float(self.valor3IndTab1MaxRoi1Rect.text()))
         elif self.XTab1Izq == 'ROI Line1 Max':
             #agergo la medicion de la roi max line 1
-            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor31IndTab1MaxRoi1Line.text()))
+            self.ydataIzq = np.append(self.ydataIzq[1:],self.line1ValueMax)#float(self.valor31IndTab1MaxRoi1Line.text()))
         elif self.XTab1Izq == 'ROI Ellipse Max':
             #agergo la medicion de la roi max elipse 1
-            self.ydataIzq = np.append(self.ydataIzq[1:],float(self.valor32IndTab1MaxRoi1Ellipse.text()))
+            self.ydataIzq = np.append(self.ydataIzq[1:],self.ellipse1ValueMax)#float(self.valor32IndTab1MaxRoi1Ellipse.text()))
         #Procesamiento de datos para el grafico de tendencia izquierdo
         #        
         if self._plot_refIzq is None:#la idea es no llamar a la fucnion now, tomamos la ultima estampa de tiempo y le sumamos 1 segundo que es el tiempo de muestreo
@@ -3500,31 +3553,31 @@ class MainWindow(QDialog):
         self.dfTab1Izq1.draw()    
         if self.XTab1Der == 'ROI Rect2 Min':
             #cargamos el trendin de roi rect 2 minimo
-            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor4IndTab1MinRoi2Rect.text()))
+            self.ydataDer = np.append(self.ydataDer[1:],self.rect2ValueMin)#float(self.valor4IndTab1MinRoi2Rect.text()))
         elif self.XTab1Der == 'ROI Line2 Min':
             #agergo la medicion de la roi min line 2
-            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor41IndTab1MinRoi2Line.text()))
+            self.ydataDer = np.append(self.ydataDer[1:],self.line2ValueMin)#float(self.valor41IndTab1MinRoi2Line.text()))
         elif self.XTab1Der == 'ROI Ellip2 Min':
             #agergo la medicion de la roi min elipse 2
-            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor42IndTab1MinRoi2Ellipse.text()))
+            self.ydataDer = np.append(self.ydataDer[1:],self.ellipse2ValueMin)#float(self.valor42IndTab1MinRoi2Ellipse.text()))
         elif self.XTab1Der == 'ROI Rect2 Avg':
             #agergo la medicion de la roi avg rect 2
-            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor5IndTab1AvgRoi2Rect.text()))
+            self.ydataDer = np.append(self.ydataDer[1:],self.rect2ValueAvg)#float(self.valor5IndTab1AvgRoi2Rect.text()))
         elif self.XTab1Der == 'ROI Line2 Avg':
             #agergo la medicion de la roi avg line 2
-            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor51IndTab1AvgRoi2Line.text()))
+            self.ydataDer = np.append(self.ydataDer[1:],self.line2ValueAvg)#float(self.valor51IndTab1AvgRoi2Line.text()))
         elif self.XTab1Der == 'ROI Ellip2 Avg':
             #agergo la medicion de la roi avg elipse 2
-            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor52IndTab1AvgRoi2Ellipse.text()))
+            self.ydataDer = np.append(self.ydataDer[1:],self.ellipse2ValueAvg)#float(self.valor52IndTab1AvgRoi2Ellipse.text()))
         elif self.XTab1Der == 'ROI Rect2 Max':
             #agergo la medicion de la roi max rect 2
-            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor6IndTab1MaxRoi2Rect.text()))
+            self.ydataDer = np.append(self.ydataDer[1:],self.rect2ValueMax)#float(self.valor6IndTab1MaxRoi2Rect.text()))
         elif self.XTab1Der == 'ROI Line2 Max':
             #agergo la medicion de la roi max line 2
-            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor61IndTab1MaxRoi2Line.text()))
+            self.ydataDer = np.append(self.ydataDer[1:],self.line2ValueMax)#float(self.valor61IndTab1MaxRoi2Line.text()))
         elif self.XTab1Der == 'ROI Ellip2 Max':
             #agergo la medicion de la roi max elipse 2
-            self.ydataDer = np.append(self.ydataDer[1:],float(self.valor62IndTab1MaxRoi2Ellipse.text()))
+            self.ydataDer = np.append(self.ydataDer[1:],self.ellipse2ValueMax)#float(self.valor62IndTab1MaxRoi2Ellipse.text()))
         #Procesamiento de datos para el grafico de tendencia derecha
         #         
         if self._plot_refDer is None:
@@ -3535,7 +3588,7 @@ class MainWindow(QDialog):
         else:            
             self.xdataDer = np.append(self.xdataDer[1:],self.xdataDer[-1]+np.array([datetime.timedelta(milliseconds=100)],dtype='timedelta64[ms]')[0])            
             self.formatoXDataDer = np.append(self.formatoXDataDer[1:],self.xdataDer[-1].item().strftime("%S:%f")[:-4])    
-            self._plot_refDer.set_ydata(self.ydataIzq)
+            self._plot_refDer.set_ydata(self.ydataDer)
             self._plot_refDer.set_xdata(self.formatoXDataDer)
             self._plot_refDer.axes.set_xlim([self.formatoXDataDer[0],self.formatoXDataDer[49]]) #actualizo los limites
         #
@@ -3681,9 +3734,16 @@ class MainWindow(QDialog):
                 roiRect1ImageValueMin = np.amin(roiRect1ImageValue)
                 roiRect1ImageValueMax = np.amax(roiRect1ImageValue)
                 roiRect1ImageValueAvg = np.mean(roiRect1ImageValue)
+        
+        #cargo los indicadores para rectangulo 1
         self.valor1IndTab1MinRoi1Rect.setText(str(roiRect1ImageValueMin))
         self.valor2IndTab1AvgRoi1Rect.setText(str(roiRect1ImageValueAvg))
         self.valor3IndTab1MaxRoi1Rect.setText(str(roiRect1ImageValueMax))
+        
+        #cargo los registros locales
+        self.rect1ValueMin = roiRect1ImageValueMin #el valor minimo calculado
+        self.rect1ValueAvg = roiRect1ImageValueAvg #el valor promedio calculado
+        self.rect1ValueMax = roiRect1ImageValueMax #el valor maximo calculado
         #guardo el perfil horizontal y el perfil vertical de la roi
         if (rect0Height > 1) and (rect0Width >1):
             widthRoiRect1ImageValue = roiRect1ImageValue.shape[0]
@@ -3706,9 +3766,16 @@ class MainWindow(QDialog):
                 roiRect2ImageValueMin = np.amin(roiRect2ImageValue)
                 roiRect2ImageValueMax = np.amax(roiRect2ImageValue)
                 roiRect2ImageValueAvg = np.mean(roiRect2ImageValue)
+        
+        #cargo los indicadores para el rectangulo 2
         self.valor4IndTab1MinRoi2Rect.setText(str(roiRect2ImageValueMin))
         self.valor5IndTab1AvgRoi2Rect.setText(str(roiRect2ImageValueAvg))
         self.valor6IndTab1MaxRoi2Rect.setText(str(roiRect2ImageValueMax))        
+        
+        #cargo los registros locales
+        self.rect2ValueMin = roiRect2ImageValueMin #cargo el valor minimo
+        self.rect2ValueAvg = roiRect2ImageValueAvg #cargo el valor promedio
+        self.rect2ValueMax = roiRect2ImageValueMax #cargo el valor maximo
         #guardo el perfil horizontal y el perfil vertical de la roi
         if (rect1Height > 1) and (rect1Width > 1):
             widthRoiRect2ImageValue = roiRect2ImageValue.shape[0]
@@ -3736,9 +3803,16 @@ class MainWindow(QDialog):
                 roiLine0ImageValueMin = np.amin(valoresLinea0)
                 roiLine0ImageValueMax = np.amax(valoresLinea0)
                 roiLine0ImageValueAvg = np.mean(valoresLinea0)
+        
+        #cargo los valores min avg y promedio en los indicadores
         self.valor11IndTab1MinRoi1Line.setText(str(roiLine0ImageValueMin))
         self.valor21IndTab1AvgRoi1Line.setText(str(roiLine0ImageValueAvg))
         self.valor31IndTab1MaxRoi1Line.setText(str(roiLine0ImageValueMax))
+        
+        #cargo los registros locales
+        self.line1ValueMin = roiLine0ImageValueMin 
+        self.line1ValueAvg = roiLine0ImageValueAvg
+        self.line1ValueMax = roiLine0ImageValueMax
         #
         if (largoLinea0 > 1) and (anchoLinea0 > 1):
             widthLine0 = len(valoresLinea0)
@@ -3759,9 +3833,16 @@ class MainWindow(QDialog):
                 roiLine1ImageValueMin = np.amin(valoresLinea1)
                 roiLine1ImageValueMax = np.amax(valoresLinea1)
                 roiLine1ImageValueAvg = np.mean(valoresLinea1)
+        
+        #cargo los indicadores de min avg y promedio
         self.valor41IndTab1MinRoi2Line.setText(str(roiLine1ImageValueMin))
         self.valor51IndTab1AvgRoi2Line.setText(str(roiLine1ImageValueAvg))
         self.valor61IndTab1MaxRoi2Line.setText(str(roiLine1ImageValueMax))
+        
+        #cargo los valores locales
+        self.line2ValueMin = roiLine1ImageValueMin
+        self.line2ValueAvg = roiLine1ImageValueAvg
+        self.line2ValueMax = roiLine1ImageValueMax
         #
         if (largoLinea1 > 1) and (anchoLinea1 > 1):
             widthLine1 = len(valoresLinea1)
@@ -3773,34 +3854,36 @@ class MainWindow(QDialog):
         valoresThermalElipse0Min = 0
         valoresThermalElipse0Max = 0
         valoresThermalElipse0Avg = 0
-        if (int(elipse0Height) > 1) and (int(elipse0Width) > 1):
-            x0 = elipse0PosX
-            y0 = elipse0PosY
-            a = elipse0Width
-            b = elipse0Height
-            #resolucion
-            nx = thermal_img.shape[1]
-            ny = thermal_img.shape[0]
-            #configuro sistema de coordenadas
-            x = np.linspace(0, nx, nx)
-            y = np.linspace(0, ny, ny)
-            #configuro array 
-            xgrid, ygrid = np.meshgrid(x, y)
-            #calculo la elipse
-            ellipseMascara = (xgrid-x0)**2 / a**2 + (ygrid-y0)**2 / b**2
-            #creo un array con ceros
-            zerosMatriz = np.zeros((ny,nx), dtype=np.int32)
-            #pongo 1 donde la elipse es menor que 1
-            #zerosMatriz[ellipseMascara < 1.0] = 1
-            #busco en la matriz termografica
-            valoresThermalElipse0 = thermal_img[ellipseMascara < 1.0]
-            if valoresThermalElipse0.shape[0]>0:
-                valoresThermalElipse0Min = np.amax(valoresThermalElipse0)
-                valoresThermalElipse0Max = np.amin(valoresThermalElipse0)
-                valoresThermalElipse0Avg = np.mean(valoresThermalElipse0)
+        x0 = int(elipse0PosX)
+        y0 = int(elipse0PosY)
+        a = int(elipse0Width/2)
+        b = int(elipse0Height/2)
+        if (b > 1) and (a > 1) and (x0 > 1) and (y0 > 1):
+            #construimos la mascara
+            mask = np.zeros_like(thermal_img)
+            #mostramos filas y columnas
+            rows, cols = mask.shape
+            #creamos una ellipse blanca
+            mask = cv2.ellipse(mask, center=(x0,y0), axes=(a,b), angle=0, startAngle=0, endAngle=360, color=(255,255,255), thickness=-1 )
+            #aplico el filtro para dejar todo lo que esta fuera de la elipse en negro
+            result = np.bitwise_and(thermal_img.astype(int), mask.astype(int))            
+            #extraemos los componentes distintos de cero
+            valoresInternosElipse = result[result>0]
+            #calculamos los resultados
+            if len(valoresInternosElipse)>0:
+                valoresThermalElipse0Min = np.amax(valoresInternosElipse)
+                valoresThermalElipse0Max = np.amin(valoresInternosElipse)
+                valoresThermalElipse0Avg = np.mean(valoresInternosElipse)
+             
+        #cargo los valores en los indicadores
         self.valor12IndTab1MinRoi1Ellipse.setText(str(valoresThermalElipse0Min))
         self.valor22IndTab1AvgRoi1Ellipse.setText(str(valoresThermalElipse0Avg))
         self.valor32IndTab1MaxRoi1Ellipse.setText(str(valoresThermalElipse0Max))
+        
+        #cargo los valores locales
+        self.ellipse1ValueMin = valoresThermalElipse0Min
+        self.ellipse1ValueAvg = valoresThermalElipse0Avg
+        self.ellipse1ValueMax = valoresThermalElipse0Max
         #guardo el perfil horizontal y el perfil vertical de la roi
         #calculamos los perfiles horizontal y vertical
         if (int(elipse0Height) > 1) and (int(elipse0Width) > 1):
@@ -3815,34 +3898,33 @@ class MainWindow(QDialog):
         valoresThermalElipse1Min = 0
         valoresThermalElipse1Max = 0
         valoresThermalElipse1Avg = 0
-        if (elipse1Height > 1) and (elipse1Width > 1):
-            x01 = elipse1PosX
-            y01 = elipse1PosY
-            a1 = elipse1Width
-            b1 = elipse1Height
-            #resolucion
-            nx1 = thermal_img.shape[1]
-            ny1 = thermal_img.shape[0]
-            #configuro sistema de coordenadas
-            x1 = np.linspace(0, nx1, nx1)
-            y1 = np.linspace(0, ny1, ny1)
-            #configuro array 
-            xgrid1, ygrid1 = np.meshgrid(x1, y1)
-            #calculo la elipse
-            ellipseMascara1 = (xgrid1-x01)**2 / a1**2 + (ygrid1-y01)**2 / b1**2
-            #creo un array con ceros
-            zerosMatriz1 = np.zeros((nx1,ny1), dtype=np.int32)
-            #pongo 1 donde la elipse es menor que 1
-            #zerosMatriz1[ellipseMascara1 < 1.0] = 1
-            #busco en la matriz termografica
-            valoresThermalElipse1 = thermal_img[ellipseMascara1 < 1.0]
-            if valoresThermalElipse1.shape[0]>0:
-                valoresThermalElipse1Min = np.amin(valoresThermalElipse1)
-                valoresThermalElipse1Max = np.amax(valoresThermalElipse1)
-                valoresThermalElipse1Avg = np.mean(valoresThermalElipse1)
+        x01 = int(elipse1PosX)
+        y01 = int(elipse1PosY)
+        a1 = int(elipse1Width/2)
+        b1 = int(elipse1Height/2)
+        if (b1 > 1) and (a1 > 1) and (x01 > 1) and (y01 > 1):            
+            #construimos la mascara de la elipse 1
+            mask1 = np.zeros_like(thermal_img)
+            #mostramos filas y columnas
+            rows, cols = mask1.shape
+            #creamos una ellipse blanca
+            mask1 = cv2.ellipse(mask1, center=(x01,y01), axes=(a1,b1), angle=0, startAngle=0, endAngle=360, color=(255,255,255), thickness=-1)
+            #aplicamos el filtro para dejar todo lo que esta fuera de la elipse en negro
+            result1 = np.bitwise_and(thermal_img.astype(int), mask.astype(int))
+            #extraenos los componentes distintos de cero
+            valoresInternosElipse1 = result1[result1>0]
+            if len(valoresInternosElipse1)>0:
+                valoresThermalElipse1Min = np.amin(valoresInternosElipse1)
+                valoresThermalElipse1Max = np.amax(valoresInternosElipse1)
+                valoresThermalElipse1Avg = np.mean(valoresInternosElipse1)        
+        #cargo los indicadores de los elipses 2
         self.valor42IndTab1MinRoi2Ellipse.setText(str(valoresThermalElipse1Min))
         self.valor52IndTab1AvgRoi2Ellipse.setText(str(valoresThermalElipse1Avg))
         self.valor62IndTab1MaxRoi2Ellipse.setText(str(valoresThermalElipse1Max))
+        #cargo los valores locales
+        self.ellipse2ValueMin = valoresThermalElipse1Min
+        self.ellipse2ValueAvg = valoresThermalElipse1Max
+        self.ellipse2ValueMax = valoresThermalElipse1Avg
         #guardo el perfil horizontal y el perfil vertical de la roi
         #calculamos los perfiles horizontal y vertical
         if (elipse1Height > 1) and (elipse1Width > 1):

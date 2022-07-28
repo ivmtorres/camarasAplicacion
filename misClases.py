@@ -265,11 +265,11 @@ class TestImage(QLabel):
             self.parent().parent().listaRects=[self.parent().parent().rectangulo1,self.parent().parent().rectangulo2]
             self.parent().parent().listaLineas=[self.parent().parent().recta1,self.parent().parent().recta2]
             self.parent().parent().listaElipses=[self.parent().parent().rectanguloEllipse1,self.parent().parent().rectanguloEllipse2]
-            """
+            
             #calculo resolucion imagen
-            self.parent().parent().escalaImagen['ancho'] = self.size().width()
-            self.parent().parent().escalaImagen['alto'] = self.size().height()
-            """
+            self.parent().parent().escalaImagen[0] = self.size().width()
+            self.parent().parent().escalaImagen[1] = self.size().height()
+            
             #mostramos la lista de cada uno de los rois
             #print(self.parent().parent().listaRects)
             #print(self.parent().parent().listaLineas)
