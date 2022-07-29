@@ -154,13 +154,6 @@ class TestImage(QLabel):
             self.resize(escala)     #ajusto la escala de la imagen
             if self.escalarRois == True: #determino si hay que escalar las rois, es true si si apreto el click en la imagen seleccionado zoom in o zoom out
                 #**************************Roi Rectangulos*****************************************************************************
-                #mostramos la escala de las ROIs
-                print("escala: {}".format(self.scaleFactor))    
-                print("escala anterior: {}".format(self.scaleFactorOld))
-                #mostramos las dimensiones de los rectangulos afectado por la escala
-                print("posX:{}-posY:{}".format(self.parent().parent().rectangulo1.x(), self.parent().parent().rectangulo1.y()))
-                print("ancho:{}-alto:{}".format(self.parent().parent().rectangulo1.width(),self.parent().parent().rectangulo1.height()))
-                #*****************************************************
                 #*****************ROI Rect1***************************
                 xEscaladoRec1=self.parent().parent().rectangulo1.x()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia x
                 yEscaladoRec1=self.parent().parent().rectangulo1.y()*(1+(self.scaleFactor-self.scaleFactorOld)) #usamos la escala anterior para calcular la diferencia y
@@ -224,9 +217,6 @@ class TestImage(QLabel):
                 endElipse2 = QPoint(int(xEscaladoElipse2+anchoEscaladoElipse2),int(yEscaladoElipse2+altoEscaladoElipse2))
                 self.parent().parent().rectanguloEllipse2=QRect(beginElipse2, endElipse2)
                 self.posTextEllipse2 = beginElipse2 #utilizo la posicion de inicio del rectangulo para fijar la posicion del texto 
-                #
-                print("posXPos:{}-posYPos:{}".format(self.parent().parent().rectangulo1.x(), self.parent().parent().rectangulo1.y()))
-                print("anchoPos:{}-altoPos:{}".format(self.parent().parent().rectangulo1.width(),self.parent().parent().rectangulo1.height()))
                 #
                 self.scaleFactorOld = self.scaleFactor                
                 self.escalarRois = False #una vez escaladas bajo el flag
@@ -789,7 +779,7 @@ class TestImage(QLabel):
                 #si estoy realizando un desplazaimiento de la elipse
                 else:
                     #estoy dentro de la elipse 1
-                    if self.parent().parent().ellipse1.contains(QPointF(ptoXEllipse, ptoYEllipse)) & self.flagRectEllipse1VsRectEllipse2:
+                    if self.parent().parent().ellipse1.contains(QPointF(ptoXEllipse, ptoYEllipse)) and self.flagRectEllipse1VsRectEllipse2:
                         #calculo la distrancia entre el punto x-y y el punto clickeado dentro del rectangulo
                         desplazamientoXRecEllip1 = int(self.end.x() - self.posAnteriorRectEllipse1.x())
                         desplazamientoYRecEllip1 = int(self.end.y() - self.posAnteriorRectEllipse1.y())
@@ -800,7 +790,7 @@ class TestImage(QLabel):
                         self.posAnteriorRectEllipse1 = self.end
                         self.begin = self.end
                     #estoy dentro de la elipse 2
-                    else:
+                    elif self.parent().parent().ellipse2.contains(QPointF(ptoXEllipse, ptoYEllipse)) and not self.flagRectEllipse1VsRectEllipse2:
                         desplazamientoXRecEllip2 = int(self.end.x() - self.posAnteriorRectEllipse2.x())
                         desplazamientoYRecEllip2 = int(self.end.y() - self.posAnteriorRectEllipse2.y())
                         self.parent().parent().rectanguloEllipse2.translate(desplazamientoXRecEllip2, desplazamientoYRecEllip2)                        
@@ -809,6 +799,8 @@ class TestImage(QLabel):
                         self.posTextEllipse2 = self.parent().parent().rectanguloEllipse2.topLeft()
                         self.posAnteriorRectEllipse2 = self.end
                         self.begin = self.end
+                    else:
+                        print("no deberiamos estar aca")
         ####
         self.update()
     #sobrecargamos el evento de soltar el mouse
@@ -3788,7 +3780,7 @@ class MainWindow(QDialog):
         roiRect1ImageValueMin = 0
         roiRect1ImageValueMax = 0
         roiRect1ImageValueAvg = 0
-        #print(thermal_img.shape)        
+        altoThermalImgDim, anchoThermalImgDim = ancho, alto #thermal_img.shape        
         if (rect0Height > 1) and (rect0Width >1):
             #sacamos los datos correspondientes a la primer roi y segunda roi rectangular
             roiRect1ImageValue = thermal_img[rect0PosY:rect0PosY+rect0Height, rect0PosX:rect0PosX+rect0Width] #ponemos alrevez los indices porque la imagen esta invertida
@@ -3859,7 +3851,14 @@ class MainWindow(QDialog):
         if (largoLinea0 > 1) and (anchoLinea0 > 1):
             valoresLinea0 =[]
             for tupla in zip(range(line0PosY1,line0PosY2),range(line0PosX1,line0PosX2)):
-                valor = thermal_img[tupla[0],tupla[1]]
+                indiceAnchoL0 = tupla[0] #cargo los indices
+                indiceAltoL0 = tupla[1]
+                anchoImagenL0, altoImagenL0 = altoThermalImgDim, anchoThermalImgDim #cargo la dimension de la imagen
+                if indiceAnchoL0>=anchoImagenL0: #verifico que este dentro de los limites
+                    indiceAnchoL0 = anchoImagenL0-1 #si no esta limito
+                if indiceAltoL0>=altoImagenL0: #verifico que este dentro de los limites
+                    indiceAltoL0 = altoImagenL0-1 #si no esta limito
+                valor = thermal_img[indiceAnchoL0,indiceAltoL0]
                 valoresLinea0.append(valor)
             if len(valoresLinea0) > 0:
                 roiLine0ImageValueMin = np.amin(valoresLinea0)
@@ -3889,7 +3888,14 @@ class MainWindow(QDialog):
         if (largoLinea1 > 1) and (anchoLinea1 > 1):
             valoresLinea1 =[]
             for tupla in zip(range(line1PosY1,line1PosY2),range(line1PosX1,line1PosX2)):
-                valor = thermal_img[tupla[0],tupla[1]]
+                indiceAnchoL1 = tupla[0] #cargo los indices
+                indiceAltoL1 = tupla[1]
+                anchoImagenL1, altoImagenL1 = altoThermalImgDim, anchoThermalImgDim #cargo la dimension de la imagen 
+                if indiceAnchoL1>=anchoImagenL1: #verifico que este dentro de los limites
+                    indiceAnchoL1 = anchoImagenL1-1 #si no esta limito
+                if indiceAltoL1>=altoImagenL1: #verifico que este dentro de los limites
+                    indiceAltoL1 = altoImagenL1-1 #si no esta limito
+                valor = thermal_img[indiceAnchoL1,indiceAltoL1] #obtengo el dato
                 valoresLinea1.append(valor)
             if len(valoresLinea1) > 0:
                 roiLine1ImageValueMin = np.amin(valoresLinea1)
@@ -3949,8 +3955,16 @@ class MainWindow(QDialog):
         #guardo el perfil horizontal y el perfil vertical de la roi
         #calculamos los perfiles horizontal y vertical
         if (int(elipse0Height) > 1) and (int(elipse0Width) > 1):
-            valoresThermalElipse0Vertical = thermal_img[int(elipse0PosY):int(elipse0PosY+elipse0Height),int(elipse0PosX+elipse0Width/2)]
-            valoresThermalElipse0Horizontal = thermal_img[int(elipse0PosY+elipse0Height/2),int(elipse0PosX):int(elipse0PosX+elipse0Width)]
+            anchoMaximoEli0 = anchoThermalImgDim              #determino el tama;o actual de la imagen
+            altoMaximoEli0 = altoThermalImgDim               #luego calculo si la longitud solicitad
+            longValoresVerticales = elipse0PosY+elipse0Height   #supera el tamao de la imagen 
+            longValoresHorizontales = elipse0PosX+elipse0Width  #en el caso que lo haga recorto la solicitud
+            if longValoresHorizontales > anchoMaximoEli0:
+                longValoresHorizontales = anchoMaximoEli0 #recorto
+            if longValoresVerticales > altoMaximoEli0:
+                longValoresVerticales = altoMaximoEli0 #recorto
+            valoresThermalElipse0Vertical = thermal_img[int(elipse0PosY):int(longValoresVerticales),int(elipse0PosX+elipse0Width/2)]
+            valoresThermalElipse0Horizontal = thermal_img[int(elipse0PosY+elipse0Height/2),int(elipse0PosX):int(longValoresHorizontales)]
             self.xdataIzq1ElipHor = np.array(list(range(len(valoresThermalElipse0Horizontal))))
             self.ydataIzq1ElipHor = valoresThermalElipse0Horizontal
             self.xdataIzq1ElipVer = np.array(list(range(len(valoresThermalElipse0Vertical))))
@@ -3972,7 +3986,7 @@ class MainWindow(QDialog):
             #creamos una ellipse blanca
             mask1 = cv2.ellipse(mask1, center=(x01,y01), axes=(a1,b1), angle=0, startAngle=0, endAngle=360, color=(255,255,255), thickness=-1)
             #aplicamos el filtro para dejar todo lo que esta fuera de la elipse en negro
-            result1 = np.bitwise_and(thermal_img.astype(int), mask.astype(int))
+            result1 = np.bitwise_and(thermal_img.astype(int), mask1.astype(int))
             #extraenos los componentes distintos de cero
             valoresInternosElipse1 = result1[result1>0]
             if len(valoresInternosElipse1)>0:
@@ -3990,8 +4004,16 @@ class MainWindow(QDialog):
         #guardo el perfil horizontal y el perfil vertical de la roi
         #calculamos los perfiles horizontal y vertical
         if (elipse1Height > 1) and (elipse1Width > 1):
-            valoresThermalElipse1Vertical = thermal_img[int(elipse1PosY):int(elipse1PosY+elipse1Height),int(elipse1PosX+elipse1Width/2)]
-            valoresThermalElipse1Horizontal = thermal_img[int(elipse1PosY+elipse1Height/2),int(elipse1PosX):int(elipse1PosX+elipse1Width)]
+            anchoMaximoEli1 = anchoThermalImgDim              #determino el tama;o actual de la imagen
+            altoMaximoEli1 = altoThermalImgDim               #luego calculo si la longitud solicitad
+            longValoresVerticales1 = elipse1PosY+elipse1Height   #supera el tamao de la imagen 
+            longValoresHorizontales1 = elipse1PosX+elipse1Width  #en el caso que lo haga recorto la solicitud
+            if longValoresHorizontales1 > anchoMaximoEli1:
+                longValoresHorizontales = anchoMaximoEli1 # recorto
+            if longValoresVerticales1 > altoMaximoEli1:
+                longValoresVerticales = altoMaximoEli1 #recorto
+            valoresThermalElipse1Vertical = thermal_img[int(elipse1PosY):int(longValoresVerticales1),int(elipse1PosX+elipse1Width/2)]
+            valoresThermalElipse1Horizontal = thermal_img[int(elipse1PosY+elipse1Height/2),int(elipse1PosX):int(longValoresHorizontales1)]
             self.xdataDer1ElipHor = np.array(list(range(len(valoresThermalElipse1Horizontal))))
             self.ydataDer1ElipHor = valoresThermalElipse1Horizontal
             self.xdataDer1ElipVer = np.array(list(range(len(valoresThermalElipse1Vertical))))
