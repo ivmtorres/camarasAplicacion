@@ -4553,7 +4553,7 @@ class MainWindow(QDialog):
         self.dlgDateSearch.show()
     #Defino la funcion asociada a cerrar la aplicación
     def closeApp(self):
-        #self._run_flag = False
+        #self._run_flag = False        
         self.close()    #Cuando hacemos un click cerramos la aplicacion
     #Defino la función asociado al botón para cambiar de pantalla Cam1
     def mostraPantallaCam1(self):
