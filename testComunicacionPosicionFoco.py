@@ -1,5 +1,6 @@
-from PyQt5 import QtGui
-from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout,QHBoxLayout, QPushButton, QRadioButton, QMenu, QLineEdit, QDoubleSpinBox
+from xml.dom import minicompat
+from PyQt5 import QtGui, QtQuick
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout,QHBoxLayout, QPushButton, QRadioButton, QMenu, QLineEdit, QDoubleSpinBox, QSpinBox
 from PyQt5.QtGui import QPixmap, QDoubleValidator
 import sys
 import cv2
@@ -40,6 +41,8 @@ class VideoThread(QThread):
         self._changeTransmisividad = False #flag para incrementar o decrementar transmisividad 
         self._changeTempAmbiente = False #flag para ajustar temperatura ambiente
         self._changePaleta = False
+        self._changeScalePalette = False
+        self._changeRangeScalePaletteManual = False
         #creamos 3 diccionarios uno por cada rango de temp
         #primer rango de temperatura
         self.rango0 = {"min": -20 , "max": 100}
@@ -55,6 +58,10 @@ class VideoThread(QThread):
         self.tempAmbiente=25
         #valor indice paleta
         self.indicePaleta = 1
+        #valor indice scala paletas
+        self.indiceEscalaPaleta = 1
+        #valor rango escala paleta min max en manual
+        self.rangoMinMaxScalePaletteManual = {"min": -20, "max":150}
     def run(self):
         # capture from thermal cam
         # load library
@@ -82,8 +89,15 @@ class VideoThread(QThread):
         thermal_width = ct.c_int()
         thermal_height = ct.c_int()
 
-        #valor numero de serie
+        #valor numero de serie        
         serial = ct.c_ulong()
+
+        #valor rango min max escala paleta en manual
+        valorMinRangoScalePaletteManual = ct.c_float(-20)
+        valorMaxRangoScalePaletteManual = ct.c_float(100)
+
+        #valor de indice escala paleta
+        valorIndiceScalePalette = ct.c_int()
 
         #valor de indice paleta
         valorIndicePaleta = ct.c_int()
@@ -235,6 +249,26 @@ class VideoThread(QThread):
                 if ret != 0:
                     print("error on evo_irimager_set_palette" + str(ret))
                     break
+            if self._changeScalePalette: #consultamos si se solicito cambiar el tipo de escala de la paleta
+                print("se cambia el tipo de escala de la paleta: {}".format(self.indiceEscalaPaleta))
+                self._changeScalePalette = False
+                valorIndiceScalePalette = ct.c_int(self.indiceEscalaPaleta)
+                ret = libir.evo_irimager_set_palette_scale(valorIndiceScalePalette)
+                if ret != 0:
+                    print("error on evo_irimager_set_palette_scale" + str(ret))
+                    break
+            if self._changeRangeScalePaletteManual:
+                minimoRango = float(self.rangoMinMaxScalePaletteManual["min"])
+                maximoRango = float(self.rangoMinMaxScalePaletteManual["max"])
+                print("se cambia el rango de la paleta para escala manual min:{} y max:{}".format(minimoRango, maximoRango))
+                self._changeRangeScalePaletteManual = False
+                valorMinRangoScalePaletteManual = ct.c_float(minimoRango)
+                valorMaxRangoScalePaletteManual = ct.c_float(maximoRango)                
+                ret = libir.evo_irimager_set_palette_manual_temp_range(valorMinRangoScalePaletteManual, valorMaxRangoScalePaletteManual)
+                if ret != 0:
+                    print("error on evo_irimage_set_palette_manual_temp_range" + str(ret))
+                    break
+                
             #calculate total mean value
             mean_temp = np_thermal.mean()
             mean_temp = mean_temp / 10. - 100
@@ -252,6 +286,17 @@ class VideoThread(QThread):
         """Sets run flag to False and waits for thread to finish"""
         self._run_flag = False
         self.wait()
+
+    def selRangeTempManual(self, valueMinRange, valueMaxRange):
+        print("nueva seleccion rango min: {} y rango max: {}".format(valueMinRange, valueMaxRange))
+        self._changeRangeScalePaletteManual = True
+        self.rangoMinMaxScalePaletteManual["min"] = valueMinRange
+        self.rangoMinMaxScalePaletteManual["max"] = valueMaxRange
+
+    def selScalePaleta(self, EnumOptrisPaletteScalingMethod):
+        print("nueva seleccion escala de paleta valor: {}".format(EnumOptrisPaletteScalingMethod))
+        self._changeScalePalette = True
+        self.indiceEscalaPaleta = EnumOptrisPaletteScalingMethod
 
     def selPaleta(self, EnumOptrisColoringPalette):
         print("nueva seleccion de paleta: {}".format(EnumOptrisColoringPalette))
@@ -304,7 +349,7 @@ class App(QWidget):
         self.image_label = QLabel(self)
         self.image_label.resize(self.disply_width, self.display_height)
         # create a text label
-        self.textLabel = QLabel('THCam: ')
+        #self.textLabel = QLabel('THCam: ')
         #creo boton de incrementar focus position
         self.btnIncDecFocusPosition = QPushButton("+Focus")
         self.btnIncDecFocusPosition.clicked.connect(self.btnIncDecFocusPositionState)
@@ -321,6 +366,40 @@ class App(QWidget):
         menu.addSeparator()
         menu.addAction("150 a 900",self.selRango2)
         self.selRangoTempBoton.setMenu(menu)
+        #creamos dos spinbox y un boton para actualizar el limite inferior y superior del rango de temperatura usado por la paleta.
+        #agregamos un boton para bajar el cambio
+        self.selRangoTempPaletaManual = QPushButton("selRango")
+        self.selRangoTempPaletaManual.clicked.connect(self.btnCambiarLimitesRangoPaleta)
+        self.limInferiorRangoTempPaletaManual = QSpinBox(self)
+        self.limInferiorRangoTempPaletaManual.setMaximum(100)
+        self.limInferiorRangoTempPaletaManual.setMinimum(-20)
+        self.limInferiorRangoTempPaletaManual.setSingleStep(5)
+        self.limInferiorRangoTempPaletaManual.setValue(-20)
+        self.limInferiorRangoTempPaletaManual.valueChanged.connect(self.verificoLimiteInferiorSpin)
+        self.limSuperiorRangoTempPaletaManual = QSpinBox(self)
+        self.limSuperiorRangoTempPaletaManual.setMaximum(100)
+        self.limSuperiorRangoTempPaletaManual.setMinimum(-20)
+        self.limSuperiorRangoTempPaletaManual.setSingleStep(5)
+        self.limSuperiorRangoTempPaletaManual.setValue(100)
+        self.limSuperiorRangoTempPaletaManual.valueChanged.connect(self.verificoLimiteSuperiorSpin)
+        layoutMinMaxRangoTempPaletaManual = QVBoxLayout()
+        layoutMinMaxRangoTempPaletaManual.addWidget(self.limInferiorRangoTempPaletaManual)
+        layoutMinMaxRangoTempPaletaManual.addWidget(self.limSuperiorRangoTempPaletaManual)
+        layoutSelRangoTempPaletaManual = QHBoxLayout()
+        layoutSelRangoTempPaletaManual.addLayout(layoutMinMaxRangoTempPaletaManual)
+        layoutSelRangoTempPaletaManual.addWidget(self.selRangoTempPaletaManual)
+
+        #creamos boton para seleccionar el tipo de escalamiento
+        self.selTipoEscalamiento = QPushButton("selEscala")
+        menuTipoEscalamiento = QMenu(self)
+        menuTipoEscalamiento.addAction("eManual", self.selManualEscalamiento)
+        menuTipoEscalamiento.addSeparator()
+        menuTipoEscalamiento.addAction("eMinMax", self.selMinMaxEscalamiento)
+        menuTipoEscalamiento.addSeparator()
+        menuTipoEscalamiento.addAction("eSigma1", self.selSigma1Escalamiento)
+        menuTipoEscalamiento.addSeparator()
+        menuTipoEscalamiento.addAction("eSigma3",self.selSimga3Escalamiento)
+        self.selTipoEscalamiento.setMenu(menuTipoEscalamiento)
         #creamos boton para seleccionar el color de la paleta
         self.selTipoPaleta = QPushButton("selPaleta")
         menuPaleta = QMenu(self)
@@ -379,7 +458,9 @@ class App(QWidget):
         vbox = QVBoxLayout()
         hbox = QHBoxLayout()
         vbox.addWidget(self.image_label)
-        hbox.addWidget(self.textLabel)
+        #hbox.addWidget(self.textLabel)
+        hbox.addLayout(layoutSelRangoTempPaletaManual)
+        hbox.addWidget(self.selTipoEscalamiento)
         hbox.addWidget(self.selTipoPaleta)
         hbox.addWidget(self.valorInEmisividad)
         hbox.addWidget(self.valorInTransmisividad)
@@ -398,6 +479,44 @@ class App(QWidget):
         self.thread.change_pixmap_signal.connect(self.update_image)
         # start the thread
         self.thread.start()
+    
+    def verificoLimiteInferiorSpin(self):
+        if self.limInferiorRangoTempPaletaManual.value() > self.limSuperiorRangoTempPaletaManual.value():
+            #si el nuevo valor def sping inferior es mayor añ vañpr del sping superior lo reemplazo por una unidad menos que el mayor
+            self.limInferiorRangoTempPaletaManual.setValue(self.limSuperiorRangoTempPaletaManual.value() - 1)
+            print("valor inferior no valido")
+
+    def verificoLimiteSuperiorSpin(self):
+        if self.limSuperiorRangoTempPaletaManual.value() < self.limInferiorRangoTempPaletaManual.value():
+            #verifico el nuevo valor del spin superior si es menor al valor del spin inferior lo reemplayo por una unidad mayor
+            self.limSuperiorRangoTempPaletaManual.setValue(self.limInferiorRangoTempPaletaManual.value() + 1 )
+            print("valor superior no valido")
+
+    def btnCambiarLimitesRangoPaleta(self):
+        minimoRango = self.limInferiorRangoTempPaletaManual.value()
+        maximoRango = self.limSuperiorRangoTempPaletaManual.value()
+        print("seleccion actualizar limite inferior: {} superior: {}".format(minimoRango, maximoRango))        
+        self.thread.selRangeTempManual(minimoRango, maximoRango)
+
+    def selManualEscalamiento(self):
+        print("seleccion escalamiento Manual")
+        scaleManual = 1
+        self.thread.selScalePaleta(scaleManual)
+
+    def selMinMaxEscalamiento(self):
+        print("seleccion escalamiento MinMax")
+        scaleMinMax = 2
+        self.thread.selScalePaleta(scaleMinMax)
+
+    def selSigma1Escalamiento(self):
+        print("seleccion escalamiento Sigma1")
+        scaleSigma1 = 3
+        self.thread.selScalePaleta(scaleSigma1)
+
+    def selSimga3Escalamiento(self):
+        print("seleccion escalamiento Sigma3")
+        scaleSigma3 = 4
+        self.thread.selScalePaleta(scaleSigma3)
 
     def selPaletaAlarmBlue(self):
         print("seleccion paleta AlarmBlue")
@@ -477,14 +596,35 @@ class App(QWidget):
     def selRango0(self): #funcion para seleccionar rango 0
         print("seleccionamos rango 0")
         self.thread.selRango0Camara() #indicamos al hilo que cambie a rango 0
+        #ajustamos los limites de los spinbox para las paletas en funcion de los rangos de temperatura
+        self.limInferiorRangoTempPaletaManual.setMaximum(100)
+        self.limInferiorRangoTempPaletaManual.setMinimum(-20)
+        self.limInferiorRangoTempPaletaManual.setValue(-20)
+        self.limSuperiorRangoTempPaletaManual.setMaximum(100)
+        self.limSuperiorRangoTempPaletaManual.setMinimum(-20)
+        self.limSuperiorRangoTempPaletaManual.setValue(100)
 
     def selRango1(self): #funcion para seleccionar rango 1
         print("seleccionamos rango 1")
         self.thread.selRango1Camara() #indicamos al hilo que cambie a rango 1
+        #ajustamos los limites de los spinbox para las paletas en funcion de los rangos de temperatura
+        self.limInferiorRangoTempPaletaManual.setMaximum(250)
+        self.limInferiorRangoTempPaletaManual.setMinimum(0)
+        self.limInferiorRangoTempPaletaManual.setValue(0)
+        self.limSuperiorRangoTempPaletaManual.setMaximum(250)
+        self.limSuperiorRangoTempPaletaManual.setMinimum(0)
+        self.limSuperiorRangoTempPaletaManual.setValue(250)
 
     def selRango2(self): #funcion para seleccionar rango 2
         print("seleccionamos rango 2")
         self.thread.selRango2Camara() #indicamos al hilo que cambie a rango 2
+        #ajustamos los limites de los spinbox para las paletas en funcion de los rangos de temperatura
+        self.limInferiorRangoTempPaletaManual.setMaximum(900)
+        self.limInferiorRangoTempPaletaManual.setMinimum(150)
+        self.limInferiorRangoTempPaletaManual.setValue(150)
+        self.limSuperiorRangoTempPaletaManual.setMaximum(900)
+        self.limSuperiorRangoTempPaletaManual.setMinimum(150)
+        self.limSuperiorRangoTempPaletaManual.setValue(900)
 
     def checkRadioButton(self): #funcion asociada al radio buton seleccionar accion incrementar o decrementar
         if self.radioButtonIncDecFocPos.isChecked(): #verificamos el estado del radio button si fue tildado 
