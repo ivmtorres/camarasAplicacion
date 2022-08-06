@@ -12,6 +12,49 @@ import numpy as np
 import ctypes as ct
 import cv2
 import os
+import asyncio
+import aiofiles
+import aiofiles.os
+
+#definimos la zona donde vamos a probar el guardado asincronico
+async def crearDirectorioAsincronico():
+    returnQuery = await aiofiles.os.path.isdir('tmp')
+    if not returnQuery:
+        #creamos un directorio
+        await aiofiles.os.makedirs('tmp', exist_ok=True)                                                                            
+async def crearArchivoAsincronico():
+    #creamos un archivo sin contenido
+    returnQuery = await aiofiles.os.path.isfile('test_create.txt')
+    if not returnQuery:
+        async with aiofiles.open('test_create.txt', mode='x') as handle:
+            await handle.close()
+async def modificarArchivoAsincronico():
+    #creamos un archivo para escritura y le cargamos un contenido
+    async with aiofiles.open('test_write.txt', mode='w') as handle:
+        await handle.write('hello world1')
+async def leerContenidoAsincronico():
+    #leemos el contenido del archivo
+    async with aiofiles.open('test_write.txt', mode='r') as handle:
+        data = await handle.read()
+    print(f'Read {len(data)} bytes')
+async def borrarArchivoAsincronico():
+    #creamos para prueba un archivo y lo borramos esto debemos reemplazarlo por el archivo de imagen seleccionado
+    async with aiofiles.open("files_delete.txt", mode='x') as handle:
+        handle.close()
+    #borramos el archivo creado
+    await aiofiles.os.remove("files_delete.txt")
+async def renombrarArchivoAsincronico():
+    returnQuery = await aiofiles.os.path.isfile('files_rename.txt')
+    if not returnQuery:        
+        #creamos un archivo y lo renombramos, en este caso debemos reemplazar el nombre hardcodeado por el selecciona
+        async with aiofiles.open("files_rename.txt", mode='x') as handle:
+            handle.close()
+    #renombramos el archivo
+    returnQuery1 = await aiofiles.os.path.isfile('files_rename1.txt')
+    if not returnQuery1:
+        await aiofiles.os.rename("files_rename.txt", "files_rename1.txt")
+        #await aiofiles.os.remove("files_rename.txt")
+        #borro el archivo anterior
 
 #Define EvoIRFrameMetadata structure for additional frame infos
 class EvoIRFrameMetadata(ct.Structure):
@@ -451,13 +494,55 @@ class App(QWidget):
         self.valorInEmisividad.valueChanged.connect(self.cambiarEmisividad)
         lineInEmisividad = self.valorInEmisividad.lineEdit()
         lineInEmisividad.setReadOnly(True)
+        #creamos los botones asociado a la manipulacion de imagen
+        #nuevo directorio
+        self.objetoDerecha = QWidget()
+        self.botonNuevoFolder = QPushButton("NewFolder")
+        self.botonNuevoFolder.clicked.connect(self.nuevoFolder)
+        #creamos el boton asociado a guardar la imagen 
+        self.botonNuevoArchivo = QPushButton("NewFile")
+        self.botonNuevoArchivo.clicked.connect(self.nuevoArchivo)
+        #creamos el boton asociado a modificar la imagen
+        self.botonModificarArchivo = QPushButton("EditFile")
+        self.botonModificarArchivo.clicked.connect(self.modificarArchivo)
+        #creamos el boton asociado a leer la imagen
+        self.botonLeerArchivo = QPushButton("ReadFile")
+        self.botonLeerArchivo.clicked.connect(self.leerArchivo)
+        #creamos el boton asociada a borrar archivo
+        self.botonBorrarArchivo = QPushButton("DeleteFile")
+        self.botonBorrarArchivo.clicked.connect(self.borrarArchivo) 
+        #creamos el boton de mover archivo
+        self.botonMoverArchivo = QPushButton("MoveFile")
+        self.botonMoverArchivo.clicked.connect(self.moverArchivo)
+        #creamos el boton cambiar nombre archivo
+        self.botonRenombrarArchivo = QPushButton("RenameFile")
+        self.botonRenombrarArchivo.clicked.connect(self.renombrarArchivo)
         #creo boton de exit
         self.btnClose = QPushButton("Exit")
         self.btnClose.clicked.connect(self.closeApp)
         # create a vertical box layout and add the two labels
         vbox = QVBoxLayout()
         hbox = QHBoxLayout()
-        vbox.addWidget(self.image_label)
+        hbox1 = QHBoxLayout() #este layout va a llevar la imagen y los botones para manipulacion de imagen
+        vbox1 = QVBoxLayout()
+        #vamos a agregar al costado derecho de la imagen los botones asociados al guardado de la imagen
+        #estos botones van a realizar la tarea de manera asincronica
+        #con esto se busca que el proceso de guardado no interrupa la adquisicion de imagenes ni la experiencia de
+        #usuarios
+        #por ejemplo el boton de crear la carpeta-crear y guardar archivo-borrar archivo-mover archivo-cambiar nombre
+        #empezamos por crear el folder
+        #creamos el primer boton 
+        hbox1.addWidget(self.image_label)  
+        vbox1.addStretch()      
+        vbox1.addWidget(self.botonNuevoFolder)        
+        vbox1.addWidget(self.botonNuevoArchivo)
+        vbox1.addWidget(self.botonModificarArchivo)     
+        vbox1.addWidget(self.botonBorrarArchivo)        
+        vbox1.addWidget(self.botonMoverArchivo)        
+        vbox1.addWidget(self.botonRenombrarArchivo)
+        self.objetoDerecha.setLayout(vbox1)
+        hbox1.addWidget(self.objetoDerecha)
+        vbox.addLayout(hbox1)
         #hbox.addWidget(self.textLabel)
         hbox.addLayout(layoutSelRangoTempPaletaManual)
         hbox.addWidget(self.selTipoEscalamiento)
@@ -479,7 +564,38 @@ class App(QWidget):
         self.thread.change_pixmap_signal.connect(self.update_image)
         # start the thread
         self.thread.start()
-    
+   
+
+    def renombrarArchivo(self):
+        print("seleccionamos renombrar archivo")
+        asyncio.run(renombrarArchivoAsincronico())
+
+    def borrarArchivo(self):
+        print("seleccionamos borrar archivo")
+        asyncio.run(borrarArchivoAsincronico()) 
+
+    def moverArchivo(self):
+        print("seleccionamos mover archivo")
+
+    def nuevoArchivo(self):
+        print("seleccionamos crear nuevo archivo de imagen")
+        #crear archivo vacio
+        asyncio.run(crearArchivoAsincronico())
+
+    def modificarArchivo(self):
+        print("seleccionamos modificar nuevo archivo de imagen")
+        #modificar archivo con contenido
+        asyncio.run(modificarArchivoAsincronico())
+
+    def leerArchivo(self):
+        print("seleccionamos leer archivo de imagen")
+        #leer archivo con contenido
+        asyncio.run(leerContenidoAsincronico())
+
+    def nuevoFolder(self):
+        print("seleccionamos crear nuevo directorio")
+        asyncio.run(crearDirectorioAsincronico())
+
     def verificoLimiteInferiorSpin(self):
         if self.limInferiorRangoTempPaletaManual.value() > self.limSuperiorRangoTempPaletaManual.value():
             #si el nuevo valor def sping inferior es mayor añ vañpr del sping superior lo reemplazo por una unidad menos que el mayor
