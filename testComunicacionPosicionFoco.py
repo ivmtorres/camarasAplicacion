@@ -1,13 +1,14 @@
-from xml.dom import minicompat
-from PyQt5 import QtGui, QtQuick
+import gzip
+import queue
+import random
+from threading import Thread, Semaphore
+from PyQt5 import QtGui
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout,QHBoxLayout, QPushButton, QRadioButton, QMenu, QLineEdit, QDoubleSpinBox, QSpinBox
 from PyQt5.QtGui import QPixmap, QDoubleValidator
 import sys
 import cv2
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread
 from matplotlib.pyplot import text
-import numpy as np
-from ctypes.util import find_library
 import numpy as np
 import ctypes as ct
 import cv2
@@ -16,18 +17,87 @@ import asyncio
 import aiofiles
 import aiofiles.os
 
+
+
+_sentinelArrayImgSeparator = object() #objeto para indicar separador entre imagenes
+_sentinelStopThread = object() #objeto para indicar que los hilos deben detenerse
+
+#definimos la zona donde vamos a tener el producer y el consumer
+#entendemos el producer como la tarea asincronica que va a tomar las imagenes y colocarlas en una cola tan rapido como pueda. Planteamos 3 producer
+#entendemos el consumer como la tarea asincronica que va a tomar la cola y sacar las imagenes tan rapido como pueda para guardarlas en disco
+async def rnd_sleep(t):
+    #demora interrumpible
+    await asyncio.sleep(t * random.random() * 2)
+async def x(i):
+    return str(i)
+
+async def producer(queue, args):  
+    while True:        
+        token = args.get()        
+        if token is _sentinelQueueImage:            
+            break        
+        #token = ["%.2f" % x for x in token]
+        #print(f'produced {token}')
+        await queue.put(token)
+        await rnd_sleep(0.001)    
+
+async def consumer(queue):
+    while True:
+        """
+        token = await queue.get()
+        queue.task_done()
+        print(f'consumed {token}')    
+        """
+        nameFile = random.random()        
+        token = await queue.get()        
+        f = gzip.GzipFile(str(nameFile)+".npy.gz","w")
+        np.save(file=f, arr=token)
+        f.close()
+
+        #print(f'consumed {token}')
+        #cv2.imshow('display', token)
+        #cv2.waitKey(10)
+        #img_reshaped = token.reshape(token.shape[0], -1)
+        """
+        for f in asyncio.asyncio.as_completed([x(i) for i in token]):
+            result = await f
+        """
+        """
+        results = await asyncio.gather(*[x(i) for i in token])
+
+        print(f"dato: {results}")
+        async with aiofiles.open(str(nameFile)+'.txt', mode='w') as handle:
+            await handle.write(str(results))
+        
+        """
+        """
+        np.savetxt(str(nameFile)+'.txt',token,delimiter=',')
+        """
+        queue.task_done()
+        
+
 #definimos la zona donde vamos a probar el guardado asincronico
 async def crearDirectorioAsincronico():
     returnQuery = await aiofiles.os.path.isdir('tmp')
     if not returnQuery:
         #creamos un directorio
         await aiofiles.os.makedirs('tmp', exist_ok=True)                                                                            
-async def crearArchivoAsincronico():
-    #creamos un archivo sin contenido
-    returnQuery = await aiofiles.os.path.isfile('test_create.txt')
-    if not returnQuery:
-        async with aiofiles.open('test_create.txt', mode='x') as handle:
-            await handle.close()
+async def crearArchivoAsincronico(args):
+  
+    queue = asyncio.Queue()
+    producers = [asyncio.create_task(producer(queue,args)) for _ in range(3)]
+    consumers = [asyncio.create_task(consumer(queue)) for _ in range(10)]
+    await asyncio.gather(*producers)
+    print("------done producing")
+    #await queue.join()
+    print("------done consumers")    
+    for c in consumers:
+        try:
+            c.cancel()
+        except:
+            print("error")
+   
+        
 async def modificarArchivoAsincronico():
     #creamos un archivo para escritura y le cargamos un contenido
     async with aiofiles.open('test_write.txt', mode='w') as handle:
@@ -53,8 +123,39 @@ async def renombrarArchivoAsincronico():
     returnQuery1 = await aiofiles.os.path.isfile('files_rename1.txt')
     if not returnQuery1:
         await aiofiles.os.rename("files_rename.txt", "files_rename1.txt")
-        #await aiofiles.os.remove("files_rename.txt")
-        #borro el archivo anterior
+
+#****************************************        
+def between_callback(args):
+    print("arrancamos tareas asincronicas")
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    loop.run_until_complete(crearArchivoAsincronico(args)) #funcion asincronica
+    loop.close()
+    print("hilo finalizado")
+#****************************************
+def saveQueueImageInDisk(args):
+    while True:    
+        print("guardado de datos sincronico 1")        
+        datoAcumulado = np.array([])
+        i = 0
+        while True:
+            token = args.get()
+            i += 1
+            nameFile = random.random()                
+            if i >= 30:
+                f = gzip.GzipFile(str(nameFile)+".npy.gz","w")
+                np.save(file=f, arr=datoAcumulado)
+                f.close()
+                break
+            if token is _sentinelStopThread:
+                #finalizo el hilo
+                break
+            datoAcumulado = np.append(datoAcumulado,_sentinelArrayImgSeparator)
+            datoAcumulado = np.append(datoAcumulado,token.astype(int))        
+        if token is _sentinelStopThread:
+                #finalizo el hilo
+                break
 
 #Define EvoIRFrameMetadata structure for additional frame infos
 class EvoIRFrameMetadata(ct.Structure):
@@ -70,7 +171,7 @@ class EvoIRFrameMetadata(ct.Structure):
 
 class VideoThread(QThread):
     change_pixmap_signal = pyqtSignal(np.ndarray)
-
+    change_thermal_signal = pyqtSignal(np.ndarray)
     def __init__(self):
         super().__init__()
         self._run_flag = True
@@ -322,6 +423,9 @@ class VideoThread(QThread):
             #cv2.imshow('Optris Image Test For Meditecna',np_img.reshape(palette_height.value, palette_width.value, 3)[:,:,::-1])
             frame = np_img.reshape(palette_height.value, palette_width.value, 3)[:,:,::-1]
             self.change_pixmap_signal.emit(frame)
+            np_thermalEscalado = np_thermal / 10. - 100
+            frameThermal = np_thermalEscalado.reshape( thermal_height.value, thermal_width.value)
+            self.change_thermal_signal.emit(frameThermal)
         # clean shutdown
         libir.evo_irimager_terminate()   
 
@@ -383,7 +487,15 @@ class VideoThread(QThread):
 
 class App(QWidget):
     def __init__(self):
-        super().__init__()
+        super().__init__()   
+        #flag para indicar si estoy guardando con los hilos
+        self.GuardandoDatos = False     
+        #flag switch thread
+        self.contadorFlagSwithThread = 0
+        #defino la cola que voy a utilizar para enviar los datos
+        self.queueDatosOrigen = queue.Queue()
+        #defino un flag para habilitar la carga de la cola
+        self.flagQueueReady = False
         self.incSelection = True
         self.setWindowTitle("Qt live label demo")
         self.disply_width = 640
@@ -500,8 +612,12 @@ class App(QWidget):
         self.botonNuevoFolder = QPushButton("NewFolder")
         self.botonNuevoFolder.clicked.connect(self.nuevoFolder)
         #creamos el boton asociado a guardar la imagen 
-        self.botonNuevoArchivo = QPushButton("NewFile")
-        self.botonNuevoArchivo.clicked.connect(self.nuevoArchivo)
+        self.botonGuardarArchivo = QPushButton("SaveFile")
+        self.botonGuardarArchivo.clicked.connect(self.startGuardarArchivo)
+        #creamos el boton asociado a stop guardar la imagen
+        self.botonStopGuardarArchivo = QPushButton("StopSave")
+        self.botonStopGuardarArchivo.clicked.connect(self.stopGuardarArchivo)
+        self.botonStopGuardarArchivo.setEnabled(False)
         #creamos el boton asociado a modificar la imagen
         self.botonModificarArchivo = QPushButton("EditFile")
         self.botonModificarArchivo.clicked.connect(self.modificarArchivo)
@@ -535,7 +651,8 @@ class App(QWidget):
         hbox1.addWidget(self.image_label)  
         vbox1.addStretch()      
         vbox1.addWidget(self.botonNuevoFolder)        
-        vbox1.addWidget(self.botonNuevoArchivo)
+        vbox1.addWidget(self.botonGuardarArchivo)
+        vbox1.addWidget(self.botonStopGuardarArchivo)
         vbox1.addWidget(self.botonModificarArchivo)     
         vbox1.addWidget(self.botonBorrarArchivo)        
         vbox1.addWidget(self.botonMoverArchivo)        
@@ -562,9 +679,10 @@ class App(QWidget):
         self.thread = VideoThread()
         # connect its signal to the update_image slot
         self.thread.change_pixmap_signal.connect(self.update_image)
+        self.thread.change_thermal_signal.connect(self.thermal_image)
+
         # start the thread
         self.thread.start()
-   
 
     def renombrarArchivo(self):
         print("seleccionamos renombrar archivo")
@@ -577,10 +695,24 @@ class App(QWidget):
     def moverArchivo(self):
         print("seleccionamos mover archivo")
 
-    def nuevoArchivo(self):
-        print("seleccionamos crear nuevo archivo de imagen")
-        #crear archivo vacio
-        asyncio.run(crearArchivoAsincronico())
+    def startGuardarArchivo(self):     
+        threads = []
+        for n in range(2):
+            t = Thread(target=saveQueueImageInDisk, args=(self.queueDatosOrigen,))
+            t.start()
+            threads.append(t)                
+        #notifico que se debe cargar la queue
+        self.flagQueueReady = True
+        self.botonStopGuardarArchivo.setEnabled(True)
+        self.botonGuardarArchivo.setEnabled(False)
+    def stopGuardarArchivo(self):
+        #detenemos el flag de guardar archivo
+        self.flagQueueReady = False #indico que no encole mas imagenes
+        for i in range(6):
+            self.queueDatosOrigen.put(_sentinelStopThread)
+        print(i)
+        self.botonGuardarArchivo.setEnabled(True)
+        self.botonStopGuardarArchivo.setEnabled(False)
 
     def modificarArchivo(self):
         print("seleccionamos modificar nuevo archivo de imagen")
@@ -638,8 +770,7 @@ class App(QWidget):
         print("seleccion paleta AlarmBlue")
         indiceAlarmBlue = 1
         self.thread.selPaleta(indiceAlarmBlue)
-        
-
+ 
     def selPaletaAlarmBlueHi(self):
         print("seleccion paleta AlarmBlueHi")
         indiceAlarmBlueHi = 2
@@ -767,16 +898,14 @@ class App(QWidget):
         self.close() #genera el evento de close
     def closeEvent(self, event): #capturo el evento de close y cierro el hilo
         self.thread.stop() #cierro el hilo
-        event.accept()
-
-
+        event.accept()      
 
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img): #slot asociado al hilo de procesamiento de imagenes 
-        """Updates the image_label with a new opencv image""" #cada vez que el hilo procese una imagen emite una señal
+        """Updates the image_label with a new opencv image""" #cada vez que el hilo procese una imagen emite una señal        
         qt_img = self.convert_cv_qt(cv_img)                     #esta señal esta asociada a esta funcion, la funcion
         self.image_label.setPixmap(qt_img)                  #recibe la señal la procesa y convirtiendo el dato qt a un dato de cv2 y lo carga
-    
+        
     def convert_cv_qt(self, cv_img):                        #convertimos el dato en qt de imagen a un dato en cv2
         """Convert from an opencv image to QPixmap"""
         rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
@@ -786,6 +915,13 @@ class App(QWidget):
         p = convert_to_Qt_format.scaled(self.disply_width, self.display_height, Qt.KeepAspectRatio)
         return QPixmap.fromImage(p)
     
+    @pyqtSlot(np.ndarray)
+    def thermal_image(self, thermal_img):        
+        if self.flagQueueReady:
+            thermal_img_reshaped = thermal_img.flatten()            
+            self.queueDatosOrigen.put(thermal_img_reshaped)
+        else:
+            self.contadorFlagSwithThread = 0
 if __name__=="__main__":
     app = QApplication(sys.argv)
     a = App()
