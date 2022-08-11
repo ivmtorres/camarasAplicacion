@@ -28,6 +28,7 @@ _sentinelStopThread = object() #objeto para indicar que los hilos deben deteners
 async def rnd_sleep(t):
     #demora interrumpible
     await asyncio.sleep(t * random.random() * 2)
+
 async def x(i):
     return str(i)
 
@@ -74,14 +75,14 @@ async def consumer(queue):
         np.savetxt(str(nameFile)+'.txt',token,delimiter=',')
         """
         queue.task_done()
-        
-
+    
 #definimos la zona donde vamos a probar el guardado asincronico
 async def crearDirectorioAsincronico():
     returnQuery = await aiofiles.os.path.isdir('tmp')
     if not returnQuery:
         #creamos un directorio
         await aiofiles.os.makedirs('tmp', exist_ok=True)                                                                            
+
 async def crearArchivoAsincronico(args):
   
     queue = asyncio.Queue()
@@ -96,23 +97,25 @@ async def crearArchivoAsincronico(args):
             c.cancel()
         except:
             print("error")
-   
-        
+       
 async def modificarArchivoAsincronico():
     #creamos un archivo para escritura y le cargamos un contenido
     async with aiofiles.open('test_write.txt', mode='w') as handle:
         await handle.write('hello world1')
+
 async def leerContenidoAsincronico():
     #leemos el contenido del archivo
     async with aiofiles.open('test_write.txt', mode='r') as handle:
         data = await handle.read()
     print(f'Read {len(data)} bytes')
+
 async def borrarArchivoAsincronico():
     #creamos para prueba un archivo y lo borramos esto debemos reemplazarlo por el archivo de imagen seleccionado
     async with aiofiles.open("files_delete.txt", mode='x') as handle:
         handle.close()
     #borramos el archivo creado
     await aiofiles.os.remove("files_delete.txt")
+
 async def renombrarArchivoAsincronico():
     returnQuery = await aiofiles.os.path.isfile('files_rename.txt')
     if not returnQuery:        
@@ -705,6 +708,7 @@ class App(QWidget):
         self.flagQueueReady = True
         self.botonStopGuardarArchivo.setEnabled(True)
         self.botonGuardarArchivo.setEnabled(False)
+    
     def stopGuardarArchivo(self):
         #detenemos el flag de guardar archivo
         self.flagQueueReady = False #indico que no encole mas imagenes

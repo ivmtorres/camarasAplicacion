@@ -2958,12 +2958,13 @@ class MainWindow(QDialog):
         contenedorGrupoPresetCam1.setStyleSheet("border: 2px solid lightblue;border-radius: 10px;")
         #zona declaracion controles de preset
         contenedorValuePreset1Cam1Layout = QHBoxLayout()
-        labelValuePreset1Cam1 = QLabel("Preset 1")
-        labelValuePreset1Cam1.setFixedSize(QSize(64,16))
+        #El preset 1 es ajuste de foco
+        labelValuePreset1Cam1 = QLabel("Change Focus Position")              
+        labelValuePreset1Cam1.setFixedSize(QSize(250,16))
         labelValuePreset1Cam1.setStyleSheet("border-style: none;")
         valuePreset1Cam1 = AnimatedToggle()
         valuePreset1Cam1.setFixedSize(valuePreset1Cam1.sizeHint())
-        valuePreset1Cam1.setToolTip("Toggle to change preset 1")
+        valuePreset1Cam1.setToolTip("Toggle to change position focus cam 1")
         #Defino la funcion asociada al set y reset de los presets
         enablePreset1Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset1Cam1)
         disablePreset1Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset1Cam1)
@@ -2971,14 +2972,14 @@ class MainWindow(QDialog):
         #        
         contenedorValuePreset1Cam1Layout.addWidget(labelValuePreset1Cam1)
         contenedorValuePreset1Cam1Layout.addWidget(valuePreset1Cam1)
-        #preset 2
+        #El preset 2 es seleccion de rango de temperatura de la camara, los tres rangos el 0 - 1 - 2
         contenedorValuePreset2Cam1Layout = QHBoxLayout()
-        labelValuePreset2Cam1 = QLabel("Preset 2")
-        labelValuePreset2Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset2Cam1 = QLabel("Change Temperature Range Selected")
+        labelValuePreset2Cam1.setFixedSize(QSize(250,16))
         labelValuePreset2Cam1.setStyleSheet("border-style: none;")
         valuePreset2Cam1 = AnimatedToggle()
         valuePreset2Cam1.setFixedSize(valuePreset2Cam1.sizeHint())
-        valuePreset2Cam1.setToolTip("Toggle to change preset 2")
+        valuePreset2Cam1.setToolTip("Toggle to change range (-20,100)-(0,250)-(150,900) of camera")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset2Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset2Cam1)
@@ -2988,14 +2989,14 @@ class MainWindow(QDialog):
         #
         contenedorValuePreset2Cam1Layout.addWidget(labelValuePreset2Cam1)
         contenedorValuePreset2Cam1Layout.addWidget(valuePreset2Cam1)    
-        #preset 3
+        #El preset 3 es definicion de limites minimos y maximos para la paleta de temperatura 
         contenedorValuePreset3Cam1Layout = QHBoxLayout()
-        labelValuePreset3Cam1 = QLabel("Preset 3")
-        labelValuePreset3Cam1.setFixedSize(QSize(64,16))        
+        labelValuePreset3Cam1 = QLabel("Change Manuals Temperature Limits to Pallete")
+        labelValuePreset3Cam1.setFixedSize(QSize(250,16))        
         labelValuePreset3Cam1.setStyleSheet("border-style: none;")
         valuePreset3Cam1 = AnimatedToggle()
         valuePreset3Cam1.setFixedSize(valuePreset3Cam1.sizeHint())
-        valuePreset3Cam1.setToolTip("Toggle to change preset 3")
+        valuePreset3Cam1.setToolTip("Toggle to change Min and Max Limits to Pallete only in Manual Selected")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset3Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset3Cam1)
@@ -3005,14 +3006,14 @@ class MainWindow(QDialog):
         #
         contenedorValuePreset3Cam1Layout.addWidget(labelValuePreset3Cam1)
         contenedorValuePreset3Cam1Layout.addWidget(valuePreset3Cam1)
-        #preset 4
+        #El preset 4 es seleccion de tipo de ajuste para la paleta, puede ser Manual - Automatico MinMax - Automatico Sigma1 - Automatico Sigma3
         contenedorValuePreset4Cam1Layout = QHBoxLayout()
-        labelValuePreset4Cam1 = QLabel("Preset 4")
-        labelValuePreset4Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset4Cam1 = QLabel("Change Automatic vs Manual Type Adjust Pallete")
+        labelValuePreset4Cam1.setFixedSize(QSize(250,16))
         labelValuePreset4Cam1.setStyleSheet("border-style: none;")
         valuePreset4Cam1 = AnimatedToggle()
         valuePreset4Cam1.setFixedSize(valuePreset4Cam1.sizeHint())
-        valuePreset4Cam1.setToolTip("Toggle to change preset 4")
+        valuePreset4Cam1.setToolTip("Toggle to change type of adjust of limits pallete Manual Automatic Sigma1 Sigma3")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset4Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset4Cam1)
@@ -3024,12 +3025,12 @@ class MainWindow(QDialog):
         contenedorValuePreset4Cam1Layout.addWidget(valuePreset4Cam1)
         #preset 5
         contenedorValuePreset5Cam1Layout = QHBoxLayout()
-        labelValuePreset5Cam1 = QLabel("Preset 5")
-        labelValuePreset5Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset5Cam1 = QLabel("Change Type of Pallete")
+        labelValuePreset5Cam1.setFixedSize(QSize(250,16))
         labelValuePreset5Cam1.setStyleSheet("border-style: none;")
         valuePreset5Cam1 = AnimatedToggle()
         valuePreset5Cam1.setFixedSize(valuePreset5Cam1.sizeHint())
-        valuePreset5Cam1.setToolTip("Toggle to change preset 5")
+        valuePreset5Cam1.setToolTip("Toggle to change type of pallete to AlarmBlue-AlarmBlueHi-GrayBW-GrayWB-AlarmGreen-Iron-IronHi-Medical-Rainbow-RainbowHi-AlarmRed")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset5Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset5Cam1)
@@ -3041,12 +3042,12 @@ class MainWindow(QDialog):
         contenedorValuePreset5Cam1Layout.addWidget(valuePreset5Cam1)        
         #preset 6
         contenedorValuePreset6Cam1Layout = QHBoxLayout()
-        labelValuePreset6Cam1 = QLabel("Preset 6")
-        labelValuePreset6Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset6Cam1 = QLabel("Change Ambient Temperature of Camera")
+        labelValuePreset6Cam1.setFixedSize(QSize(250,16))
         labelValuePreset6Cam1.setStyleSheet("border-style: none;")
         valuePreset6Cam1 = AnimatedToggle()
         valuePreset6Cam1.setFixedSize(valuePreset6Cam1.sizeHint())
-        valuePreset6Cam1.setToolTip("Toggle to change preset 6")
+        valuePreset6Cam1.setToolTip("Toggle to change ambient temperature")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset6Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset6Cam1)
@@ -3058,12 +3059,12 @@ class MainWindow(QDialog):
         contenedorValuePreset6Cam1Layout.addWidget(valuePreset6Cam1)
         #preset 7
         contenedorValuePreset7Cam1Layout = QHBoxLayout()
-        labelValuePreset7Cam1 = QLabel("Preset 7")
-        labelValuePreset7Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset7Cam1 = QLabel("Change Transmisivity of Camera")
+        labelValuePreset7Cam1.setFixedSize(QSize(250,16))
         labelValuePreset7Cam1.setStyleSheet("border-style: none;")
         valuePreset7Cam1 = AnimatedToggle()
         valuePreset7Cam1.setFixedSize(valuePreset7Cam1.sizeHint())
-        valuePreset7Cam1.setToolTip("Toggle to change preset 7")
+        valuePreset7Cam1.setToolTip("Toggle to change transmisivity of camera")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset7Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset7Cam1)
@@ -3075,12 +3076,12 @@ class MainWindow(QDialog):
         contenedorValuePreset7Cam1Layout.addWidget(valuePreset7Cam1)
         #preset 8
         contenedorValuePreset8Cam1Layout = QHBoxLayout()
-        labelValuePreset8Cam1 = QLabel("Preset 8")
-        labelValuePreset8Cam1.setFixedSize(QSize(64,16))
+        labelValuePreset8Cam1 = QLabel("Change Emisivity of Objet to Messurement")
+        labelValuePreset8Cam1.setFixedSize(QSize(250,16))
         labelValuePreset8Cam1.setStyleSheet("border-style: none;")
         valuePreset8Cam1 = AnimatedToggle()
         valuePreset8Cam1.setFixedSize(valuePreset8Cam1.sizeHint())
-        valuePreset8Cam1.setToolTip("Toggle to change preset 8")
+        valuePreset8Cam1.setToolTip("Toggle to change emisivity of object")
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset8Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset8Cam1)
