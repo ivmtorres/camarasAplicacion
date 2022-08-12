@@ -1,7 +1,7 @@
 
 from functools import partial
 from PyQt5 import QtGui, QtCore,QtWidgets
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette, QFont
 from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRect, QLine, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty, QThread
 from PyQt5.QtWidgets import (
     QApplication,
@@ -2959,9 +2959,14 @@ class MainWindow(QDialog):
         #zona declaracion controles de preset
         contenedorValuePreset1Cam1Layout = QHBoxLayout()
         #El preset 1 es ajuste de foco
-        labelValuePreset1Cam1 = QLabel("Change Focus Position")              
-        labelValuePreset1Cam1.setFixedSize(QSize(250,16))
-        labelValuePreset1Cam1.setStyleSheet("border-style: none;")
+        labelValuePreset1Cam1 = QLabel("Change Focus Position")     
+        labelValuePreset1Cam1.setFixedSize(QSize(350,24))
+        labelValuePreset1Cam1.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset1Cam1 = QFont("Times",10,QtGui.QFont.Light) #defino un objeto fuente, donde configuro que sea bolt y el tipo de fuente
+        fuenteLabelValuePreset1Cam1.setBold(True)
+        labelValuePreset1Cam1.setFont(fuenteLabelValuePreset1Cam1)        
+        labelValuePreset1Cam1.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset1Cam1 = AnimatedToggle()
         valuePreset1Cam1.setFixedSize(valuePreset1Cam1.sizeHint())
         valuePreset1Cam1.setToolTip("Toggle to change position focus cam 1")
@@ -2975,8 +2980,13 @@ class MainWindow(QDialog):
         #El preset 2 es seleccion de rango de temperatura de la camara, los tres rangos el 0 - 1 - 2
         contenedorValuePreset2Cam1Layout = QHBoxLayout()
         labelValuePreset2Cam1 = QLabel("Change Temperature Range Selected")
-        labelValuePreset2Cam1.setFixedSize(QSize(250,16))
-        labelValuePreset2Cam1.setStyleSheet("border-style: none;")
+        labelValuePreset2Cam1.setFixedSize(QSize(350,24))
+        labelValuePreset2Cam1.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset2Cam1 = QFont("Times", 10, QtGui.QFont.Light)        
+        fuenteLabelValuePreset2Cam1.setBold(True)
+        labelValuePreset2Cam1.setFont(fuenteLabelValuePreset2Cam1)
+        labelValuePreset2Cam1.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset2Cam1 = AnimatedToggle()
         valuePreset2Cam1.setFixedSize(valuePreset2Cam1.sizeHint())
         valuePreset2Cam1.setToolTip("Toggle to change range (-20,100)-(0,250)-(150,900) of camera")
@@ -2991,9 +3001,14 @@ class MainWindow(QDialog):
         contenedorValuePreset2Cam1Layout.addWidget(valuePreset2Cam1)    
         #El preset 3 es definicion de limites minimos y maximos para la paleta de temperatura 
         contenedorValuePreset3Cam1Layout = QHBoxLayout()
-        labelValuePreset3Cam1 = QLabel("Change Manuals Temperature Limits to Pallete")
-        labelValuePreset3Cam1.setFixedSize(QSize(250,16))        
-        labelValuePreset3Cam1.setStyleSheet("border-style: none;")
+        labelValuePreset3Cam1 = QLabel("Change Manual Temperature Limits to Pallete")
+        labelValuePreset3Cam1.setFixedSize(QSize(350,24))        
+        labelValuePreset3Cam1.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset3Cam1 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset3Cam1.setBold(True)
+        labelValuePreset3Cam1.setFont(fuenteLabelValuePreset3Cam1)
+        labelValuePreset3Cam1.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset3Cam1 = AnimatedToggle()
         valuePreset3Cam1.setFixedSize(valuePreset3Cam1.sizeHint())
         valuePreset3Cam1.setToolTip("Toggle to change Min and Max Limits to Pallete only in Manual Selected")
@@ -3009,8 +3024,13 @@ class MainWindow(QDialog):
         #El preset 4 es seleccion de tipo de ajuste para la paleta, puede ser Manual - Automatico MinMax - Automatico Sigma1 - Automatico Sigma3
         contenedorValuePreset4Cam1Layout = QHBoxLayout()
         labelValuePreset4Cam1 = QLabel("Change Automatic vs Manual Type Adjust Pallete")
-        labelValuePreset4Cam1.setFixedSize(QSize(250,16))
-        labelValuePreset4Cam1.setStyleSheet("border-style: none;")
+        labelValuePreset4Cam1.setFixedSize(QSize(350,24))
+        labelValuePreset4Cam1.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset4Cam1 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset4Cam1.setBold(True)
+        labelValuePreset4Cam1.setFont(fuenteLabelValuePreset4Cam1)
+        labelValuePreset4Cam1.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset4Cam1 = AnimatedToggle()
         valuePreset4Cam1.setFixedSize(valuePreset4Cam1.sizeHint())
         valuePreset4Cam1.setToolTip("Toggle to change type of adjust of limits pallete Manual Automatic Sigma1 Sigma3")
@@ -3026,8 +3046,13 @@ class MainWindow(QDialog):
         #preset 5
         contenedorValuePreset5Cam1Layout = QHBoxLayout()
         labelValuePreset5Cam1 = QLabel("Change Type of Pallete")
-        labelValuePreset5Cam1.setFixedSize(QSize(250,16))
-        labelValuePreset5Cam1.setStyleSheet("border-style: none;")
+        labelValuePreset5Cam1.setFixedSize(QSize(350,24))
+        labelValuePreset5Cam1.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset5Cam1 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset5Cam1.setBold(True)
+        labelValuePreset5Cam1.setFont(fuenteLabelValuePreset5Cam1)
+        labelValuePreset5Cam1.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset5Cam1 = AnimatedToggle()
         valuePreset5Cam1.setFixedSize(valuePreset5Cam1.sizeHint())
         valuePreset5Cam1.setToolTip("Toggle to change type of pallete to AlarmBlue-AlarmBlueHi-GrayBW-GrayWB-AlarmGreen-Iron-IronHi-Medical-Rainbow-RainbowHi-AlarmRed")
@@ -3043,8 +3068,13 @@ class MainWindow(QDialog):
         #preset 6
         contenedorValuePreset6Cam1Layout = QHBoxLayout()
         labelValuePreset6Cam1 = QLabel("Change Ambient Temperature of Camera")
-        labelValuePreset6Cam1.setFixedSize(QSize(250,16))
-        labelValuePreset6Cam1.setStyleSheet("border-style: none;")
+        labelValuePreset6Cam1.setFixedSize(QSize(350,24))
+        labelValuePreset6Cam1.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset6Cam1 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset6Cam1.setBold(True)
+        labelValuePreset6Cam1.setFont(fuenteLabelValuePreset6Cam1)
+        labelValuePreset6Cam1.setAlignment(QtCore.Qt.AlignCenter)       
         valuePreset6Cam1 = AnimatedToggle()
         valuePreset6Cam1.setFixedSize(valuePreset6Cam1.sizeHint())
         valuePreset6Cam1.setToolTip("Toggle to change ambient temperature")
@@ -3060,8 +3090,13 @@ class MainWindow(QDialog):
         #preset 7
         contenedorValuePreset7Cam1Layout = QHBoxLayout()
         labelValuePreset7Cam1 = QLabel("Change Transmisivity of Camera")
-        labelValuePreset7Cam1.setFixedSize(QSize(250,16))
-        labelValuePreset7Cam1.setStyleSheet("border-style: none;")
+        labelValuePreset7Cam1.setFixedSize(QSize(350,24))
+        labelValuePreset7Cam1.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset7Cam1 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset7Cam1.setBold(True)
+        labelValuePreset7Cam1.setFont(fuenteLabelValuePreset7Cam1)
+        labelValuePreset7Cam1.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset7Cam1 = AnimatedToggle()
         valuePreset7Cam1.setFixedSize(valuePreset7Cam1.sizeHint())
         valuePreset7Cam1.setToolTip("Toggle to change transmisivity of camera")
@@ -3077,8 +3112,13 @@ class MainWindow(QDialog):
         #preset 8
         contenedorValuePreset8Cam1Layout = QHBoxLayout()
         labelValuePreset8Cam1 = QLabel("Change Emisivity of Objet to Messurement")
-        labelValuePreset8Cam1.setFixedSize(QSize(250,16))
-        labelValuePreset8Cam1.setStyleSheet("border-style: none;")
+        labelValuePreset8Cam1.setFixedSize(QSize(350,24))
+        labelValuePreset8Cam1.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset8Cam1 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset8Cam1.setBold(True)
+        labelValuePreset8Cam1.setFont(fuenteLabelValuePreset8Cam1)
+        labelValuePreset8Cam1.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset8Cam1 = AnimatedToggle()
         valuePreset8Cam1.setFixedSize(valuePreset8Cam1.sizeHint())
         valuePreset8Cam1.setToolTip("Toggle to change emisivity of object")
@@ -3119,9 +3159,14 @@ class MainWindow(QDialog):
         ##
         #zona declaracion controles de preset
         contenedorValuePreset1Cam2Layout = QHBoxLayout()
-        labelValuePreset1Cam2 = QLabel("Preset 1")
-        labelValuePreset1Cam2.setFixedSize(QSize(64,16))
-        labelValuePreset1Cam2.setStyleSheet("border-style: none;")
+        labelValuePreset1Cam2 = QLabel("Change Focus Position")
+        labelValuePreset1Cam2.setFixedSize(QSize(350,24))
+        labelValuePreset1Cam2.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset1Cam2 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset1Cam2.setBold(True)
+        labelValuePreset1Cam2.setFont(fuenteLabelValuePreset1Cam2)
+        labelValuePreset1Cam2.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset1Cam2 = AnimatedToggle()
         valuePreset1Cam2.setFixedSize(valuePreset1Cam2.sizeHint())
         valuePreset1Cam2.setToolTip("Toggle to change preset 1")
@@ -3136,9 +3181,14 @@ class MainWindow(QDialog):
         contenedorValuePreset1Cam2Layout.addWidget(valuePreset1Cam2)
         #preset 2
         contenedorValuePreset2Cam2Layout = QHBoxLayout()
-        labelValuePreset2Cam2 = QLabel("Preset 2")
-        labelValuePreset2Cam2.setFixedSize(QSize(64,16))
-        labelValuePreset2Cam2.setStyleSheet("border-style: none;")
+        labelValuePreset2Cam2 = QLabel("Change Temperature Range Selected")
+        labelValuePreset2Cam2.setFixedSize(QSize(350,24))
+        labelValuePreset2Cam2.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset2Cam2 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset2Cam2.setBold(True)
+        labelValuePreset2Cam2.setFont(fuenteLabelValuePreset2Cam2)
+        labelValuePreset2Cam2.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset2Cam2 = AnimatedToggle()
         valuePreset2Cam2.setFixedSize(valuePreset2Cam2.sizeHint())
         valuePreset2Cam2.setToolTip("Toggle to change preset 2")
@@ -3153,9 +3203,14 @@ class MainWindow(QDialog):
         contenedorValuePreset2Cam2Layout.addWidget(valuePreset2Cam2)    
         #preset 3
         contenedorValuePreset3Cam2Layout = QHBoxLayout()
-        labelValuePreset3Cam2 = QLabel("Preset 3")
-        labelValuePreset3Cam2.setFixedSize(QSize(64,16))
-        labelValuePreset3Cam2.setStyleSheet("border-style: none;")
+        labelValuePreset3Cam2 = QLabel("Change Manual Temperature Limits to Pallete")
+        labelValuePreset3Cam2.setFixedSize(QSize(350,24))
+        labelValuePreset3Cam2.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset3Cam2 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset3Cam2.setBold(True)
+        labelValuePreset3Cam2.setFont(fuenteLabelValuePreset3Cam2)
+        labelValuePreset3Cam2.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset3Cam2 = AnimatedToggle()
         valuePreset3Cam2.setFixedSize(valuePreset3Cam2.sizeHint())
         valuePreset3Cam2.setToolTip("Toggle to change preset 3")
@@ -3170,9 +3225,14 @@ class MainWindow(QDialog):
         contenedorValuePreset3Cam2Layout.addWidget(valuePreset3Cam2)
         #preset 4
         contenedorValuePreset4Cam2Layout = QHBoxLayout()
-        labelValuePreset4Cam2 = QLabel("Preset 4")
-        labelValuePreset4Cam2.setFixedSize(QSize(64,16))
-        labelValuePreset4Cam2.setStyleSheet("border-style: none;")
+        labelValuePreset4Cam2 = QLabel("Change Automatic vs Manual Type Adjust Pallete")
+        labelValuePreset4Cam2.setFixedSize(QSize(350,24))
+        labelValuePreset4Cam2.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset4Cam2 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset4Cam2.setBold(True)
+        labelValuePreset4Cam2.setFont(fuenteLabelValuePreset4Cam2)
+        labelValuePreset4Cam2.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset4Cam2 = AnimatedToggle()
         valuePreset4Cam2.setFixedSize(valuePreset4Cam2.sizeHint())
         valuePreset4Cam2.setToolTip("Toggle to change preset 4")
@@ -3187,9 +3247,14 @@ class MainWindow(QDialog):
         contenedorValuePreset4Cam2Layout.addWidget(valuePreset4Cam2)
         #preset 5
         contenedorValuePreset5Cam2Layout = QHBoxLayout()
-        labelValuePreset5Cam2 = QLabel("Preset 5")
-        labelValuePreset5Cam2.setFixedSize(QSize(64,16))
-        labelValuePreset5Cam2.setStyleSheet("border-style: none;")
+        labelValuePreset5Cam2 = QLabel("Change Type of Pallete")
+        labelValuePreset5Cam2.setFixedSize(QSize(350,24))
+        labelValuePreset5Cam2.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset5Cam2 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset5Cam2.setBold(True)
+        labelValuePreset5Cam2.setFont(fuenteLabelValuePreset5Cam2)
+        labelValuePreset5Cam2.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset5Cam2 = AnimatedToggle()
         valuePreset5Cam2.setFixedSize(valuePreset5Cam2.sizeHint())
         valuePreset5Cam2.setToolTip("Toggle to change preset 5")
@@ -3204,9 +3269,14 @@ class MainWindow(QDialog):
         contenedorValuePreset5Cam2Layout.addWidget(valuePreset5Cam2)
         #preset 6
         contenedorValuePreset6Cam2Layout = QHBoxLayout()
-        labelValuePreset6Cam2 = QLabel("Preset 6")
-        labelValuePreset6Cam2.setFixedSize(QSize(64,16))
-        labelValuePreset6Cam2.setStyleSheet("border-style: none;")
+        labelValuePreset6Cam2 = QLabel("Change Ambient Temperature of Camera")
+        labelValuePreset6Cam2.setFixedSize(QSize(350,24))
+        labelValuePreset6Cam2.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset6Cam2 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset6Cam2.setBold(True)
+        labelValuePreset6Cam2.setFont(fuenteLabelValuePreset6Cam2)
+        labelValuePreset6Cam2.setAlignment(QtCore.Qt.AlignCenter)        
         valuePreset6Cam2 = AnimatedToggle()
         valuePreset6Cam2.setFixedSize(valuePreset6Cam2.sizeHint())
         valuePreset6Cam2.setToolTip("Toggle to change preset 6")
@@ -3221,9 +3291,14 @@ class MainWindow(QDialog):
         contenedorValuePreset6Cam2Layout.addWidget(valuePreset6Cam2)
         #preset 7
         contenedorValuePreset7Cam2Layout = QHBoxLayout()
-        labelValuePreset7Cam2 = QLabel("Preset 7")
-        labelValuePreset7Cam2.setFixedSize(QSize(64,16))
-        labelValuePreset7Cam2.setStyleSheet("border-style: none;")
+        labelValuePreset7Cam2 = QLabel("Change Transmisivity of Camera")
+        labelValuePreset7Cam2.setFixedSize(QSize(350,24))
+        labelValuePreset7Cam2.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset7Cam2 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset7Cam2.setBold(True)
+        labelValuePreset7Cam2.setFont(fuenteLabelValuePreset7Cam2)
+        labelValuePreset7Cam2.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset7Cam2 = AnimatedToggle()
         valuePreset7Cam2.setFixedSize(valuePreset7Cam2.sizeHint())
         valuePreset7Cam2.setToolTip("Toggle to change preset 7")
@@ -3238,9 +3313,14 @@ class MainWindow(QDialog):
         contenedorValuePreset7Cam2Layout.addWidget(valuePreset7Cam2)
         #preset 8
         contenedorValuePreset8Cam2Layout = QHBoxLayout()
-        labelValuePreset8Cam2 = QLabel("Preset 8")
-        labelValuePreset8Cam2.setFixedSize(QSize(64,16))
-        labelValuePreset8Cam2.setStyleSheet("border-style: none;")
+        labelValuePreset8Cam2 = QLabel("Change Emisivity of Objet to Messurement")
+        labelValuePreset8Cam2.setFixedSize(QSize(350,24))
+        labelValuePreset8Cam2.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset8Cam2 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset8Cam2.setBold(True)
+        labelValuePreset8Cam2.setFont(fuenteLabelValuePreset8Cam2)
+        labelValuePreset8Cam2.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset8Cam2 = AnimatedToggle()
         valuePreset8Cam2.setFixedSize(valuePreset8Cam2.sizeHint())
         valuePreset8Cam2.setToolTip("Toggle to change preset 8")
@@ -3281,9 +3361,14 @@ class MainWindow(QDialog):
         ##
         #zona declaracion controles de preset
         contenedorValuePreset1Cam3Layout = QHBoxLayout()
-        labelValuePreset1Cam3 = QLabel("Preset 1")
-        labelValuePreset1Cam3.setFixedSize(QSize(64,16))
-        labelValuePreset1Cam3.setStyleSheet("border-style: none;")
+        labelValuePreset1Cam3 = QLabel("Change Focus Position")
+        labelValuePreset1Cam3.setFixedSize(QSize(350,24))
+        labelValuePreset1Cam3.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset1Cam3 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset1Cam3.setBold(True)
+        labelValuePreset1Cam3.setFont(fuenteLabelValuePreset1Cam3)
+        labelValuePreset1Cam3.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset1Cam3 = AnimatedToggle()
         valuePreset1Cam3.setFixedSize(valuePreset1Cam3.sizeHint())
         valuePreset1Cam3.setToolTip("Toggle to change preset 1")
@@ -3298,9 +3383,14 @@ class MainWindow(QDialog):
         contenedorValuePreset1Cam3Layout.addWidget(valuePreset1Cam3)
         #preset 2
         contenedorValuePreset2Cam3Layout = QHBoxLayout()
-        labelValuePreset2Cam3 = QLabel("Preset 2")
-        labelValuePreset2Cam3.setFixedSize(QSize(64,16))
-        labelValuePreset2Cam3.setStyleSheet("border-style: none;")
+        labelValuePreset2Cam3 = QLabel("Change Temperature Range Selected")
+        labelValuePreset2Cam3.setFixedSize(QSize(350,24))
+        labelValuePreset2Cam3.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset2Cam2 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset2Cam2.setBold(True)
+        labelValuePreset2Cam3.setFont(fuenteLabelValuePreset2Cam2)
+        labelValuePreset2Cam3.setAlignment(QtCore.Qt.AlignCenter)        
         valuePreset2Cam3 = AnimatedToggle()
         valuePreset2Cam3.setFixedSize(valuePreset2Cam3.sizeHint())
         valuePreset2Cam3.setToolTip("Toggle to change preset 2")
@@ -3315,9 +3405,14 @@ class MainWindow(QDialog):
         contenedorValuePreset2Cam3Layout.addWidget(valuePreset2Cam3)    
         #preset 3
         contenedorValuePreset3Cam3Layout = QHBoxLayout()
-        labelValuePreset3Cam3 = QLabel("Preset 3")
-        labelValuePreset3Cam3.setFixedSize(QSize(64,16))
-        labelValuePreset3Cam3.setStyleSheet("border-style: none;")
+        labelValuePreset3Cam3 = QLabel("Change Manual Temperature Limits to Pallete")
+        labelValuePreset3Cam3.setFixedSize(QSize(350,24))
+        labelValuePreset3Cam3.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset3Cam3 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset3Cam3.setBold(True)
+        labelValuePreset3Cam3.setFont(fuenteLabelValuePreset3Cam3)
+        labelValuePreset3Cam3.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset3Cam3 = AnimatedToggle()
         valuePreset3Cam3.setFixedSize(valuePreset3Cam3.sizeHint())
         valuePreset3Cam3.setToolTip("Toggle to change preset 3")
@@ -3332,9 +3427,14 @@ class MainWindow(QDialog):
         contenedorValuePreset3Cam3Layout.addWidget(valuePreset3Cam3)
         #preset 4
         contenedorValuePreset4Cam3Layout = QHBoxLayout()
-        labelValuePreset4Cam3 = QLabel("Preset 4")
-        labelValuePreset4Cam3.setFixedSize(QSize(64,16))
-        labelValuePreset4Cam3.setStyleSheet("border-style: none;")
+        labelValuePreset4Cam3 = QLabel("Change Automatic vs Manual Type Adjust Pallete")
+        labelValuePreset4Cam3.setFixedSize(QSize(350,24))
+        labelValuePreset4Cam3.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset4Cam3 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset4Cam3.setBold(True)
+        labelValuePreset4Cam3.setFont(fuenteLabelValuePreset4Cam3)
+        labelValuePreset4Cam3.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset4Cam3 = AnimatedToggle()
         valuePreset4Cam3.setFixedSize(valuePreset4Cam3.sizeHint())
         valuePreset4Cam3.setToolTip("Toggle to change preset 4")
@@ -3349,9 +3449,14 @@ class MainWindow(QDialog):
         contenedorValuePreset4Cam3Layout.addWidget(valuePreset4Cam3)
         #preset 5
         contenedorValuePreset5Cam3Layout = QHBoxLayout()
-        labelValuePreset5Cam3 = QLabel("Preset 5")
-        labelValuePreset5Cam3.setFixedSize(QSize(64,16))
-        labelValuePreset5Cam3.setStyleSheet("border-style: none;")
+        labelValuePreset5Cam3 = QLabel("Change Type of Pallete")
+        labelValuePreset5Cam3.setFixedSize(QSize(350,24))
+        labelValuePreset5Cam3.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset5Cam3 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset5Cam3.setBold(True)
+        labelValuePreset5Cam3.setFont(fuenteLabelValuePreset5Cam3)
+        labelValuePreset5Cam3.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset5Cam3 = AnimatedToggle()
         valuePreset5Cam3.setFixedSize(valuePreset5Cam3.sizeHint())
         valuePreset5Cam3.setToolTip("Toggle to change preset 5")
@@ -3366,9 +3471,14 @@ class MainWindow(QDialog):
         contenedorValuePreset5Cam3Layout.addWidget(valuePreset5Cam3)
         #preset 6
         contenedorValuePreset6Cam3Layout = QHBoxLayout()
-        labelValuePreset6Cam3 = QLabel("Preset 6")
-        labelValuePreset6Cam3.setFixedSize(QSize(64,16))
-        labelValuePreset6Cam3.setStyleSheet("border-style: none;")
+        labelValuePreset6Cam3 = QLabel("Change Ambient Temperature of Camera")
+        labelValuePreset6Cam3.setFixedSize(QSize(350,24))
+        labelValuePreset6Cam3.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset6Cam3 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset6Cam3.setBold(True)
+        labelValuePreset6Cam3.setFont(fuenteLabelValuePreset6Cam3)
+        labelValuePreset6Cam3.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset6Cam3 = AnimatedToggle()
         valuePreset6Cam3.setFixedSize(valuePreset6Cam3.sizeHint())
         valuePreset6Cam3.setToolTip("Toggle to change preset 6")
@@ -3383,9 +3493,14 @@ class MainWindow(QDialog):
         contenedorValuePreset6Cam3Layout.addWidget(valuePreset6Cam3)
         #preset 7
         contenedorValuePreset7Cam3Layout = QHBoxLayout()
-        labelValuePreset7Cam3 = QLabel("Preset 7")
-        labelValuePreset7Cam3.setFixedSize(QSize(64,16))
-        labelValuePreset7Cam3.setStyleSheet("border-style: none;")
+        labelValuePreset7Cam3 = QLabel("Change Transmisivity of Camera")
+        labelValuePreset7Cam3.setFixedSize(QSize(350,24))
+        labelValuePreset7Cam3.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset7Cam3 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset7Cam3.setBold(True)
+        labelValuePreset7Cam3.setFont(fuenteLabelValuePreset7Cam3)
+        labelValuePreset7Cam3.setAlignment(QtCore.Qt.AlignCenter)
         valuePreset7Cam3 = AnimatedToggle()
         valuePreset7Cam3.setFixedSize(valuePreset7Cam3.sizeHint())
         valuePreset7Cam3.setToolTip("Toggle to change preset 7")
@@ -3400,9 +3515,15 @@ class MainWindow(QDialog):
         contenedorValuePreset7Cam3Layout.addWidget(valuePreset7Cam3)
         #preset 8
         contenedorValuePreset8Cam3Layout = QHBoxLayout()
-        labelValuePreset8Cam3 = QLabel("Preset 8")
-        labelValuePreset8Cam3.setFixedSize(QSize(64,16))
-        labelValuePreset8Cam3.setStyleSheet("border-style: none;")
+        labelValuePreset8Cam3 = QLabel("Change Emisivity of Objet to Messurement")
+        labelValuePreset8Cam3.setFixedSize(QSize(350,24))
+        labelValuePreset8Cam3.setStyleSheet(
+            "background-color: gray; border-width: 2px; border-color: darkkhaki; border-style: solid; border-radius: 5; padding: 3px; min-width: 9ex; min-height: 2.5ex; color: black;")
+        fuenteLabelValuePreset8Cam3 = QFont("Times", 10, QtGui.QFont.Light)
+        fuenteLabelValuePreset8Cam3.setBold(True)
+        labelValuePreset8Cam3.setFont(fuenteLabelValuePreset8Cam3)
+        labelValuePreset8Cam3.setAlignment(QtCore.Qt.AlignCenter)
+
         valuePreset8Cam3 = AnimatedToggle()
         valuePreset8Cam3.setFixedSize(valuePreset8Cam3.sizeHint())
         valuePreset8Cam3.setToolTip("Toggle to change preset 8")

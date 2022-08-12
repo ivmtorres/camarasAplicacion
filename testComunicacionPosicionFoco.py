@@ -21,7 +21,7 @@ import aiofiles.os
 
 _sentinelArrayImgSeparator = object() #objeto para indicar separador entre imagenes
 _sentinelStopThread = object() #objeto para indicar que los hilos deben detenerse
-
+_sentinelQueueImage = object()
 #definimos la zona donde vamos a tener el producer y el consumer
 #entendemos el producer como la tarea asincronica que va a tomar las imagenes y colocarlas en una cola tan rapido como pueda. Planteamos 3 producer
 #entendemos el consumer como la tarea asincronica que va a tomar la cola y sacar las imagenes tan rapido como pueda para guardarlas en disco
