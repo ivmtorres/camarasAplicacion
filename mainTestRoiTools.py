@@ -1,5 +1,8 @@
 
+from email.mime import image
 from functools import partial
+from threading import Thread
+from time import sleep, time
 from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette, QFont
 from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRect, QLine, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty, QThread
@@ -893,7 +896,9 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
     def __init__(self): #sobre escribimos la clase
         super().__init__()
         self._run_flag = True #utilizamos este flag para indicar al hilo que termine la adquisicion
-
+        self._decFocusPosition = False
+        self._incFocusPosition = True
+        self.focusPositionAnterior = 50
     def run(self):  #funcion que sobre escribimos de run del hilo
         # capture from thermal cam
         # load library
@@ -920,6 +925,11 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         thermal_height = ct.c_int() #dimension de la paleta termica ..alto
 
         serial = ct.c_ulong() #numero serial de la camara
+        #posicion de foco
+        #focus position
+        focusPosition = ct.c_float()
+        focusPositionNuevo =ct.c_float()
+        
         # init EvoIRFrameMetadata structure
         metadata = EvoIRFrameMetadata() #instanciamos a la clase de EVO cortex la estructura
 
@@ -966,6 +976,37 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                         print('error on evo_irimager_get_thermal_palette_image ' + str(ret))
                         statusCamera = [False, "fallo la conexion"] #fallo la conexion                        
                         continue
+                ##
+                if self._incFocusPosition: #consultamos si se solicito incrementar la posicion del foco
+                    print("incrementar focus position 10%") 
+                    #get the focus position
+                    ret = libir.evo_irimager_get_focusmotor_pos(ct.byref(focusPosition)) #consultamos la posicion del foco actual
+                    print('focus: ' + str(focusPosition.value))                             #mostamos la posicion actual
+                    focusPositionNuevo = ct.c_float(self.focusPositionAnterior + 10)        #incrementamos la posicion anterior
+                    focusPositionNuevoCrudo = self.focusPositionAnterior + 10               #seteamos la posicion actual
+                    print("nuevo focus: {}".format(focusPositionNuevo.value) )              #mostramos la nueva posicion en formato c
+                    ret = libir.evo_irimager_set_focusmotor_pos(focusPositionNuevo)#(pos=ct.c_float(55.5)) cargamos la posicion nueva en la camara en el formato c
+                    self.focusPositionAnterior = focusPositionNuevoCrudo                    #actualizamos la posicion anterior
+                    self._incFocusPosition = False                                          #deshabilitamos el flag para incrementar la posicion del foco
+                    if ret != 0:                                                            #de haber algun error en el proceso de escritura salimos del loop de adquisicion
+                        print('error on evo_irimager_get_thermal_palette_image ' + str(ret))#notificamos el error
+                        break
+                if self._decFocusPosition: #consultamos si se solicito decrementar la posicion del foco
+                    print("decrementar focus position 10%")
+                    #get the focus position
+                    ret = libir.evo_irimager_get_focusmotor_pos(ct.byref(focusPosition)) #consultamos la posicion del foco actual
+                    print('focus: ' + str(focusPosition.value))                         #mostramos la posicion actual
+                    focusPositionNuevo = ct.c_float(self.focusPositionAnterior - 10)    #generamos la nueva position del foco decrementando la anterior en el formato c
+                    focusPositionNuevoCrudo = self.focusPositionAnterior - 10           #guardamos en el registro la nueva position
+                    print("nuevo focus: {}".format(focusPositionNuevo.value) )          #mostramos la nueva posicion del foco accediendo a la posicion en formato c
+                    ret = libir.evo_irimager_set_focusmotor_pos(focusPositionNuevo)#(pos=ct.c_float(55.5)) cargamos la posicion nueva en la camara en el formato c
+                    self.focusPositionAnterior = focusPositionNuevoCrudo                #actualizamos la posicion anterior de foco
+                    self._decFocusPosition = False                                      #deshabilitamos el flag de decrementar posicion 
+                    if ret != 0:                                                        #de haber algun error en el proceso de decrementar lo notificamos y salimos del loop
+                        print('error on evo_irimager_get_thermal_palette_image ' + str(ret))
+                        break
+
+                ##
                 self.status_camera_signal.emit(np.array(statusCamera))                                  #si hay error salgo y retorno el error
                 #si llega a responder con un error lo indicamos 
                 #calculate total mean value
@@ -987,6 +1028,13 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         """Sets run flag to False and waits for thread to finish"""
         self._run_flag = False #cuando el hilo se termina indicamos con el flag que salga del while
         self.wait()
+    
+    def incFocusPosition(self):
+        #decrementamos en 5% focus position
+        self._incFocusPosition = True
+
+    def decFocusPosition(self):
+        self._decFocusPosition = True
 #***************************************************
 #Clase para procesamiento de datos
 class ProcesamientoDatosThread(QThread):
@@ -1270,7 +1318,7 @@ class PopUpDateSelected(QWidget):
         self.close()
 #Clase modelo generico de reset preset control
 #usamos esta clase para ajustar los valores de control para cada
-#funcionalidad que tenga la pantalla (tab)
+#funcionalidad que tenga la pantalla (tab) reset control tipo volumen
 class PopUpResetPresetTab(QWidget):
     def __init__(self, valorPreset):
         super().__init__()
@@ -1321,7 +1369,7 @@ class PopUpResetPresetTab(QWidget):
     def cancelUpDatePresetTab(self):
         print("Cancelar default value al control")
         self.close()
-#Clase modelo generico de preset control 
+#Clase modelo generico de preset control del tipo volumen
 class PopUpWritePresetTab(QWidget):
     def __init__(self, valorIndicador, valorPreset):
         super().__init__()
@@ -1411,10 +1459,35 @@ class PopUpResetPresetCam(QWidget):
         self.close()
 #Clase modelo generico de cambio preset camara
 class PopUPWritePresetCam(QWidget):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, miThreadAdqImagen, imageAdq):
+        super().__init__() 
+        #self cerrar ventana y dejar de pasar datos
+        self.flagDetenerStriming = False       
+        #instancia hilo
+        self.threadAdqImg = miThreadAdqImagen
+        self.incSelection = False
         self.setWindowTitle("Write Preset Of Camera")
         layoutPresetCurrentNew = QVBoxLayout()
+        #set para la imagen
+        self.display_width = 640
+        self.display_height = 480
+        #creamos el label que va a contener la imagen
+        self.image_label_changeFocusPosition = QLabel(self)
+        self.imagenCamara = imageAdq.pixmap()
+        self.image_label_changeFocusPosition.setPixmap(self.imagenCamara)
+        self.image_label_changeFocusPosition.resize(self.display_width, self.display_height)
+        #creamos los botones para controla la posicion del foco
+        layoutBotonesFoco = QHBoxLayout()
+        #primero creamos el boton de cambiar foco
+        self.btnIncDecFocusPosition = QPushButton("Change Focus")
+        self.btnIncDecFocusPosition.clicked.connect(self.btnIncDecFocusPositionState)
+        #seleccionar incrementar o decrementar foco position
+        self.radioButtonIncDecFocPos = QRadioButton(self)
+        self.radioButtonIncDecFocPos.setText("Inc/Dec")
+        self.radioButtonIncDecFocPos.clicked.connect(self.checkRadioButton)
+        #agrego los botones al layout horizontal
+        layoutBotonesFoco.addWidget(self.btnIncDecFocusPosition)
+        layoutBotonesFoco.addWidget(self.radioButtonIncDecFocPos)
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
         self.valueCurrentPreset = QLineEdit("124.15")
@@ -1426,6 +1499,8 @@ class PopUPWritePresetCam(QWidget):
         self.valueNewPreset.setStyleSheet("border: 2px solid black;")
         self.labelNewPreset.setBuddy(self.valueNewPreset)
         #agrego los dos widgets al layout
+        layoutPresetCurrentNew.addWidget(self.image_label_changeFocusPosition)
+        layoutPresetCurrentNew.addLayout(layoutBotonesFoco)
         layoutPresetCurrentNew.addWidget(self.labelCurrentPreset)
         layoutPresetCurrentNew.addWidget(self.valueCurrentPreset)
         layoutPresetCurrentNew.addWidget(self.labelNewPreset)
@@ -1448,12 +1523,41 @@ class PopUPWritePresetCam(QWidget):
         self.setLayout(layoutPresetCurrentNew)
         self.resize(400,20)
         self.labelNewPreset.setFocus(Qt.NoFocusReason)
+    
+    def upDateImage(self, imageAdq):
+        imagenCamaraUpDate = imageAdq.pixmap()
+        self.image_label_changeFocusPosition.setPixmap(imagenCamaraUpDate)        
+        return self.flagDetenerStriming
+
     def okUpDatePresetCam(self):
         print("Bajando preset a camara")
     
     def cancelUpDatePresetCam(self):
         print("Cancelar preset a camara")
+        self.flagDetenerStriming = True        
+
+    def cerrarPopup(self):
         self.close()
+
+    def btnIncDecFocusPositionState(self):
+        print("boton des presionado, ejecutamos la funcion de incrementar decrementar")
+        self.incDecFocusPosition()      #llamo a la funcion que determina si se debe incrementar o decrementar la posicion del foco
+
+    def incDecFocusPosition(self):
+        if self.incSelection:
+            print("Llamo a funcion incrementar focus position el hilo de adq")
+            self.threadAdqImg.incFocusPosition()
+        else:
+            print("Llamo a funcion decrementar focus position al hilo de adq")
+            self.threadAdqImg.decFocusPosition()
+
+    def checkRadioButton(self):
+        if self.radioButtonIncDecFocPos.isChecked():
+            print("seleccion incrementar")
+            self.incSelection = True
+        else:
+            print("seleccion decrementar")
+            self.incSelection = False
 #Clase modelo generico de loggin 
 class PopUpLoggin(QWidget):
     def __init__(self):
@@ -1519,6 +1623,7 @@ class ProfileComboBox(QComboBox):
 class MainWindow(QDialog):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
+        self.mostrarImagenPopUp = False #indicamos al hilo de adquisicion en la signal emitida que muestre la imagen
         #creamos las variables locales que llevan los calculos
         #de cada roi que son min avg y max
         #rectangulo 1
@@ -3846,7 +3951,14 @@ class MainWindow(QDialog):
     def update_image(self, cv_img):
         """Updates the image_label with a new opencv image"""
         qt_img = self.convert_cv_qt(cv_img)
-        self.image_label.setPixmap(qt_img)    
+        self.image_label.setPixmap(qt_img)
+        if self.mostrarImagenPopUp == True: #en el caso de que este flag activo strimeo a la popup de ajuste de foco
+            #print("enviando imagen a popup")
+            flagDetener = self.configuracionFoco.upDateImage(self.image_label)
+            if flagDetener == True:
+                self.mostrarImagenPopUp = False
+                self.configuracionFoco.cerrarPopup()
+
     #cargo la imagen en formato pixmap en el viewer
     #self.viewCam1.setPixmap(qt_img)
     def convert_cv_qt(self, cv_img):
@@ -4343,11 +4455,14 @@ class MainWindow(QDialog):
         ##
         #Tenemos que agregar la popup W
         if checkbox.isChecked() == True:
-            self.dlgChangePresetCam1 = PopUPWritePresetCam()
-            self.dlgChangePresetCam1.show()
+            #creo un hilo para mostrar la imagen y permitir ajustar los parametros de la camara
+            self.configuracionFoco = PopUPWritePresetCam(self.thread, self.image_label)
+            self.configuracionFoco.show()
+            print("mostramos popup")
+            self.mostrarImagenPopUp = True
     def popUpRestartConfiguracionPresetCam1(self, checkbox):
         print("reset preset seleccion en camara 1")
-        if checkbox.isChecked() == False:
+        if checkbox.isChecked() == False:            
             self.dlgDefaultPresetCam1 = PopUpResetPresetCam()
             self.dlgDefaultPresetCam1.show()
     #defino la funcion asociada con el cambio de preset de la camara 2
@@ -4356,7 +4471,7 @@ class MainWindow(QDialog):
         ##
         #Tenemos que agregar la popup
         if checkbox.isChecked() == True:
-            self.dlgChangePresetCam2 = PopUPWritePresetCam()
+            self.dlgChangePresetCam2 = PopUPWritePresetCam(self.thread,self.image_label)
             self.dlgChangePresetCam2.show()
     def popUpRestartConfiguracionPresetCam2(self, checkbox):
         print("reset preset seleccion en camara 2")
@@ -4369,7 +4484,7 @@ class MainWindow(QDialog):
         ##
         #Tenemos que agregar la popup
         if checkbox.isChecked() == True:
-            self.dlgChangePresetCam3 = PopUPWritePresetCam()
+            self.dlgChangePresetCam3 = PopUPWritePresetCam(self.thread,self.image_label)
             self.dlgChangePresetCam3.show()
     #defino la funcion asociada la cargar el defaul de preset
     def popUpRestartConfiguracionPresetCam3(self, checkbox):
