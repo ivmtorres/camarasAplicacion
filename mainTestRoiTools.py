@@ -904,7 +904,10 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         self._selRango2 = False #flag para seleccionar rango 2 se activa por la funcion y se desactiva por el hilo de run        
         #flag change paleta iron medical etc
         self._changePaleta = False
-
+        #flag change paleta tipo de ajuste manual automatico
+        self._changeScalePalette = False
+        #flag change rango paleta 
+        self._changeRangeScalePaletteManual = False
         #creamos 3 diccionarios uno por cada rango de temp
         #primer rango de temperatura
         self.rango0 = {"min": -20 , "max": 100}
@@ -915,6 +918,13 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
 
         #valor indice paleta
         self.indicePaleta = 1
+
+        #valor indice scala paletas
+        self.indiceEscalaPaleta = 1
+
+        #valor rango escala paleta min max en manual
+        self.rangoMinMaxScalePaletteManual = {"min": -20, "max":150}
+
     def run(self):  #funcion que sobre escribimos de run del hilo
         # capture from thermal cam
         # load library
@@ -1062,6 +1072,25 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                     if ret != 0:
                         print("error on evo_irimager_set_palette" + str(ret))
                         break
+                if self._changeScalePalette: #consultamos si se solicito cambiar el tipo de escala de la paleta
+                    print("se cambia el tipo de escala de la paleta: {}".format(self.indiceEscalaPaleta))
+                    self._changeScalePalette = False
+                    valorIndiceScalePalette = ct.c_int(self.indiceEscalaPaleta)
+                    ret = libir.evo_irimager_set_palette_scale(valorIndiceScalePalette)
+                    if ret != 0:
+                        print("error on evo_irimager_set_palette_scale" + str(ret))
+                        break
+                if self._changeRangeScalePaletteManual:
+                    minimoRango = float(self.rangoMinMaxScalePaletteManual["min"])
+                    maximoRango = float(self.rangoMinMaxScalePaletteManual["max"])
+                    print("se cambia el rango de la paleta para escala manual min:{} y max:{}".format(minimoRango, maximoRango))
+                    self._changeRangeScalePaletteManual = False
+                    valorMinRangoScalePaletteManual = ct.c_float(minimoRango)
+                    valorMaxRangoScalePaletteManual = ct.c_float(maximoRango)                
+                    ret = libir.evo_irimager_set_palette_manual_temp_range(valorMinRangoScalePaletteManual, valorMaxRangoScalePaletteManual)
+                    if ret != 0:
+                        print("error on evo_irimage_set_palette_manual_temp_range" + str(ret))
+                        break
                 ##
                 self.status_camera_signal.emit(np.array(statusCamera))                                  #si hay error salgo y retorno el error
                 #si llega a responder con un error lo indicamos 
@@ -1111,6 +1140,18 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         print("nueva seleccion de paleta: {}".format(EnumOptrisColoringPalette))
         self._changePaleta = True
         self.indicePaleta = EnumOptrisColoringPalette
+    
+    def selScalePaleta(self, EnumOptrisPaletteScalingMethod):
+        print("nueva seleccion escala de paleta valor: {}".format(EnumOptrisPaletteScalingMethod))
+        self._changeScalePalette = True
+        self.indiceEscalaPaleta = EnumOptrisPaletteScalingMethod
+
+    def selRangeTempManual(self, valueMinRange, valueMaxRange):
+        print("nueva seleccion rango min: {} y rango max: {}".format(valueMinRange, valueMaxRange))
+        self._changeRangeScalePaletteManual = True
+        self.rangoMinMaxScalePaletteManual["min"] = valueMinRange
+        self.rangoMinMaxScalePaletteManual["max"] = valueMaxRange
+
 #***************************************************
 #Clase para procesamiento de datos
 class ProcesamientoDatosThread(QThread):
@@ -1923,6 +1964,241 @@ class PopUpWritePresetPalleteCam(QWidget):
         self.threadAdqImg.selPaleta(indiceAlarmRed)
 
 #clase cambio el tipo de ajuste de limites para la paleta seleccionada
+class PopUpWritePresetAutoManPalleteCam(QWidget):
+    def __init__(self, miThreadAdqImagen, imageAdq):
+        super().__init__()
+        #realizamos la configuracion de pantalla
+        print("aca realizamos la configuracion de pantalla para paleta de la camara")
+        #flag para cerrar ventana y dejar de stremear
+        self.flagDetenerStriming = False
+        #instancia de hilo
+        self.threadAdqImg = miThreadAdqImagen
+        self.setWindowTitle("Write Preset Auto/Man Pallete ")
+        layoutPresetCurrentNew = QVBoxLayout()
+        #set para la imagen
+        self.display_width = 640
+        self.display_height = 480
+        #creamos el label que va a contener la imagen
+        self.image_label_manAutoPallete = QLabel()
+        self.imageCamara = imageAdq.pixmap()
+        self.image_label_manAutoPallete.setPixmap(self.imageCamara)
+        self.image_label_manAutoPallete.resize(self.display_width, self.display_height)
+        #creamos los botones para controlar la paleta
+        layoutBotonesManAutoPallete = QGridLayout()
+        #creamos los botones
+        #boton Manual
+        btnSelManual = QPushButton("Manual")
+        btnSelManual.clicked.connect(self.selManualEscalamiento)
+        #boton Min Max Automatico
+        btnSelMinMaxAuto = QPushButton("Min-Max Automatico")
+        btnSelMinMaxAuto.clicked.connect(self.selMinMaxEscalamiento)
+        #boton 1 Sigma Automatico
+        btnSelSigma1Auto = QPushButton("Sigma 1 Automatico")
+        btnSelSigma1Auto.clicked.connect(self.selSigma1Escalamiento)
+        #boton 3 Sigma Automatico
+        btnSelSigma3Auto = QPushButton("Sigma 3 Automatico")
+        btnSelSigma3Auto.clicked.connect(self.selSigma3Escalamiento)
+        #agrego los botones al layout
+        layoutBotonesManAutoPallete.addWidget(btnSelManual, 0, 0)
+        layoutBotonesManAutoPallete.addWidget(btnSelMinMaxAuto, 0, 1)
+        layoutBotonesManAutoPallete.addWidget(btnSelSigma1Auto, 1, 0)
+        layoutBotonesManAutoPallete.addWidget(btnSelSigma3Auto, 1, 1)
+        #agregamos los botones de preset acual y cambiado
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelNewPreset = QLabel("New Preset")
+        self.valueNewPreset = QLineEdit("....")
+        self.valueNewPreset.setStyleSheet("border: 2px solid black;")
+        self.labelNewPreset.setBuddy(self.valueNewPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentNew.addWidget(self.image_label_manAutoPallete)
+        layoutPresetCurrentNew.addLayout(layoutBotonesManAutoPallete)
+        layoutPresetCurrentNew.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.labelNewPreset)
+        layoutPresetCurrentNew.addWidget(self.valueNewPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentNewBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okNewPreset = QPushButton("Update")
+        self.okNewPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelNewPreset = QPushButton("Cancel")
+        self.cancelNewPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentNewBotones.addWidget(self.okNewPreset)
+        layoutPresetCurrentNewBotones.addWidget(self.cancelNewPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentNew.addLayout(layoutPresetCurrentNewBotones)
+        self.setLayout(layoutPresetCurrentNew)
+        self.resize(400,20)
+        self.labelNewPreset.setFocus(Qt.NoFocusReason)
+
+    def upDateImage(self, imageAdq):
+        #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
+        print("aca realizmaos la configuracion de rango de temperatura")
+        imagenCamaraUpDate = imageAdq.pixmap()
+        self.image_label_manAutoPallete.setPixmap(imagenCamaraUpDate)        
+        return self.flagDetenerStriming
+    
+    def okUpDatePresetCam(self):
+        #realizamos la aceptación de los cambios
+        print("aca realizamos la aceptacion de los cambios en tipo de ajuste paleta")
+    
+    def cancelUpDatePresetCam(self):
+        #realizamos la cancelacion de los cambio solicitados
+        print("Cancelar preset a camara")
+        self.flagDetenerStriming = True 
+    
+    def cerrarPopup(self):
+        self.close()
+    
+    def selManualEscalamiento(self):
+        print("seleccion escalamiento Manual")
+        scaleManual = 1
+        self.threadAdqImg.selScalePaleta(scaleManual)
+    
+    def selMinMaxEscalamiento(self):
+        print("seleccion escalamiento MinMax")
+        scaleMinMax = 2
+        self.threadAdqImg.selScalePaleta(scaleMinMax)
+    
+    def selSigma1Escalamiento(self):
+        print("seleccion escalamiento Sigma1")
+        scaleSigma1 = 3
+        self.threadAdqImg.selScalePaleta(scaleSigma1)    
+    
+    def selSigma3Escalamiento(self):
+        print("seleccion escalamiento Sigma3")
+        scaleSigma3 = 4
+        self.threadAdqImg.selScalePaleta(scaleSigma3)
+
+#clase cambio los limites de ajuste en manual
+class PopUpWritePresetLimManualPalleteCam(QWidget):
+    def __init__(self, miThreadAdqImagen, imageAdq):
+        #inicializo        
+        super().__init__()
+        #realizamos la configuracion de pantalla
+        print("aca realizamos la configuracion")
+        #flag para cerrar ventana y dejar de stremear
+        self.flagdetenerStriming = False
+        #instancia de hilo
+        self.threadAdqImg = miThreadAdqImagen
+        self.setWindowTitle("Write Preset Limites Manual Paleta")
+        layoutPresetCurrentNew = QVBoxLayout()
+        #set para la imagen
+        self.display_width = 640
+        self.display_height = 480
+        #creamos el label que va a contener la imagen
+        self.image_label_limManualPallete = QLabel()
+        self.imageCamara = imageAdq.pixmap()
+        self.image_label_limManualPallete.setPixmap(self.imageCamara)
+        self.image_label_limManualPallete.resize(self.display_width, self.display_height)
+        #creamos dos spinbox y un boton para actualizar el limite inferior y superior del rango de temperatura usado por la paleta.
+        #agregamos un boton para bajar el cambio
+        self.selRangoTempPaletaManual = QPushButton("selRango")
+        self.selRangoTempPaletaManual.clicked.connect(self.btnCambiarLimitesRangoPaleta)
+        self.limInferiorRangoTempPaletaManual = QSpinBox(self)
+        self.limInferiorRangoTempPaletaManual.setMaximum(100)
+        self.limInferiorRangoTempPaletaManual.setMinimum(-20)
+        self.limInferiorRangoTempPaletaManual.setSingleStep(5)
+        self.limInferiorRangoTempPaletaManual.setValue(-20)
+        self.limInferiorRangoTempPaletaManual.valueChanged.connect(self.verificoLimiteInferiorSpin)
+        self.limSuperiorRangoTempPaletaManual = QSpinBox(self)
+        self.limSuperiorRangoTempPaletaManual.setMaximum(100)
+        self.limSuperiorRangoTempPaletaManual.setMinimum(-20)
+        self.limSuperiorRangoTempPaletaManual.setSingleStep(5)
+        self.limSuperiorRangoTempPaletaManual.setValue(100)
+        self.limSuperiorRangoTempPaletaManual.valueChanged.connect(self.verificoLimiteSuperiorSpin)
+        layoutMinMaxRangoTempPaletaManual = QVBoxLayout()
+        layoutMinMaxRangoTempPaletaManual.addWidget(self.limInferiorRangoTempPaletaManual)
+        layoutMinMaxRangoTempPaletaManual.addWidget(self.limSuperiorRangoTempPaletaManual)
+        layoutSelRangoTempPaletaManual = QHBoxLayout()
+        layoutSelRangoTempPaletaManual.addLayout(layoutMinMaxRangoTempPaletaManual)
+        layoutSelRangoTempPaletaManual.addWidget(self.selRangoTempPaletaManual)
+        #agregamos los botones de preset acual y cambiado
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelNewPreset = QLabel("New Preset")
+        self.valueNewPreset = QLineEdit("....")
+        self.valueNewPreset.setStyleSheet("border: 2px solid black;")
+        self.labelNewPreset.setBuddy(self.valueNewPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentNew.addWidget(self.image_label_limManualPallete)
+        layoutPresetCurrentNew.addLayout(layoutSelRangoTempPaletaManual)
+        layoutPresetCurrentNew.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.labelNewPreset)
+        layoutPresetCurrentNew.addWidget(self.valueNewPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentNewBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okNewPreset = QPushButton("Update")
+        self.okNewPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelNewPreset = QPushButton("Cancel")
+        self.cancelNewPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentNewBotones.addWidget(self.okNewPreset)
+        layoutPresetCurrentNewBotones.addWidget(self.cancelNewPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentNew.addLayout(layoutPresetCurrentNewBotones)
+        self.setLayout(layoutPresetCurrentNew)
+        self.resize(400,20)
+        self.labelNewPreset.setFocus(Qt.NoFocusReason)
+
+    def upDateImage(self, imageAdq):
+        #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
+        #print("aca realizmaos la configuracion de rango de temperatura")
+        imagenCamaraUpDate = imageAdq.pixmap()
+        self.image_label_limManualPallete.setPixmap(imagenCamaraUpDate)        
+        
+        return self.flagdetenerStriming
+        
+    def okUpDatePresetCam(self):
+        #actualico los preset
+        print("ok update")
+    
+    def cancelUpDatePresetCam(self):
+        #realizamos la cancelacion de los cambio solicitados
+        print("Cancelar preset a camara")
+        self.flagdetenerStriming = True
+    
+    def cerrarPopup(self):
+        #cerrar popup
+        print("cerrar")
+        self.close()    
+
+    def verificoLimiteInferiorSpin(self):
+        if self.limInferiorRangoTempPaletaManual.value() > self.limSuperiorRangoTempPaletaManual.value():
+            #si el nuevo valor def sping inferior es mayor añ vañpr del sping superior lo reemplazo por una unidad menos que el mayor
+            self.limInferiorRangoTempPaletaManual.setValue(self.limSuperiorRangoTempPaletaManual.value() - 1)
+            print("valor inferior no valido")
+
+    def verificoLimiteSuperiorSpin(self):
+        if self.limSuperiorRangoTempPaletaManual.value() < self.limInferiorRangoTempPaletaManual.value():
+            #verifico el nuevo valor del spin superior si es menor al valor del spin inferior lo reemplayo por una unidad mayor
+            self.limSuperiorRangoTempPaletaManual.setValue(self.limInferiorRangoTempPaletaManual.value() + 1 )
+            print("valor superior no valido")
+
+    def btnCambiarLimitesRangoPaleta(self):
+        #cambiar los limites del rango manual
+        minimoRango = self.limInferiorRangoTempPaletaManual.value()
+        maximoRango = self.limSuperiorRangoTempPaletaManual.value()
+        print("seleccion actualizar limite inferior: {} superior: {}".format(minimoRango, maximoRango))        
+        self.threadAdqImg.selRangeTempManual(minimoRango, maximoRango)
 
 #Clase modelo generico de loggin 
 class PopUpLoggin(QWidget):
@@ -1963,7 +2239,6 @@ class PopUpLoggin(QWidget):
     def cancelConnectDB(self):
         print("Cancelar")
         self.close()
-
 #clase modelo generico de combo box
 class UserComboBox(QComboBox):
     popupAboutToBeShown = pyqtSignal()
@@ -1991,6 +2266,9 @@ class MainWindow(QDialog):
         super(MainWindow, self).__init__(parent)
         self.mostrarImagenPopUpCambioFoco = False #indicamos al hilo de adquisicion en la signal emitida que muestre la imagen
         self.mostrarImagenPopUpCambioRango = False #utilizamos este flag para indicar si debe stremear la imagen a la popup de configuracion de rango de temperatura
+        self.mostrarImagenPopUpCambioPaleta = False
+        self.mostrarImagenPopUpManAutPaleta = False
+        self.mostrarImagenPopUpLimManPaleta = False
         #creamos las variables locales que llevan los calculos
         #de cada roi que son min avg y max
         #rectangulo 1
@@ -3486,7 +3764,7 @@ class MainWindow(QDialog):
         valuePreset3Cam1.setToolTip("Toggle to change Min and Max Limits to Pallete only in Manual Selected")
         #
         #Defino la funcion asociada al set y reset de los presets
-        enablePreset3Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset3Cam1)
+        enablePreset3Cam1 = partial(self.popUpConfiguracionPreset3Cam, valuePreset3Cam1)
         disablePreset3Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset3Cam1)
         valuePreset3Cam1.stateChanged.connect(lambda x: enablePreset3Cam1() if x else disablePreset3Cam1())
         # 
@@ -3508,7 +3786,7 @@ class MainWindow(QDialog):
         valuePreset4Cam1.setToolTip("Toggle to change type of adjust of limits pallete Manual Automatic Sigma1 Sigma3")
         #
         #Defino la funcion asociada al set y reset de los presets
-        enablePreset4Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset4Cam1)
+        enablePreset4Cam1 = partial(self.popUpConfiguracionPreset4Cam, valuePreset4Cam1)
         disablePreset4Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset4Cam1)
         valuePreset4Cam1.stateChanged.connect(lambda x: enablePreset4Cam1() if x else disablePreset4Cam1())
         # 
@@ -4332,6 +4610,24 @@ class MainWindow(QDialog):
                 self.mostrarImagenPopUpCambioRango = False
                 self.configuracionRango.cerrarPopup()
 
+        if self.mostrarImagenPopUpLimManPaleta == True:
+            flagDetenerRango = self.configuracionLimManPaleta.upDateImage(self.image_label)
+            if flagDetenerRango == True:
+                print("stop streaming")
+                self.mostrarImagenPopUpLimManPaleta = False
+                self.configuracionLimManPaleta.cerrarPopup()
+
+        if self.mostrarImagenPopUpManAutPaleta == True:
+            flagDetenerRango = self.configuracionManAutPaleta.upDateImage(self.image_label)
+            if flagDetenerRango == True:
+                self.mostrarImagenPopUpManAutPaleta = False
+                self.configuracionManAutPaleta.cerrarPopup()
+
+        if self.mostrarImagenPopUpCambioPaleta == True:
+            flagDetenerRango = self.configuracionPaleta.upDateImage(self.image_label)
+            if flagDetenerRango == True:
+                self.mostrarImagenPopUpCambioPaleta = False
+                self.configuracionPaleta.cerrarPopup()
     #cargo la imagen en formato pixmap en el viewer
     #self.viewCam1.setPixmap(qt_img)
     def convert_cv_qt(self, cv_img):
@@ -4840,14 +5136,28 @@ class MainWindow(QDialog):
             self.configuracionRango.show()
             print("mostramos popup ajuste de rango")
             self.mostrarImagenPopUpCambioRango = True
+    def popUpConfiguracionPreset3Cam(self, checkbox):
+        if checkbox.isChecked() == True:
+            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+            self.configuracionLimManPaleta = PopUpWritePresetLimManualPalleteCam(self.thread, self.image_label)
+            self.configuracionLimManPaleta.show()
+            print("mostramos popup ajuste de rango")
+            self.mostrarImagenPopUpLimManPaleta = True
+    def popUpConfiguracionPreset4Cam(self, checkbox):
+        if checkbox.isChecked() == True:
+            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+            self.configuracionManAutPaleta = PopUpWritePresetAutoManPalleteCam(self.thread, self.image_label)
+            self.configuracionManAutPaleta.show()
+            print("mostramos popup cambio de paleta")
+            self.mostrarImagenPopUpManAutPaleta = True
 
     def popUpConfiguracionPreset5Cam(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionRango = PopUpWritePresetPalleteCam(self.thread, self.image_label)
-            self.configuracionRango.show()
+            self.configuracionPaleta = PopUpWritePresetPalleteCam(self.thread, self.image_label)
+            self.configuracionPaleta.show()
             print("mostramos popup cambio de paleta")
-            self.mostrarImagenPopUpCambioRango = True
+            self.mostrarImagenPopUpCambioPaleta = True
 
     def popUpRestartConfiguracionPresetCam1(self, checkbox):
         print("reset preset seleccion en camara 1")
