@@ -902,8 +902,8 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         self._selRango0 = False #flag para seleccionar rango 0 se activa por la funcion y se desactiva por el hilo de run
         self._selRango1 = False #flag para seleccionar rango 1 se actia por la funcion y se desactiva por el hilo de run
         self._selRango2 = False #flag para seleccionar rango 2 se activa por la funcion y se desactiva por el hilo de run        
-
-
+        #flag change paleta iron medical etc
+        self._changePaleta = False
 
         #creamos 3 diccionarios uno por cada rango de temp
         #primer rango de temperatura
@@ -913,6 +913,8 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         #tercer rango de temperatura
         self.rango2 = {"min": 150 , "max": 900}
 
+        #valor indice paleta
+        self.indicePaleta = 1
     def run(self):  #funcion que sobre escribimos de run del hilo
         # capture from thermal cam
         # load library
@@ -1052,7 +1054,14 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                     if ret != 0:
                         print("error on evo_irimager_set_temperature_range" + str(ret))
                         break  
-
+                if self._changePaleta: #consultamos si se solicito cambiar la paleta
+                    print("cambiamos paleta: {}".format(self.indicePaleta))
+                    self._changePaleta = False
+                    valorIndicePaleta = ct.c_int(self.indicePaleta)
+                    ret = libir.evo_irimager_set_palette(valorIndicePaleta)
+                    if ret != 0:
+                        print("error on evo_irimager_set_palette" + str(ret))
+                        break
                 ##
                 self.status_camera_signal.emit(np.array(statusCamera))                                  #si hay error salgo y retorno el error
                 #si llega a responder con un error lo indicamos 
@@ -1097,6 +1106,11 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         #seleccionamos cambiar al rango 2
         print("selecionamos cambiar al rango 2")
         self._selRango2 = True
+    
+    def selPaleta(self, EnumOptrisColoringPalette):
+        print("nueva seleccion de paleta: {}".format(EnumOptrisColoringPalette))
+        self._changePaleta = True
+        self.indicePaleta = EnumOptrisColoringPalette
 #***************************************************
 #Clase para procesamiento de datos
 class ProcesamientoDatosThread(QThread):
@@ -1431,6 +1445,7 @@ class PopUpResetPresetTab(QWidget):
     def cancelUpDatePresetTab(self):
         print("Cancelar default value al control")
         self.close()
+
 #Clase modelo generico de preset control del tipo volumen
 class PopUpWritePresetTab(QWidget):
     def __init__(self, valorIndicador, valorPreset):
@@ -1474,6 +1489,7 @@ class PopUpWritePresetTab(QWidget):
     def cancelUpDatePresetCtrl(self):
         print("Cancelar preset a camara")
         self.close()
+
 #Clase modelo generico de reset preset camara
 class PopUpResetPresetCam(QWidget):
     def __init__(self):
@@ -1519,6 +1535,7 @@ class PopUpResetPresetCam(QWidget):
     def cancelUpDatePresetCam(self):
         print("Cancelar default value a camara")
         self.close()
+
 #Clase modelo generico de cambio preset camara
 class PopUPWritePresetFocoCam(QWidget):
     def __init__(self, miThreadAdqImagen, imageAdq):
@@ -1620,6 +1637,7 @@ class PopUPWritePresetFocoCam(QWidget):
         else:
             print("seleccion decrementar")
             self.incSelection = False
+
 #clase cambio de rango de temperatura
 class PopUpWritePresetTempRangeCam(QWidget):
     def __init__(self, miThreadAdqImagen, imageAdq):
@@ -1725,6 +1743,187 @@ class PopUpWritePresetTempRangeCam(QWidget):
         print("aca realizamos la seleccion del rango 2")
         self.threadAdqImg.changeRange2()
 
+#clase cambio de tipo de paleta utilizada en camara
+class PopUpWritePresetPalleteCam(QWidget):
+    def __init__(self, miThreadAdqImagen, imageAdq):
+        super().__init__()
+        #realizamos la configuracion de pantalla
+        print("aca realizamos la configuracion de pantalla para paleta de la camara")
+        #flag para cerrar vetanta y dejar de stremear imagen
+        self.flagDetenerStriming = False
+        #instanacia de hilo
+        self.threadAdqImg = miThreadAdqImagen
+        self.setWindowTitle("Write Preset Pallete Cam")
+        layoutPresetCurrentNew = QVBoxLayout()
+        #set para la imagen
+        self.display_width = 640
+        self.display_height = 480
+        #creamos el alabel que va a contener la imagen
+        self.image_label_changePallete = QLabel()
+        self.imageCamara = imageAdq.pixmap()
+        self.image_label_changePallete.setPixmap(self.imageCamara)
+        self.image_label_changePallete.resize(self.display_width,self.display_height)
+        #creamos los botones para controlar la paleta        
+        layoutBotonesPallete = QGridLayout()
+        #creamos los botones
+        btnSelAlarmBluePallete = QPushButton("eAlarmBlue")
+        btnSelAlarmBluePallete.clicked.connect(self.selPaletaAlarmBlue)
+        #
+        btnSelAlarmBlueHiPallete = QPushButton("eAlarmBlueHi")
+        btnSelAlarmBlueHiPallete.clicked.connect(self.selPaletaAlarmBlueHi)
+        #
+        btnSelAlarmGrayBWPallete = QPushButton("eGrayBW")
+        btnSelAlarmGrayBWPallete.clicked.connect(self.selPaletaGrayBW)
+        #
+        btnSelAlarmGrayWBPallete = QPushButton("eGrayWB")
+        btnSelAlarmGrayWBPallete.clicked.connect(self.selPaletaGrayWB)
+        #
+        btnSelAlarmGreenPallete = QPushButton("eAlarmGreen")
+        btnSelAlarmGreenPallete.clicked.connect(self.selPaletaAlarmGreen)
+        #
+        btnSelAlarmIronPallete = QPushButton("eIron")
+        btnSelAlarmIronPallete.clicked.connect(self.selPaletaIron)
+        #
+        btnSelAlarmIronHiPallete = QPushButton("eIronHi")
+        btnSelAlarmIronHiPallete.clicked.connect(self.selPaletaIronHi)
+        #
+        btnSelAlarmMedicalPallete = QPushButton("eMedical")
+        btnSelAlarmMedicalPallete.clicked.connect(self.selPaletaMedical)
+        #
+        btnSelAlarmRainbowPallete = QPushButton("eRainbow")
+        btnSelAlarmRainbowPallete.clicked.connect(self.selPaletaRainbow)
+        #
+        btnSelAlarmRainbowHiPallete = QPushButton("eRainbowHi")
+        btnSelAlarmRainbowHiPallete.clicked.connect(self.selPaletaRainbowHi)
+        #
+        btnSelAlarmRedPallete = QPushButton("eRed")
+        btnSelAlarmRedPallete.clicked.connect(self.selPaletaAlarmRed)
+        #agregamos los botones al layoute
+        layoutBotonesPallete.addWidget(btnSelAlarmBluePallete, 0, 0)        
+        layoutBotonesPallete.addWidget(btnSelAlarmBlueHiPallete, 0, 1)        
+        layoutBotonesPallete.addWidget(btnSelAlarmGrayBWPallete, 0, 2)        
+        layoutBotonesPallete.addWidget(btnSelAlarmGrayWBPallete, 1, 0)
+        layoutBotonesPallete.addWidget(btnSelAlarmGreenPallete, 1, 1)
+        layoutBotonesPallete.addWidget(btnSelAlarmIronPallete, 1, 2)
+        layoutBotonesPallete.addWidget(btnSelAlarmIronHiPallete, 2, 0)
+        layoutBotonesPallete.addWidget(btnSelAlarmMedicalPallete, 2, 1)
+        layoutBotonesPallete.addWidget(btnSelAlarmRainbowPallete, 2, 2)
+        layoutBotonesPallete.addWidget(btnSelAlarmRainbowHiPallete, 3, 0)
+        layoutBotonesPallete.addWidget(btnSelAlarmRedPallete, 3, 1)
+        layoutBotonesPallete.addWidget(btnSelAlarmRedPallete, 3, 2)                
+        #agregamos lo botones de preset actual y cambiado
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelNewPreset = QLabel("New Preset")
+        self.valueNewPreset = QLineEdit("....")
+        self.valueNewPreset.setStyleSheet("border: 2px solid black;")
+        self.labelNewPreset.setBuddy(self.valueNewPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentNew.addWidget(self.image_label_changePallete)
+        layoutPresetCurrentNew.addLayout(layoutBotonesPallete)
+        layoutPresetCurrentNew.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.labelNewPreset)
+        layoutPresetCurrentNew.addWidget(self.valueNewPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentNewBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okNewPreset = QPushButton("Update")
+        self.okNewPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelNewPreset = QPushButton("Cancel")
+        self.cancelNewPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentNewBotones.addWidget(self.okNewPreset)
+        layoutPresetCurrentNewBotones.addWidget(self.cancelNewPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentNew.addLayout(layoutPresetCurrentNewBotones)
+        self.setLayout(layoutPresetCurrentNew)
+        self.resize(400,20)
+        self.labelNewPreset.setFocus(Qt.NoFocusReason)
+
+    def upDateImage(self, imageAdq):
+        #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
+        print("aca realizmaos la configuracion de rango de temperatura")
+        imagenCamaraUpDate = imageAdq.pixmap()
+        self.image_label_changePallete.setPixmap(imagenCamaraUpDate)        
+        return self.flagDetenerStriming
+    
+    def okUpDatePresetCam(self):
+        #realizamos la aceptación de los cambios
+        print("aca realizamos la aceptacion de los cambios en los rangos de temperatura")
+    
+    def cancelUpDatePresetCam(self):
+        #realizamos la cancelacion de los cambio solicitados
+        print("Cancelar preset a camara")
+        self.flagDetenerStriming = True 
+    
+    def cerrarPopup(self):
+        self.close()
+    
+    def selPaletaAlarmBlue(self):
+        print("seleccion paleta AlarmBlue")
+        indiceAlarmBlue = 1
+        self.threadAdqImg.selPaleta(indiceAlarmBlue)
+    
+    def selPaletaAlarmBlueHi(self):
+        print("seleccion paleta AlarmBlueHi")
+        indiceAlarmBlueHi = 2
+        self.threadAdqImg.selPaleta(indiceAlarmBlueHi)
+    
+    def selPaletaGrayBW(self):
+        print("seleccion paleta GrayBW")
+        indiceAlarmGrayBW = 3
+        self.threadAdqImg.selPaleta(indiceAlarmGrayBW)
+    
+    def selPaletaGrayWB(self):
+        print("seleccion paleta GrayWB")
+        indiceAlarmGrayWB = 4
+        self.threadAdqImg.selPaleta(indiceAlarmGrayWB)        
+    
+    def selPaletaAlarmGreen(self):
+        print("seleccion paleta AlarmGreen")
+        indiceAlarmGreen = 5
+        self.threadAdqImg.selPaleta(indiceAlarmGreen)
+    
+    def selPaletaIron(self):
+        print("seleccion paleta Iron")
+        indiceIron = 6
+        self.threadAdqImg.selPaleta(indiceIron)
+    
+    def selPaletaIronHi(self):
+        print("seleccion paleta IronHi")
+        indiceIronHi = 7
+        self.threadAdqImg.selPaleta(indiceIronHi)
+    
+    def selPaletaMedical(self):
+        print("seleccion paleta Medical")
+        indiceMedical = 8
+        self.threadAdqImg.selPaleta(indiceMedical)
+    
+    def selPaletaRainbow(self):
+        print("seleccion paleta Rainbow")
+        indiceRainbow = 9
+        self.threadAdqImg.selPaleta(indiceRainbow)
+    
+    def selPaletaRainbowHi(self):
+        print("seleccion paleta RainbowHi")
+        indiceRainbowHi = 10
+        self.threadAdqImg.selPaleta(indiceRainbowHi)
+    
+    def selPaletaAlarmRed(self):    
+        print("seleccion paleta AlarmRed")
+        indiceAlarmRed = 11
+        self.threadAdqImg.selPaleta(indiceAlarmRed)
+
+#clase cambio el tipo de ajuste de limites para la paleta seleccionada
+
 #Clase modelo generico de loggin 
 class PopUpLoggin(QWidget):
     def __init__(self):
@@ -1757,7 +1956,6 @@ class PopUpLoggin(QWidget):
         self.resize(400,20)
         self.inputUser.setFocus(Qt.NoFocusReason)
         
-
     #funcion para conectarse con la base de datos
     def connectDB(self):
         print("Conectando")
@@ -1765,6 +1963,7 @@ class PopUpLoggin(QWidget):
     def cancelConnectDB(self):
         print("Cancelar")
         self.close()
+
 #clase modelo generico de combo box
 class UserComboBox(QComboBox):
     popupAboutToBeShown = pyqtSignal()
@@ -3331,7 +3530,7 @@ class MainWindow(QDialog):
         valuePreset5Cam1.setToolTip("Toggle to change type of pallete to AlarmBlue-AlarmBlueHi-GrayBW-GrayWB-AlarmGreen-Iron-IronHi-Medical-Rainbow-RainbowHi-AlarmRed")
         #
         #Defino la funcion asociada al set y reset de los presets
-        enablePreset5Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset5Cam1)
+        enablePreset5Cam1 = partial(self.popUpConfiguracionPreset5Cam, valuePreset5Cam1)
         disablePreset5Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset5Cam1)
         valuePreset5Cam1.stateChanged.connect(lambda x: enablePreset5Cam1() if x else disablePreset5Cam1())
         #
@@ -4641,6 +4840,15 @@ class MainWindow(QDialog):
             self.configuracionRango.show()
             print("mostramos popup ajuste de rango")
             self.mostrarImagenPopUpCambioRango = True
+
+    def popUpConfiguracionPreset5Cam(self, checkbox):
+        if checkbox.isChecked() == True:
+            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+            self.configuracionRango = PopUpWritePresetPalleteCam(self.thread, self.image_label)
+            self.configuracionRango.show()
+            print("mostramos popup cambio de paleta")
+            self.mostrarImagenPopUpCambioRango = True
+
     def popUpRestartConfiguracionPresetCam1(self, checkbox):
         print("reset preset seleccion en camara 1")
         if checkbox.isChecked() == False:            
