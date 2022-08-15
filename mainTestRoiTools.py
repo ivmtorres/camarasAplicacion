@@ -899,6 +899,20 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         self._decFocusPosition = False
         self._incFocusPosition = True
         self.focusPositionAnterior = 50
+        self._selRango0 = False #flag para seleccionar rango 0 se activa por la funcion y se desactiva por el hilo de run
+        self._selRango1 = False #flag para seleccionar rango 1 se actia por la funcion y se desactiva por el hilo de run
+        self._selRango2 = False #flag para seleccionar rango 2 se activa por la funcion y se desactiva por el hilo de run        
+
+
+
+        #creamos 3 diccionarios uno por cada rango de temp
+        #primer rango de temperatura
+        self.rango0 = {"min": -20 , "max": 100}
+        #segundo rango de temperatura
+        self.rango1 = {"min": 0, "max": 250}
+        #tercer rango de temperatura
+        self.rango2 = {"min": 150 , "max": 900}
+
     def run(self):  #funcion que sobre escribimos de run del hilo
         # capture from thermal cam
         # load library
@@ -925,6 +939,18 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         thermal_height = ct.c_int() #dimension de la paleta termica ..alto
 
         serial = ct.c_ulong() #numero serial de la camara
+        
+        #rango de temperaturas
+        tRango0_minimoM20 = ct.c_int(self.rango0["min"])#(-20)
+        tRango0_maximo100 = ct.c_int(self.rango0["max"])#(100)
+
+        tRango1_minimo0 = ct.c_int(self.rango1["min"])#(0)
+        tRango1_maximo250 = ct.c_int(self.rango1["max"])#(250)
+
+        tRango2_minimo150 = ct.c_int(self.rango2["min"])#(150)
+        tRango2_maximo900 = ct.c_int(self.rango2["max"])#(900)
+        
+        
         #posicion de foco
         #focus position
         focusPosition = ct.c_float()
@@ -1005,6 +1031,27 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                     if ret != 0:                                                        #de haber algun error en el proceso de decrementar lo notificamos y salimos del loop
                         print('error on evo_irimager_get_thermal_palette_image ' + str(ret))
                         break
+                if self._selRango0: #consultamos si se solicito cambiar el rango de temperatura 0
+                    print("Cambiamos a rango de temperatura 0")
+                    self._selRango0 = False #bajamos el flag despues de realizar el cambio de rango
+                    ret = libir.evo_irimager_set_temperature_range(tRango0_minimoM20, tRango0_maximo100)
+                    if ret != 0:
+                        print("error on evo_irimager_set_temperature_range" + str(ret))
+                        break
+                if self._selRango1: #consultamos si se solicito cambiar al rango de temperatura 1
+                    print("Cambiamos al rango de temperatura 1")
+                    self._selRango1 = False #bajamos el flag despues de realizar el cambio de rango
+                    ret = libir.evo_irimager_set_temperature_range(tRango1_minimo0, tRango1_maximo250)
+                    if ret != 0:
+                        print("error on evo_irimager_set_temperature_range" + str(ret))
+                        break                
+                if self._selRango2: #consultamos si se solicito cambiar al rango de temperatura 2
+                    print("Cambiamos al rango de temperatura 2")
+                    self._selRango2 = False #bajamos el flag despues de realizar el cambio de rango
+                    ret = libir.evo_irimager_set_temperature_range(tRango2_minimo150, tRango2_maximo900)
+                    if ret != 0:
+                        print("error on evo_irimager_set_temperature_range" + str(ret))
+                        break  
 
                 ##
                 self.status_camera_signal.emit(np.array(statusCamera))                                  #si hay error salgo y retorno el error
@@ -1035,6 +1082,21 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
 
     def decFocusPosition(self):
         self._decFocusPosition = True
+    
+    def changeRange0(self):
+        #seleccionamos cambiar al rango 0
+        print("selccionar cambiar al rango 0")
+        self._selRango0 = True
+    
+    def changeRange1(self):
+        #selccionamos cambiar al rango 1
+        print("seleccionar cambiar al rango 1")
+        self._selRango1 = True
+
+    def changeRange2(self):
+        #seleccionamos cambiar al rango 2
+        print("selecionamos cambiar al rango 2")
+        self._selRango2 = True
 #***************************************************
 #Clase para procesamiento de datos
 class ProcesamientoDatosThread(QThread):
@@ -1458,7 +1520,7 @@ class PopUpResetPresetCam(QWidget):
         print("Cancelar default value a camara")
         self.close()
 #Clase modelo generico de cambio preset camara
-class PopUPWritePresetCam(QWidget):
+class PopUPWritePresetFocoCam(QWidget):
     def __init__(self, miThreadAdqImagen, imageAdq):
         super().__init__() 
         #self cerrar ventana y dejar de pasar datos
@@ -1466,7 +1528,7 @@ class PopUPWritePresetCam(QWidget):
         #instancia hilo
         self.threadAdqImg = miThreadAdqImagen
         self.incSelection = False
-        self.setWindowTitle("Write Preset Of Camera")
+        self.setWindowTitle("Write Preset Focus Of Camera")
         layoutPresetCurrentNew = QVBoxLayout()
         #set para la imagen
         self.display_width = 640
@@ -1558,6 +1620,111 @@ class PopUPWritePresetCam(QWidget):
         else:
             print("seleccion decrementar")
             self.incSelection = False
+#clase cambio de rango de temperatura
+class PopUpWritePresetTempRangeCam(QWidget):
+    def __init__(self, miThreadAdqImagen, imageAdq):
+        super().__init__()
+        #realizamos configuracion de pantalla
+        print("aca realizamos la configuracion de pantalla")
+        #flag ára cerrar ventana y dejar de pasar datos
+        self.flagDetenerStriming = False
+        #instancia Hilo
+        self.threadAdqImg = miThreadAdqImagen
+        self.setWindowTitle("Write Preset Range of Camera")
+        layoutPresetCurrentNew = QVBoxLayout()
+        #set para la imagen
+        self.display_width = 640
+        self.display_height = 480
+        #creamos el label que va a contener la imagen
+        self.image_label_changeRange = QLabel()
+        self.imagenCamara = imageAdq.pixmap()
+        self.image_label_changeRange.setPixmap(self.imagenCamara)
+        self.image_label_changeRange.resize(self.display_width,self.display_height)
+        #creamos los botones para controlar el rango
+        layoutBotonesRango = QHBoxLayout()
+        #primero el rango 0
+        self.btnRango0Cam = QPushButton("Rango 0")
+        self.btnRango0Cam.clicked.connect(self.btnRango0Camara)
+        #luego el rango1
+        self.btnRango1Cam = QPushButton("Rango 1")
+        self.btnRango1Cam.clicked.connect(self.btnRango1Camara)
+        #finalmente el rango 2
+        self.btnRango2Cam = QPushButton("Rango 2")
+        self.btnRango2Cam.clicked.connect(self.btnRango2Camara)
+        #agregamos los botones al layout
+        layoutBotonesRango.addWidget(self.btnRango0Cam)
+        layoutBotonesRango.addWidget(self.btnRango1Cam)
+        layoutBotonesRango.addWidget(self.btnRango2Cam)
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelNewPreset = QLabel("New Preset")
+        self.valueNewPreset = QLineEdit("....")
+        self.valueNewPreset.setStyleSheet("border: 2px solid black;")
+        self.labelNewPreset.setBuddy(self.valueNewPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentNew.addWidget(self.image_label_changeRange)
+        layoutPresetCurrentNew.addLayout(layoutBotonesRango)
+        layoutPresetCurrentNew.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.labelNewPreset)
+        layoutPresetCurrentNew.addWidget(self.valueNewPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentNewBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okNewPreset = QPushButton("Update")
+        self.okNewPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelNewPreset = QPushButton("Cancel")
+        self.cancelNewPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentNewBotones.addWidget(self.okNewPreset)
+        layoutPresetCurrentNewBotones.addWidget(self.cancelNewPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentNew.addLayout(layoutPresetCurrentNewBotones)
+        self.setLayout(layoutPresetCurrentNew)
+        self.resize(400,20)
+        self.labelNewPreset.setFocus(Qt.NoFocusReason)
+
+    def upDateImage(self, imageAdq):
+        #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
+        print("aca realizmaos la configuracion de rango de temperatura")
+        imagenCamaraUpDate = imageAdq.pixmap()
+        self.image_label_changeRange.setPixmap(imagenCamaraUpDate)        
+        return self.flagDetenerStriming
+
+    def okUpDatePresetCam(self):
+        #realizamos la aceptación de los cambios
+        print("aca realizamos la aceptacion de los cambios en los rangos de temperatura")
+    
+    def cancelUpDatePresetCam(self):
+        #realizamos la cancelacion de los cambio solicitados
+        print("Cancelar preset a camara")
+        self.flagDetenerStriming = True 
+
+    def cerrarPopup(self):
+        self.close()
+
+    def btnRango0Camara(self):
+        #seleccionamos el rango 0
+        print("aca realizamos la seleccion del rnago 0")
+        self.threadAdqImg.changeRange0()
+
+    def btnRango1Camara(self):
+        #seleccionamos el rango 1
+        print("aca realizamos la seleccion del rango 1")
+        self.threadAdqImg.changeRange1()
+
+    def btnRango2Camara(self):
+        #seleccionamos el rango 2
+        print("aca realizamos la seleccion del rango 2")
+        self.threadAdqImg.changeRange2()
+
 #Clase modelo generico de loggin 
 class PopUpLoggin(QWidget):
     def __init__(self):
@@ -1623,7 +1790,8 @@ class ProfileComboBox(QComboBox):
 class MainWindow(QDialog):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
-        self.mostrarImagenPopUp = False #indicamos al hilo de adquisicion en la signal emitida que muestre la imagen
+        self.mostrarImagenPopUpCambioFoco = False #indicamos al hilo de adquisicion en la signal emitida que muestre la imagen
+        self.mostrarImagenPopUpCambioRango = False #utilizamos este flag para indicar si debe stremear la imagen a la popup de configuracion de rango de temperatura
         #creamos las variables locales que llevan los calculos
         #de cada roi que son min avg y max
         #rectangulo 1
@@ -3097,7 +3265,7 @@ class MainWindow(QDialog):
         valuePreset2Cam1.setToolTip("Toggle to change range (-20,100)-(0,250)-(150,900) of camera")
         #
         #Defino la funcion asociada al set y reset de los presets
-        enablePreset2Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset2Cam1)
+        enablePreset2Cam1 = partial(self.popUpConfiguracionPreset2Cam1, valuePreset2Cam1)
         disablePreset2Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset2Cam1)
         valuePreset2Cam1.stateChanged.connect(lambda x: enablePreset2Cam1() if x else disablePreset2Cam1())
         #  
@@ -3952,12 +4120,18 @@ class MainWindow(QDialog):
         """Updates the image_label with a new opencv image"""
         qt_img = self.convert_cv_qt(cv_img)
         self.image_label.setPixmap(qt_img)
-        if self.mostrarImagenPopUp == True: #en el caso de que este flag activo strimeo a la popup de ajuste de foco
+        if self.mostrarImagenPopUpCambioFoco == True: #en el caso de que este flag activo strimeo a la popup de ajuste de foco
             #print("enviando imagen a popup")
-            flagDetener = self.configuracionFoco.upDateImage(self.image_label)
-            if flagDetener == True:
-                self.mostrarImagenPopUp = False
+            flagDetenerFoco = self.configuracionFoco.upDateImage(self.image_label)
+            if flagDetenerFoco == True:
+                self.mostrarImagenPopUpCambioFoco = False
                 self.configuracionFoco.cerrarPopup()
+
+        if self.mostrarImagenPopUpCambioRango == True:
+            flagDetenerRango = self.configuracionRango.upDateImage(self.image_label)
+            if flagDetenerRango == True:
+                self.mostrarImagenPopUpCambioRango = False
+                self.configuracionRango.cerrarPopup()
 
     #cargo la imagen en formato pixmap en el viewer
     #self.viewCam1.setPixmap(qt_img)
@@ -4456,10 +4630,17 @@ class MainWindow(QDialog):
         #Tenemos que agregar la popup W
         if checkbox.isChecked() == True:
             #creo un hilo para mostrar la imagen y permitir ajustar los parametros de la camara
-            self.configuracionFoco = PopUPWritePresetCam(self.thread, self.image_label)
+            self.configuracionFoco = PopUPWritePresetFocoCam(self.thread, self.image_label)
             self.configuracionFoco.show()
-            print("mostramos popup")
-            self.mostrarImagenPopUp = True
+            print("mostramos popup ajuste de foco")
+            self.mostrarImagenPopUpCambioFoco = True
+    def popUpConfiguracionPreset2Cam1(self, checkbox):
+        if checkbox.isChecked() == True:
+            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+            self.configuracionRango = PopUpWritePresetTempRangeCam(self.thread, self.image_label)
+            self.configuracionRango.show()
+            print("mostramos popup ajuste de rango")
+            self.mostrarImagenPopUpCambioRango = True
     def popUpRestartConfiguracionPresetCam1(self, checkbox):
         print("reset preset seleccion en camara 1")
         if checkbox.isChecked() == False:            
@@ -4471,7 +4652,7 @@ class MainWindow(QDialog):
         ##
         #Tenemos que agregar la popup
         if checkbox.isChecked() == True:
-            self.dlgChangePresetCam2 = PopUPWritePresetCam(self.thread,self.image_label)
+            self.dlgChangePresetCam2 = PopUPWritePresetFocoCam(self.thread,self.image_label)
             self.dlgChangePresetCam2.show()
     def popUpRestartConfiguracionPresetCam2(self, checkbox):
         print("reset preset seleccion en camara 2")
@@ -4484,7 +4665,7 @@ class MainWindow(QDialog):
         ##
         #Tenemos que agregar la popup
         if checkbox.isChecked() == True:
-            self.dlgChangePresetCam3 = PopUPWritePresetCam(self.thread,self.image_label)
+            self.dlgChangePresetCam3 = PopUPWritePresetFocoCam(self.thread,self.image_label)
             self.dlgChangePresetCam3.show()
     #defino la funcion asociada la cargar el defaul de preset
     def popUpRestartConfiguracionPresetCam3(self, checkbox):
