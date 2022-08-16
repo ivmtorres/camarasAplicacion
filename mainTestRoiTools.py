@@ -4,7 +4,7 @@ from functools import partial
 from threading import Thread
 from time import sleep, time
 from PyQt5 import QtGui, QtCore,QtWidgets
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette, QFont
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette, QFont, QDoubleValidator
 from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRect, QLine, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty, QThread
 from PyQt5.QtWidgets import (
     QApplication,
@@ -37,7 +37,8 @@ from PyQt5.QtWidgets import (
     QToolBar,
     QAction,
     QGraphicsEllipseItem,
-    QScrollArea   
+    QScrollArea, 
+    QDoubleSpinBox   
 )
 from PyQt5.QtGui import QIcon, QPaintEvent
 import matplotlib
@@ -908,6 +909,10 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         self._changeScalePalette = False
         #flag change rango paleta 
         self._changeRangeScalePaletteManual = False
+        #ajustamos la emisividad temp y trans
+        self._changeEmisividad = False #flag para sleccionar incrementar o decrementar emisividad
+        self._changeTransmisividad = False #flag para incrementar o decrementar transmisividad 
+        self._changeTempAmbiente = False #flag para ajustar temperatura ambiente
         #creamos 3 diccionarios uno por cada rango de temp
         #primer rango de temperatura
         self.rango0 = {"min": -20 , "max": 100}
@@ -952,6 +957,17 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
 
         serial = ct.c_ulong() #numero serial de la camara
         
+        #valor de emisividad 
+        valorEmisividadCargar = ct.c_float(0.8)
+
+        #valor de transmisividad
+        valorTransmisividadCargar = ct.c_float(1)
+
+        #valor de temperatura ambiente
+        valorTemperaturaAmbiente = ct.c_float(25)
+
+
+
         #rango de temperaturas
         tRango0_minimoM20 = ct.c_int(self.rango0["min"])#(-20)
         tRango0_maximo100 = ct.c_int(self.rango0["max"])#(100)
@@ -1091,6 +1107,30 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                     if ret != 0:
                         print("error on evo_irimage_set_palette_manual_temp_range" + str(ret))
                         break
+                if self._changeTempAmbiente: #consultamos si se solicito cambiar el valor de temperatura ambiente
+                    print("cambiamos la temperatura ambiente {}".format(self.tempAmbiente)) #mostramos el valor de temperatura ambiente cargado
+                    valorTemperaturaAmbiente = ct.c_float(self.tempAmbiente)
+                    ret = libir.evo_irimager_set_radiation_parameters(valorEmisividadCargar ,valorTransmisividadCargar ,valorTemperaturaAmbiente)
+                    self._changeTempAmbiente = False #bajamos el flag de cambio del parametro temp ambiente
+                    if ret != 0:
+                        print("error on evo_irimager_set_radiation_parameters" + str(ret))
+                        break            
+                if self._changeTransmisividad: #consultamos si se solicito cambiar el valor de transmisividad ambiente
+                    print("cambiamos la transmisividad ambiente {}".format(self.transmisividad)) #mostramos el valor de transmisividad ambiente cargado
+                    valorTransmisividadCargar = ct.c_float(self.transmisividad)
+                    ret = libir.evo_irimager_set_radiation_parameters(valorEmisividadCargar ,valorTransmisividadCargar ,valorTemperaturaAmbiente)
+                    self._changeTransmisividad = False #bajamos el flag de cambio del parametro temp ambiente
+                    if ret != 0:
+                        print("error on evo_irimager_set_radiation_parameters" + str(ret))
+                        break
+                if self._changeEmisividad: #consultamos si se solicito cambiar el valor de transmisividad ambiente
+                    print("cambiamos la emisividad ambiente {}".format(self.emisividad)) #mostramos el valor de transmisividad ambiente cargado
+                    valorEmisividadCargar = ct.c_float(self.emisividad)
+                    ret = libir.evo_irimager_set_radiation_parameters(valorEmisividadCargar ,valorTransmisividadCargar ,valorTemperaturaAmbiente)
+                    self._changeEmisividad = False #bajamos el flag de cambio del parametro temp ambiente
+                    if ret != 0:
+                        print("error on evo_irimager_set_radiation_parameters" + str(ret))
+                        break
                 ##
                 self.status_camera_signal.emit(np.array(statusCamera))                                  #si hay error salgo y retorno el error
                 #si llega a responder con un error lo indicamos 
@@ -1152,6 +1192,20 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         self.rangoMinMaxScalePaletteManual["min"] = valueMinRange
         self.rangoMinMaxScalePaletteManual["max"] = valueMaxRange
 
+    def incDecEmisividad(self, valorEmisividad):
+        print("nuevo valor para cargar de emisividad {}".format(valorEmisividad))
+        self.emisividad = valorEmisividad
+        self._changeEmisividad = True
+
+    def incDecTransmisividad(self, valorTransmisividad): #metodo para incrementar o decrementar la transmisividad, le pasamos el valor deseado de transmisividad ambiente
+        print("nuevo valor para cargar de transmisividad ambiente {}".format(valorTransmisividad)) #mostramos el valor pasado
+        self.transmisividad = valorTransmisividad #cargamos el valor de transmisividad
+        self._changeTransmisividad = True           #indicamos que realice la carga en el loop de procesamiento
+
+    def incDecTempAmbiente(self, valorTempAmbiente): #metodo para incrementar o decrementar la temp ambiente, le pasamos el valor deseado de temperatura ambiente
+        print("nuevo valor para cargar de temperatura ambiente {}".format(valorTempAmbiente))        
+        self.tempAmbiente = valorTempAmbiente
+        self._changeTempAmbiente = True
 #***************************************************
 #Clase para procesamiento de datos
 class ProcesamientoDatosThread(QThread):
@@ -2200,6 +2254,402 @@ class PopUpWritePresetLimManualPalleteCam(QWidget):
         print("seleccion actualizar limite inferior: {} superior: {}".format(minimoRango, maximoRango))        
         self.threadAdqImg.selRangeTempManual(minimoRango, maximoRango)
 
+#clase cambio los valores de temperatura ambiente
+class PopUpWritePresetTempAmbienteCam(QWidget):
+    def __init__(self, miThreadAdqImagen, imageAdq):
+        #inicializacion
+        super().__init__()
+        #realizamos la configuracion pantalla
+        print("aca realizamos la configuracion")
+        #flag para cerrar ventana y dejar de stremear
+        self.flagdetenerStriming = False
+        #instanci de hilo
+        self.threadAdqImg = miThreadAdqImagen
+        self.setWindowTitle("Write Preset Temperatura")
+        layoutPresetCurrentNew = QVBoxLayout()
+        #set para la imagen
+        self.display_width = 640
+        self.display_height = 480
+        #creamos el label que va a contener la imagen
+        self.image_label_emTmTrCam = QLabel()
+        self.imageCamara = imageAdq.pixmap()
+        self.image_label_emTmTrCam.setPixmap(self.imageCamara)
+        self.image_label_emTmTrCam.resize(self.display_width, self.display_height)
+        #creamos qlabel editable para ingresar el valor de temperatura y un boton para cargar ese valor
+        self.valorInTemperatura =QLineEdit("25.50",self)
+        self.valorInTemperatura.setFixedWidth(40)
+        self.valorInTemperatura.setValidator(QDoubleValidator(0.99,99.99,2))
+        self.valorInTemperatura.setMaxLength(5)
+        self.valorInTemperatura.returnPressed.connect(self.cambiarTemperatura)
+        self.valorInTemperatura.setAlignment(Qt.AlignRight)
+        self.valorInTemperatura.setEnabled(True)
+        #creamos qdobleSpin editable para ingresar el valor de transmisividad entre 0 - 1
+        self.valorInTransmisividad = QDoubleSpinBox(self)
+        self.valorInTransmisividad.setMaximum(100)
+        self.valorInTransmisividad.setMinimum(1)
+        self.valorInTransmisividad.setSingleStep(5)
+        self.valorInTransmisividad.setValue(100)
+        self.valorInTransmisividad.valueChanged.connect(self.cambiarTransmisividad)
+        lineInTransmisividad = self.valorInTransmisividad.lineEdit()
+        lineInTransmisividad.setReadOnly(True)
+        self.valorInTransmisividad.setEnabled(False)
+        #creamos qDobleSpin editable para ingresar el valor de emisividad entre 0 - 1
+        self.valorInEmisividad = QDoubleSpinBox(self)
+        self.valorInEmisividad.setMaximum(1.00)
+        self.valorInEmisividad.setMinimum(0.01)
+        self.valorInEmisividad.setSingleStep(0.01)
+        self.valorInEmisividad.setValue(0.85)
+        self.valorInEmisividad.valueChanged.connect(self.cambiarEmisividad)
+        lineInEmisividad = self.valorInEmisividad.lineEdit()
+        lineInEmisividad.setReadOnly(True)
+        self.valorInEmisividad.setEnabled(False)
+        #creamos el layout
+        layoutEmiTranTemp = QVBoxLayout()
+        layoutEmiTranTemp.addWidget(self.valorInTemperatura)
+        layoutEmiTranTemp.addWidget(self.valorInTransmisividad)
+        layoutEmiTranTemp.addWidget(self.valorInEmisividad)
+        #agregamos los botones de preset acual y cambiado
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelNewPreset = QLabel("New Preset")
+        self.valueNewPreset = QLineEdit("....")
+        self.valueNewPreset.setStyleSheet("border: 2px solid black;")
+        self.labelNewPreset.setBuddy(self.valueNewPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentNew.addWidget(self.image_label_emTmTrCam)
+        layoutPresetCurrentNew.addLayout(layoutEmiTranTemp)
+        layoutPresetCurrentNew.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.labelNewPreset)
+        layoutPresetCurrentNew.addWidget(self.valueNewPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentNewBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okNewPreset = QPushButton("Update")
+        self.okNewPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelNewPreset = QPushButton("Cancel")
+        self.cancelNewPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentNewBotones.addWidget(self.okNewPreset)
+        layoutPresetCurrentNewBotones.addWidget(self.cancelNewPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentNew.addLayout(layoutPresetCurrentNewBotones)
+        self.setLayout(layoutPresetCurrentNew)
+        self.resize(400,20)
+        self.labelNewPreset.setFocus(Qt.NoFocusReason)
+
+    def upDateImage(self, imageAdq):
+        #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
+        #print("aca realizmaos la configuracion de rango de temperatura")
+        imagenCamaraUpDate = imageAdq.pixmap()
+        self.image_label_emTmTrCam.setPixmap(imagenCamaraUpDate)        
+        
+        return self.flagdetenerStriming
+
+    def okUpDatePresetCam(self):
+        #actualico los preset
+        print("ok update")
+
+    def cancelUpDatePresetCam(self):
+        #realizamos la cancelacion de los cambio solicitados
+        print("Cancelar preset a camara")
+        self.flagdetenerStriming = True
+
+    def cerrarPopup(self):
+        #cerrar popup
+        print("cerrar popup")
+        self.close()  
+
+    def cambiarEmisividad(self):
+        valorEmisividad = self.valorInEmisividad.value()
+        print("el valor de emisividad seleccionado: {}".format(valorEmisividad))
+        self.threadAdqImg.incDecEmisividad(valorEmisividad)
+
+    def cambiarTransmisividad(self): #funcion para cambiar la transmisividad del ambiente
+        valorTransmisividad = self.valorInTransmisividad.value() / 100
+        print("el valor de transmisividad seleccionado: {}".format(valorTransmisividad))
+        self.threadAdqImg.incDecTransmisividad(valorTransmisividad)
+
+    def cambiarTemperatura(self): #funcion para cambiar la temperatura ambiente
+        textoIngresado = self.valorInTemperatura.text().replace(",",".")
+        if textoIngresado.isnumeric(): #verificamos que sea un numero
+            valorTemp = float(textoIngresado) #leemos del Qlineedit el valor de temperatura
+            print("seleccionamos cambiar temperatura ingresada: {}".format(valorTemp)) #tomamos el valor de temperatura y lo mostramos 
+            self.threadAdqImg.incDecTempAmbiente(valorTemp) #cargamos en el metodo del hilo para cambiar temperatura
+        else:
+            print("el valor ingresado no es un numero") 
+
+#clase cambio los valores de transmisividad
+class PopUpWritePresetTransmisividadCam(QWidget):
+    def __init__(self, miThreadAdqImagen, imageAdq):
+        #inicializacion
+        super().__init__()
+        #realizamos la configuracion pantalla
+        print("aca realizamos la configuracion")
+        #flag para cerrar ventana y dejar de stremear
+        self.flagdetenerStriming = False
+        #instanci de hilo
+        self.threadAdqImg = miThreadAdqImagen
+        self.setWindowTitle("Write Preset Trnasmisividad")
+        layoutPresetCurrentNew = QVBoxLayout()
+        #set para la imagen
+        self.display_width = 640
+        self.display_height = 480
+        #creamos el label que va a contener la imagen
+        self.image_label_emTmTrCam = QLabel()
+        self.imageCamara = imageAdq.pixmap()
+        self.image_label_emTmTrCam.setPixmap(self.imageCamara)
+        self.image_label_emTmTrCam.resize(self.display_width, self.display_height)
+        #creamos qlabel editable para ingresar el valor de temperatura y un boton para cargar ese valor
+        self.valorInTemperatura =QLineEdit("25.50",self)
+        self.valorInTemperatura.setFixedWidth(40)
+        self.valorInTemperatura.setValidator(QDoubleValidator(0.99,99.99,2))
+        self.valorInTemperatura.setMaxLength(5)
+        self.valorInTemperatura.returnPressed.connect(self.cambiarTemperatura)
+        self.valorInTemperatura.setAlignment(Qt.AlignRight)
+        self.valorInTemperatura.setEnabled(False)
+        #creamos qdobleSpin editable para ingresar el valor de transmisividad entre 0 - 1
+        self.valorInTransmisividad = QDoubleSpinBox(self)
+        self.valorInTransmisividad.setMaximum(100)
+        self.valorInTransmisividad.setMinimum(1)
+        self.valorInTransmisividad.setSingleStep(5)
+        self.valorInTransmisividad.setValue(100)
+        self.valorInTransmisividad.valueChanged.connect(self.cambiarTransmisividad)
+        lineInTransmisividad = self.valorInTransmisividad.lineEdit()
+        lineInTransmisividad.setReadOnly(True)
+        self.valorInTransmisividad.setEnabled(True)
+        #creamos qDobleSpin editable para ingresar el valor de emisividad entre 0 - 1
+        self.valorInEmisividad = QDoubleSpinBox(self)
+        self.valorInEmisividad.setMaximum(1.00)
+        self.valorInEmisividad.setMinimum(0.01)
+        self.valorInEmisividad.setSingleStep(0.01)
+        self.valorInEmisividad.setValue(0.85)
+        self.valorInEmisividad.valueChanged.connect(self.cambiarEmisividad)
+        lineInEmisividad = self.valorInEmisividad.lineEdit()
+        lineInEmisividad.setReadOnly(True)
+        self.valorInEmisividad.setEnabled(False)
+        #creamos el layout
+        layoutEmiTranTemp = QVBoxLayout()
+        layoutEmiTranTemp.addWidget(self.valorInTemperatura)
+        layoutEmiTranTemp.addWidget(self.valorInTransmisividad)
+        layoutEmiTranTemp.addWidget(self.valorInEmisividad)
+        #agregamos los botones de preset acual y cambiado
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelNewPreset = QLabel("New Preset")
+        self.valueNewPreset = QLineEdit("....")
+        self.valueNewPreset.setStyleSheet("border: 2px solid black;")
+        self.labelNewPreset.setBuddy(self.valueNewPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentNew.addWidget(self.image_label_emTmTrCam)
+        layoutPresetCurrentNew.addLayout(layoutEmiTranTemp)
+        layoutPresetCurrentNew.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.labelNewPreset)
+        layoutPresetCurrentNew.addWidget(self.valueNewPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentNewBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okNewPreset = QPushButton("Update")
+        self.okNewPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelNewPreset = QPushButton("Cancel")
+        self.cancelNewPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentNewBotones.addWidget(self.okNewPreset)
+        layoutPresetCurrentNewBotones.addWidget(self.cancelNewPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentNew.addLayout(layoutPresetCurrentNewBotones)
+        self.setLayout(layoutPresetCurrentNew)
+        self.resize(400,20)
+        self.labelNewPreset.setFocus(Qt.NoFocusReason)
+
+    def upDateImage(self, imageAdq):
+        #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
+        #print("aca realizmaos la configuracion de rango de temperatura")
+        imagenCamaraUpDate = imageAdq.pixmap()
+        self.image_label_emTmTrCam.setPixmap(imagenCamaraUpDate)        
+        
+        return self.flagdetenerStriming
+
+    def okUpDatePresetCam(self):
+        #actualico los preset
+        print("ok update")
+
+    def cancelUpDatePresetCam(self):
+        #realizamos la cancelacion de los cambio solicitados
+        print("Cancelar preset a camara")
+        self.flagdetenerStriming = True
+
+    def cerrarPopup(self):
+        #cerrar popup
+        print("cerrar popup")
+        self.close()  
+
+    def cambiarEmisividad(self):
+        valorEmisividad = self.valorInEmisividad.value()
+        print("el valor de emisividad seleccionado: {}".format(valorEmisividad))
+        self.threadAdqImg.incDecEmisividad(valorEmisividad)
+
+    def cambiarTransmisividad(self): #funcion para cambiar la transmisividad del ambiente
+        valorTransmisividad = self.valorInTransmisividad.value() / 100
+        print("el valor de transmisividad seleccionado: {}".format(valorTransmisividad))
+        self.threadAdqImg.incDecTransmisividad(valorTransmisividad)
+
+    def cambiarTemperatura(self): #funcion para cambiar la temperatura ambiente
+        textoIngresado = self.valorInTemperatura.text().replace(",",".")
+        if textoIngresado.isnumeric(): #verificamos que sea un numero
+            valorTemp = float(textoIngresado) #leemos del Qlineedit el valor de temperatura
+            print("seleccionamos cambiar temperatura ingresada: {}".format(valorTemp)) #tomamos el valor de temperatura y lo mostramos 
+            self.threadAdqImg.incDecTempAmbiente(valorTemp) #cargamos en el metodo del hilo para cambiar temperatura
+        else:
+            print("el valor ingresado no es un numero") 
+
+#clase cambio los valores de emisividad
+class PopUpWritePresetEmisividadCam(QWidget):
+    def __init__(self, miThreadAdqImagen, imageAdq):
+        #inicializacion
+        super().__init__()
+        #realizamos la configuracion pantalla
+        print("aca realizamos la configuracion")
+        #flag para cerrar ventana y dejar de stremear
+        self.flagdetenerStriming = False
+        #instanci de hilo
+        self.threadAdqImg = miThreadAdqImagen
+        self.setWindowTitle("Write Preset Emisividad")
+        layoutPresetCurrentNew = QVBoxLayout()
+        #set para la imagen
+        self.display_width = 640
+        self.display_height = 480
+        #creamos el label que va a contener la imagen
+        self.image_label_emTmTrCam = QLabel()
+        self.imageCamara = imageAdq.pixmap()
+        self.image_label_emTmTrCam.setPixmap(self.imageCamara)
+        self.image_label_emTmTrCam.resize(self.display_width, self.display_height)
+        #creamos qlabel editable para ingresar el valor de temperatura y un boton para cargar ese valor
+        self.valorInTemperatura =QLineEdit("25.50",self)
+        self.valorInTemperatura.setFixedWidth(40)
+        self.valorInTemperatura.setValidator(QDoubleValidator(0.99,99.99,2))
+        self.valorInTemperatura.setMaxLength(5)
+        self.valorInTemperatura.returnPressed.connect(self.cambiarTemperatura)
+        self.valorInTemperatura.setAlignment(Qt.AlignRight)
+        self.valorInTemperatura.setEnabled(False)
+        #creamos qdobleSpin editable para ingresar el valor de transmisividad entre 0 - 1
+        self.valorInTransmisividad = QDoubleSpinBox(self)
+        self.valorInTransmisividad.setMaximum(100)
+        self.valorInTransmisividad.setMinimum(1)
+        self.valorInTransmisividad.setSingleStep(5)
+        self.valorInTransmisividad.setValue(100)
+        self.valorInTransmisividad.valueChanged.connect(self.cambiarTransmisividad)
+        lineInTransmisividad = self.valorInTransmisividad.lineEdit()
+        lineInTransmisividad.setReadOnly(True)
+        self.valorInTransmisividad.setEnabled(False)
+        #creamos qDobleSpin editable para ingresar el valor de emisividad entre 0 - 1
+        self.valorInEmisividad = QDoubleSpinBox(self)
+        self.valorInEmisividad.setMaximum(1.00)
+        self.valorInEmisividad.setMinimum(0.01)
+        self.valorInEmisividad.setSingleStep(0.01)
+        self.valorInEmisividad.setValue(0.85)
+        self.valorInEmisividad.valueChanged.connect(self.cambiarEmisividad)
+        lineInEmisividad = self.valorInEmisividad.lineEdit()
+        lineInEmisividad.setReadOnly(True)
+        self.valorInEmisividad.setEnabled(True)
+        #creamos el layout
+        layoutEmiTranTemp = QVBoxLayout()
+        layoutEmiTranTemp.addWidget(self.valorInTemperatura)
+        layoutEmiTranTemp.addWidget(self.valorInTransmisividad)
+        layoutEmiTranTemp.addWidget(self.valorInEmisividad)
+        #agregamos los botones de preset acual y cambiado
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelNewPreset = QLabel("New Preset")
+        self.valueNewPreset = QLineEdit("....")
+        self.valueNewPreset.setStyleSheet("border: 2px solid black;")
+        self.labelNewPreset.setBuddy(self.valueNewPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentNew.addWidget(self.image_label_emTmTrCam)
+        layoutPresetCurrentNew.addLayout(layoutEmiTranTemp)
+        layoutPresetCurrentNew.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentNew.addWidget(self.labelNewPreset)
+        layoutPresetCurrentNew.addWidget(self.valueNewPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentNewBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okNewPreset = QPushButton("Update")
+        self.okNewPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelNewPreset = QPushButton("Cancel")
+        self.cancelNewPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelNewPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentNewBotones.addWidget(self.okNewPreset)
+        layoutPresetCurrentNewBotones.addWidget(self.cancelNewPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentNew.addLayout(layoutPresetCurrentNewBotones)
+        self.setLayout(layoutPresetCurrentNew)
+        self.resize(400,20)
+        self.labelNewPreset.setFocus(Qt.NoFocusReason)
+
+    def upDateImage(self, imageAdq):
+        #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
+        #print("aca realizmaos la configuracion de rango de temperatura")
+        imagenCamaraUpDate = imageAdq.pixmap()
+        self.image_label_emTmTrCam.setPixmap(imagenCamaraUpDate)        
+        
+        return self.flagdetenerStriming
+
+    def okUpDatePresetCam(self):
+        #actualico los preset
+        print("ok update")
+
+    def cancelUpDatePresetCam(self):
+        #realizamos la cancelacion de los cambio solicitados
+        print("Cancelar preset a camara")
+        self.flagdetenerStriming = True
+
+    def cerrarPopup(self):
+        #cerrar popup
+        print("cerrar popup")
+        self.close()  
+
+    def cambiarEmisividad(self):
+        valorEmisividad = self.valorInEmisividad.value()
+        print("el valor de emisividad seleccionado: {}".format(valorEmisividad))
+        self.threadAdqImg.incDecEmisividad(valorEmisividad)
+
+    def cambiarTransmisividad(self): #funcion para cambiar la transmisividad del ambiente
+        valorTransmisividad = self.valorInTransmisividad.value() / 100
+        print("el valor de transmisividad seleccionado: {}".format(valorTransmisividad))
+        self.threadAdqImg.incDecTransmisividad(valorTransmisividad)
+
+    def cambiarTemperatura(self): #funcion para cambiar la temperatura ambiente
+        textoIngresado = self.valorInTemperatura.text().replace(",",".")
+        if textoIngresado.isnumeric(): #verificamos que sea un numero
+            valorTemp = float(textoIngresado) #leemos del Qlineedit el valor de temperatura
+            print("seleccionamos cambiar temperatura ingresada: {}".format(valorTemp)) #tomamos el valor de temperatura y lo mostramos 
+            self.threadAdqImg.incDecTempAmbiente(valorTemp) #cargamos en el metodo del hilo para cambiar temperatura
+        else:
+            print("el valor ingresado no es un numero") 
+
 #Clase modelo generico de loggin 
 class PopUpLoggin(QWidget):
     def __init__(self):
@@ -2269,6 +2719,10 @@ class MainWindow(QDialog):
         self.mostrarImagenPopUpCambioPaleta = False
         self.mostrarImagenPopUpManAutPaleta = False
         self.mostrarImagenPopUpLimManPaleta = False
+        self.mostrarImagenPopUpCambioTmpAmb = False
+        self.mostrarImagenPopUpCambioTmdAmb = False
+        self.mostrarImagenPopUpCambioEmisividad = False        
+
         #creamos las variables locales que llevan los calculos
         #de cada roi que son min avg y max
         #rectangulo 1
@@ -3764,7 +4218,7 @@ class MainWindow(QDialog):
         valuePreset3Cam1.setToolTip("Toggle to change Min and Max Limits to Pallete only in Manual Selected")
         #
         #Defino la funcion asociada al set y reset de los presets
-        enablePreset3Cam1 = partial(self.popUpConfiguracionPreset3Cam, valuePreset3Cam1)
+        enablePreset3Cam1 = partial(self.popUpConfiguracionPreset3Cam1, valuePreset3Cam1)
         disablePreset3Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset3Cam1)
         valuePreset3Cam1.stateChanged.connect(lambda x: enablePreset3Cam1() if x else disablePreset3Cam1())
         # 
@@ -3786,7 +4240,7 @@ class MainWindow(QDialog):
         valuePreset4Cam1.setToolTip("Toggle to change type of adjust of limits pallete Manual Automatic Sigma1 Sigma3")
         #
         #Defino la funcion asociada al set y reset de los presets
-        enablePreset4Cam1 = partial(self.popUpConfiguracionPreset4Cam, valuePreset4Cam1)
+        enablePreset4Cam1 = partial(self.popUpConfiguracionPreset4Cam1, valuePreset4Cam1)
         disablePreset4Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset4Cam1)
         valuePreset4Cam1.stateChanged.connect(lambda x: enablePreset4Cam1() if x else disablePreset4Cam1())
         # 
@@ -3808,7 +4262,7 @@ class MainWindow(QDialog):
         valuePreset5Cam1.setToolTip("Toggle to change type of pallete to AlarmBlue-AlarmBlueHi-GrayBW-GrayWB-AlarmGreen-Iron-IronHi-Medical-Rainbow-RainbowHi-AlarmRed")
         #
         #Defino la funcion asociada al set y reset de los presets
-        enablePreset5Cam1 = partial(self.popUpConfiguracionPreset5Cam, valuePreset5Cam1)
+        enablePreset5Cam1 = partial(self.popUpConfiguracionPreset5Cam1, valuePreset5Cam1)
         disablePreset5Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset5Cam1)
         valuePreset5Cam1.stateChanged.connect(lambda x: enablePreset5Cam1() if x else disablePreset5Cam1())
         #
@@ -3830,7 +4284,7 @@ class MainWindow(QDialog):
         valuePreset6Cam1.setToolTip("Toggle to change ambient temperature")
         #
         #Defino la funcion asociada al set y reset de los presets
-        enablePreset6Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset6Cam1)
+        enablePreset6Cam1 = partial(self.popUpConfiguracionPreset6Cam1, valuePreset6Cam1)
         disablePreset6Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset6Cam1)
         valuePreset6Cam1.stateChanged.connect(lambda x: enablePreset6Cam1() if x else disablePreset6Cam1())
         #
@@ -3852,7 +4306,7 @@ class MainWindow(QDialog):
         valuePreset7Cam1.setToolTip("Toggle to change transmisivity of camera")
         #
         #Defino la funcion asociada al set y reset de los presets
-        enablePreset7Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset7Cam1)
+        enablePreset7Cam1 = partial(self.popUpConfiguracionPreset7Cam1, valuePreset7Cam1)
         disablePreset7Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset7Cam1)
         valuePreset7Cam1.stateChanged.connect(lambda x: enablePreset7Cam1() if x else disablePreset7Cam1())
         #
@@ -3874,7 +4328,7 @@ class MainWindow(QDialog):
         valuePreset8Cam1.setToolTip("Toggle to change emisivity of object")
         #
         #Defino la funcion asociada al set y reset de los presets
-        enablePreset8Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset8Cam1)
+        enablePreset8Cam1 = partial(self.popUpConfiguracionPreset8Cam1, valuePreset8Cam1)
         disablePreset8Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset8Cam1)
         valuePreset8Cam1.stateChanged.connect(lambda x: enablePreset8Cam1() if x else disablePreset8Cam1())
         #
@@ -4628,6 +5082,25 @@ class MainWindow(QDialog):
             if flagDetenerRango == True:
                 self.mostrarImagenPopUpCambioPaleta = False
                 self.configuracionPaleta.cerrarPopup()
+
+        if self.mostrarImagenPopUpCambioTmpAmb == True:
+            flagDetenerRango = self.configuracionTmp.upDateImage(self.image_label)
+            if flagDetenerRango == True:
+                self.mostrarImagenPopUpCambioTmpAmb = False
+                self.configuracionTmp.cerrarPopup()
+        
+        if self.mostrarImagenPopUpCambioTmdAmb == True:
+            flagDetenerRango = self.configuracionTmd.upDateImage(self.image_label)
+            if flagDetenerRango == True:
+                self.mostrarImagenPopUpCambioTmdAmb = False
+                self.configuracionTmd.cerrarPopup()
+        
+        if self.mostrarImagenPopUpCambioEmisividad == True:
+            flagDetenerRango = self.configuracionEmi.upDateImage(self.image_label)
+            if flagDetenerRango == True:
+                self.mostrarImagenPopUpCambioEmisividad = False
+                self.configuracionEmi.cerrarPopup()
+        
     #cargo la imagen en formato pixmap en el viewer
     #self.viewCam1.setPixmap(qt_img)
     def convert_cv_qt(self, cv_img):
@@ -5129,6 +5602,7 @@ class MainWindow(QDialog):
             self.configuracionFoco.show()
             print("mostramos popup ajuste de foco")
             self.mostrarImagenPopUpCambioFoco = True
+    
     def popUpConfiguracionPreset2Cam1(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
@@ -5136,14 +5610,16 @@ class MainWindow(QDialog):
             self.configuracionRango.show()
             print("mostramos popup ajuste de rango")
             self.mostrarImagenPopUpCambioRango = True
-    def popUpConfiguracionPreset3Cam(self, checkbox):
+    
+    def popUpConfiguracionPreset3Cam1(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
             self.configuracionLimManPaleta = PopUpWritePresetLimManualPalleteCam(self.thread, self.image_label)
             self.configuracionLimManPaleta.show()
             print("mostramos popup ajuste de rango")
             self.mostrarImagenPopUpLimManPaleta = True
-    def popUpConfiguracionPreset4Cam(self, checkbox):
+    
+    def popUpConfiguracionPreset4Cam1(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
             self.configuracionManAutPaleta = PopUpWritePresetAutoManPalleteCam(self.thread, self.image_label)
@@ -5151,13 +5627,37 @@ class MainWindow(QDialog):
             print("mostramos popup cambio de paleta")
             self.mostrarImagenPopUpManAutPaleta = True
 
-    def popUpConfiguracionPreset5Cam(self, checkbox):
+    def popUpConfiguracionPreset5Cam1(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
             self.configuracionPaleta = PopUpWritePresetPalleteCam(self.thread, self.image_label)
             self.configuracionPaleta.show()
             print("mostramos popup cambio de paleta")
             self.mostrarImagenPopUpCambioPaleta = True
+    
+    def popUpConfiguracionPreset6Cam1(self, checkbox):
+        if checkbox.isChecked() == True:
+            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+            self.configuracionTmp = PopUpWritePresetTempAmbienteCam(self.thread, self.image_label)
+            self.configuracionTmp.show()
+            print("mostramos popup cambio de temperatura")
+            self.mostrarImagenPopUpCambioTmpAmb = True
+
+    def popUpConfiguracionPreset7Cam1(self, checkbox):
+        if checkbox.isChecked() == True:
+            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+            self.configuracionTmd = PopUpWritePresetTransmisividadCam(self.thread, self.image_label)
+            self.configuracionTmd.show()
+            print("mostramos popup cambio de transmisividad")
+            self.mostrarImagenPopUpCambioTmdAmb = True
+    
+    def popUpConfiguracionPreset8Cam1(self, checkbox):
+        if checkbox.isChecked() == True:
+            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de emisividad 
+            self.configuracionEmi = PopUpWritePresetEmisividadCam(self.thread, self.image_label)
+            self.configuracionEmi.show()
+            print("mostramos popup cambio de emisividad")
+            self.mostrarImagenPopUpCambioEmisividad = True
 
     def popUpRestartConfiguracionPresetCam1(self, checkbox):
         print("reset preset seleccion en camara 1")
