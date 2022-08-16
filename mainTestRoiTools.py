@@ -2722,7 +2722,8 @@ class MainWindow(QDialog):
         self.mostrarImagenPopUpCambioTmpAmb = False
         self.mostrarImagenPopUpCambioTmdAmb = False
         self.mostrarImagenPopUpCambioEmisividad = False        
-
+        #creamos un flag para indicar que solo se stremea informacion a la pantalla de record
+        self.mostrarImagenPantallaRecorded = False
         #creamos las variables locales que llevan los calculos
         #de cada roi que son min avg y max
         #rectangulo 1
@@ -3911,6 +3912,94 @@ class MainWindow(QDialog):
         #la imagen de la izquierda es la seleccion de historico 1 y la de la derecha la seleccion de historico 2
         #cada unos de los historicos ya sea el 1 o el 2 se pueden seleccionar de la camara 1 - camara 2 - camara 3
         #asi se pueden analizar imagenes cruzadas. Combinacion de analisis de imagenes historicas
+        #creamos el qwidget que va a contener los elementos de cam online
+        elementosIzqImagenOnlineRecord = QWidget()
+        #elementosIzqImagenOnlineRecord.resize(640,640)
+        #creamos el layoutvertical para la coluimna de online
+        layoutVerBanerCamOnline = QVBoxLayout()
+        #geneero una tercer columna de informacion para la imagen a ser grabada
+        textEditTab4BotonSelOnlineCam = QLabel()
+        textEditTab4BotonSelOnlineCam.setText("Sel Online Cam: ")
+        #selector de camara online
+        self.camComboOnline = CamComboBox(self)
+        self.camComboOnline.popupAboutToBeShown.connect(self.populateCamComboOnline)
+        #seteo el buddy
+        textEditTab4BotonSelOnlineCam.setBuddy(self.camComboOnline)
+        self.camComboOnline.setToolTip("selection of online camera")
+        #armo el layout horizontal del banner
+        layoutHorBannerCamOnline = QHBoxLayout()
+        layoutHorBannerCamOnline.addWidget(textEditTab4BotonSelOnlineCam)
+        layoutHorBannerCamOnline.addWidget(self.camComboOnline)
+        #armo un label para contener la imagen
+        self.labelImagenOnlineRecorder_width = 640
+        self.labelImagenOnlinerecorder_height = 480
+        #creamos el label para contener la imagen
+        self.labelImagenOnlineRecorder = QLabel(self)
+        self.labelImagenOnlineRecorder.resize(self.labelImagenOnlineRecorder_width, self.labelImagenOnlinerecorder_height)
+        #agregamos al baner vertical la imagen y el boton de seleccion
+        layoutVerBanerCamOnline.addLayout(layoutHorBannerCamOnline)
+        layoutVerBanerCamOnline.addWidget(self.labelImagenOnlineRecorder)
+        #agregamos los botones
+        self.playImageOnline = QPushButton("Play")
+        self.playImageOnline.clicked.connect(self.playMostrarImageOnline)
+        self.playImageOnline.setEnabled(True)
+        self.stopImagenOnline = QPushButton("Stop")
+        self.stopImagenOnline.clicked.connect(self.stopMostrarImagenOnline)
+        self.stopImagenOnline.setEnabled(False)
+        self.recordImagenOnline = QPushButton("Record Start")
+        self.recordImagenOnline.clicked.connect(self.startRecordImagenOnline)
+        self.recordImagenOnline.setEnabled(False)
+        self.newFolderImagenOnline = QPushButton("New Folder")
+        self.newFolderImagenOnline.clicked.connect(self.createNewFolderImagenOnline)
+        self.newFolderImagenOnline.setEnabled(True)
+        self.moveFileImagenOnline = QPushButton("Move File")
+        self.moveFileImagenOnline.clicked.connect(self.makeMoveFileImagenOnline)
+        self.moveFileImagenOnline.setEnabled(True)
+        self.noRecordImagenOnline = QPushButton("Record Stop")
+        self.noRecordImagenOnline.clicked.connect(self.stopRecordImagenOnline)
+        self.noRecordImagenOnline.setEnabled(False)
+        self.renameFileImagenOnline = QPushButton("Rename File")
+        self.renameFileImagenOnline.clicked.connect(self.makeRenameFileImagenOnline)
+        self.renameFileImagenOnline.setEnabled(True)
+        self.editFileImagenOnline = QPushButton("Edit File")
+        self.editFileImagenOnline.clicked.connect(self.makeEditFileImagenOnline)
+        self.editFileImagenOnline.setEnabled(True)
+        self.deleteFileImagenOnline = QPushButton("Delete File")
+        self.deleteFileImagenOnline.clicked.connect(self.makeDeleteFileImagenOnline)
+        self.deleteFileImagenOnline.setEnabled(True)
+        self.snapshotImagenOnline = QPushButton("Snapshot Image")
+        self.snapshotImagenOnline.clicked.connect(self.makeSnapshotImagenOnline)
+        self.snapshotImagenOnline.setEnabled(False)
+        self.botonLibre1ImagenOnline = QPushButton("Libre")
+        self.botonLibre1ImagenOnline.setEnabled(False)
+        self.botonLibre2ImagenOnline = QPushButton("Libre")
+        self.botonLibre2ImagenOnline.setEnabled(False)
+        self.botonLibre3ImagenOnline = QPushButton("Libre")
+        self.botonLibre3ImagenOnline.setEnabled(False)
+        self.botonLibre4ImagenOnline = QPushButton("Libre")
+        self.botonLibre4ImagenOnline.setEnabled(False)
+        #creamos el grid layour
+        layoutGridBotonesImagenOnline = QGridLayout()
+        layoutGridBotonesImagenOnline.addWidget( self.playImageOnline, 0, 0)
+        layoutGridBotonesImagenOnline.addWidget( self.stopImagenOnline, 0, 1)
+        layoutGridBotonesImagenOnline.addWidget( self.recordImagenOnline, 0, 2)
+        layoutGridBotonesImagenOnline.addWidget( self.newFolderImagenOnline, 0, 3)
+        layoutGridBotonesImagenOnline.addWidget( self.moveFileImagenOnline, 0, 4)
+        layoutGridBotonesImagenOnline.addWidget( self.botonLibre1ImagenOnline, 0, 5)
+        layoutGridBotonesImagenOnline.addWidget( self.botonLibre3ImagenOnline, 0, 6)
+        layoutGridBotonesImagenOnline.addWidget( self.noRecordImagenOnline, 1, 0)
+        layoutGridBotonesImagenOnline.addWidget( self.renameFileImagenOnline, 1, 1)
+        layoutGridBotonesImagenOnline.addWidget( self.editFileImagenOnline, 1, 2)
+        layoutGridBotonesImagenOnline.addWidget( self.deleteFileImagenOnline, 1, 3)
+        layoutGridBotonesImagenOnline.addWidget(self.snapshotImagenOnline, 1, 4)
+        layoutGridBotonesImagenOnline.addWidget(self.botonLibre2ImagenOnline, 1, 5)
+        layoutGridBotonesImagenOnline.addWidget(self.botonLibre4ImagenOnline, 1, 6)
+        #agregamos el grid layout al layout vertical
+        layoutVerBanerCamOnline.addLayout(layoutGridBotonesImagenOnline)
+        elementosIzqImagenOnlineRecord.setLayout(layoutVerBanerCamOnline)
+        
+        
+        
         #agrego la grafica para la ventana de historicos de la izquierda el grafico de curvas
         graficoHistoricoIzq = MplCanvas(self, width=2, height=2, dpi=100)
         #genero un dataframe de prueba para los historicos de la izquierda
@@ -4146,6 +4235,8 @@ class MainWindow(QDialog):
         subHistory2VBox.addWidget(subWindowHistory2CamSubH)
         subWindowHistory1Cam.setLayout(subHistory1VBox) #selecciono el layout vertical 1 para el widget history cam 1
         subWindowHistory2Cam.setLayout(subHistory2VBox) #selecciono el layout vertical 2 para el widget history cam 2       
+        #agregamos el layout vertical
+        tab4BotonHBox.addWidget(elementosIzqImagenOnlineRecord)
         tab4BotonHBox.addWidget(subWindowHistory1Cam) #agrego al layout horizontal pricipal el widget vertical 1
         tab4BotonHBox.addWidget(subWindowHistory2Cam) #agrego al layout horizontal principal el widget vertical 2
         tab4Boton.setLayout(tab4BotonHBox) #selecciono el layout horizontal principal para el widget del tab historicos
@@ -4848,6 +4939,55 @@ class MainWindow(QDialog):
         self.setLayout(mainLayout)
  
     #***************************************************
+    #funciones asociadas a los botones de guardado de imagenes
+    def playMostrarImageOnline(self):
+        print("play")
+        self.mostrarImagenPantallaRecorded = True
+        #habilito los controles permitidos en la adquisicion
+        self.playImageOnline.setEnabled(False)
+        self.stopImagenOnline.setEnabled(True)
+        self.recordImagenOnline.setEnabled(True)
+        self.newFolderImagenOnline.setEnabled(False)
+        self.moveFileImagenOnline.setEnabled(False)
+        self.noRecordImagenOnline.setEnabled(False)
+        self.renameFileImagenOnline.setEnabled(False)
+        self.editFileImagenOnline.setEnabled(False)
+        self.deleteFileImagenOnline.setEnabled(False)
+        self.snapshotImagenOnline.setEnabled(True)
+    def stopMostrarImagenOnline(self):
+        print("stop")
+        self.mostrarImagenPantallaRecorded = False
+        #habilito los controles permitidos en la no adquisicion
+        self.playImageOnline.setEnabled(True)
+        self.stopImagenOnline.setEnabled(False)
+        self.recordImagenOnline.setEnabled(False)
+        self.newFolderImagenOnline.setEnabled(True)
+        self.moveFileImagenOnline.setEnabled(True)
+        self.noRecordImagenOnline.setEnabled(False)
+        self.renameFileImagenOnline.setEnabled(True)
+        self.editFileImagenOnline.setEnabled(True)
+        self.deleteFileImagenOnline.setEnabled(True)
+        self.snapshotImagenOnline.setEnabled(False)
+    def startRecordImagenOnline(self):
+        print("start record")
+        self.recordImagenOnline.setEnabled(False)
+        self.noRecordImagenOnline.setEnabled(True)
+    def createNewFolderImagenOnline(self):
+        print("new folder")
+    def makeMoveFileImagenOnline(self):
+        print("move file")
+    def stopRecordImagenOnline(self):
+        print("rename file")
+        self.recordImagenOnline.setEnabled(True)
+        self.noRecordImagenOnline.setEnabled(False)
+    def makeRenameFileImagenOnline(self):
+        print("rename file")
+    def makeEditFileImagenOnline(self):
+        print("edit image")
+    def makeDeleteFileImagenOnline(self):
+        print("delete file")
+    def makeSnapshotImagenOnline(self):
+        print("snapshot image")
     #***************************************************
     #funcion para obtener estampa de tiempo actual
     def now(self, x):
@@ -5048,59 +5188,67 @@ class MainWindow(QDialog):
             self.textEditTab1Boton.setText("Camara Desconectada")
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
-        """Updates the image_label with a new opencv image"""
-        qt_img = self.convert_cv_qt(cv_img)
-        self.image_label.setPixmap(qt_img)
-        if self.mostrarImagenPopUpCambioFoco == True: #en el caso de que este flag activo strimeo a la popup de ajuste de foco
-            #print("enviando imagen a popup")
-            flagDetenerFoco = self.configuracionFoco.upDateImage(self.image_label)
-            if flagDetenerFoco == True:
-                self.mostrarImagenPopUpCambioFoco = False
-                self.configuracionFoco.cerrarPopup()
+        #mostrar informacion en recorder
+        if self.mostrarImagenPantallaRecorded == True:
+            print("stremin pantalla recorded")
+            qt_img = self.convert_cv_qt(cv_img)
+            self.labelImagenOnlineRecorder.setPixmap(qt_img)
+        else:            
+            #mostrar informacion en pantalla principal
+            """Updates the image_label with a new opencv image"""
+            qt_img = self.convert_cv_qt(cv_img)
+            self.image_label.setPixmap(qt_img)
+            #mostrar informacion en pantalla de popups
+            if self.mostrarImagenPopUpCambioFoco == True: #en el caso de que este flag activo strimeo a la popup de ajuste de foco
+                #print("enviando imagen a popup")
+                flagDetenerFoco = self.configuracionFoco.upDateImage(self.image_label)
+                if flagDetenerFoco == True:
+                    self.mostrarImagenPopUpCambioFoco = False
+                    self.configuracionFoco.cerrarPopup()
 
-        if self.mostrarImagenPopUpCambioRango == True:
-            flagDetenerRango = self.configuracionRango.upDateImage(self.image_label)
-            if flagDetenerRango == True:
-                self.mostrarImagenPopUpCambioRango = False
-                self.configuracionRango.cerrarPopup()
+            if self.mostrarImagenPopUpCambioRango == True:
+                flagDetenerRango = self.configuracionRango.upDateImage(self.image_label)
+                if flagDetenerRango == True:
+                    self.mostrarImagenPopUpCambioRango = False
+                    self.configuracionRango.cerrarPopup()
 
-        if self.mostrarImagenPopUpLimManPaleta == True:
-            flagDetenerRango = self.configuracionLimManPaleta.upDateImage(self.image_label)
-            if flagDetenerRango == True:
-                print("stop streaming")
-                self.mostrarImagenPopUpLimManPaleta = False
-                self.configuracionLimManPaleta.cerrarPopup()
+            if self.mostrarImagenPopUpLimManPaleta == True:
+                flagDetenerRango = self.configuracionLimManPaleta.upDateImage(self.image_label)
+                if flagDetenerRango == True:
+                    print("stop streaming")
+                    self.mostrarImagenPopUpLimManPaleta = False
+                    self.configuracionLimManPaleta.cerrarPopup()
 
-        if self.mostrarImagenPopUpManAutPaleta == True:
-            flagDetenerRango = self.configuracionManAutPaleta.upDateImage(self.image_label)
-            if flagDetenerRango == True:
-                self.mostrarImagenPopUpManAutPaleta = False
-                self.configuracionManAutPaleta.cerrarPopup()
+            if self.mostrarImagenPopUpManAutPaleta == True:
+                flagDetenerRango = self.configuracionManAutPaleta.upDateImage(self.image_label)
+                if flagDetenerRango == True:
+                    self.mostrarImagenPopUpManAutPaleta = False
+                    self.configuracionManAutPaleta.cerrarPopup()
 
-        if self.mostrarImagenPopUpCambioPaleta == True:
-            flagDetenerRango = self.configuracionPaleta.upDateImage(self.image_label)
-            if flagDetenerRango == True:
-                self.mostrarImagenPopUpCambioPaleta = False
-                self.configuracionPaleta.cerrarPopup()
+            if self.mostrarImagenPopUpCambioPaleta == True:
+                flagDetenerRango = self.configuracionPaleta.upDateImage(self.image_label)
+                if flagDetenerRango == True:
+                    self.mostrarImagenPopUpCambioPaleta = False
+                    self.configuracionPaleta.cerrarPopup()
 
-        if self.mostrarImagenPopUpCambioTmpAmb == True:
-            flagDetenerRango = self.configuracionTmp.upDateImage(self.image_label)
-            if flagDetenerRango == True:
-                self.mostrarImagenPopUpCambioTmpAmb = False
-                self.configuracionTmp.cerrarPopup()
-        
-        if self.mostrarImagenPopUpCambioTmdAmb == True:
-            flagDetenerRango = self.configuracionTmd.upDateImage(self.image_label)
-            if flagDetenerRango == True:
-                self.mostrarImagenPopUpCambioTmdAmb = False
-                self.configuracionTmd.cerrarPopup()
-        
-        if self.mostrarImagenPopUpCambioEmisividad == True:
-            flagDetenerRango = self.configuracionEmi.upDateImage(self.image_label)
-            if flagDetenerRango == True:
-                self.mostrarImagenPopUpCambioEmisividad = False
-                self.configuracionEmi.cerrarPopup()
-        
+            if self.mostrarImagenPopUpCambioTmpAmb == True:
+                flagDetenerRango = self.configuracionTmp.upDateImage(self.image_label)
+                if flagDetenerRango == True:
+                    self.mostrarImagenPopUpCambioTmpAmb = False
+                    self.configuracionTmp.cerrarPopup()
+            
+            if self.mostrarImagenPopUpCambioTmdAmb == True:
+                flagDetenerRango = self.configuracionTmd.upDateImage(self.image_label)
+                if flagDetenerRango == True:
+                    self.mostrarImagenPopUpCambioTmdAmb = False
+                    self.configuracionTmd.cerrarPopup()
+            
+            if self.mostrarImagenPopUpCambioEmisividad == True:
+                flagDetenerRango = self.configuracionEmi.upDateImage(self.image_label)
+                if flagDetenerRango == True:
+                    self.mostrarImagenPopUpCambioEmisividad = False
+                    self.configuracionEmi.cerrarPopup()
+            
     #cargo la imagen en formato pixmap en el viewer
     #self.viewCam1.setPixmap(qt_img)
     def convert_cv_qt(self, cv_img):
@@ -5942,7 +6090,15 @@ class MainWindow(QDialog):
         self.roiSelComboDer.setItemIcon(6, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roiSelComboDer.setItemIcon(7, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roiSelComboDer.setItemIcon(8, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
-    
+    #Defino la funcion asociada a la seleccion de camaras online
+    def populateCamComboOnline(self):
+        
+        if not self.camComboOnline.count():
+            self.camComboOnline.addItems(['cam1', 'cam2', 'cam3'])
+        #agregamos los iconos para cada camara
+        self.camComboOnline.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons", "camera-lens.png")))
+        self.camComboOnline.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons", "camera-lens.png")))
+        self.camComboOnline.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons", "camera-lens.png")))
     #Defino la funcion asociada a la seleccion de camaras 1
     def populateCamCombo1(self):
         
