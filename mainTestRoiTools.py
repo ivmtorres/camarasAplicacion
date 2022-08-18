@@ -4003,6 +4003,8 @@ class MainWindow(QDialog):
         #creamos el qwidget que va a contener los elementos de cam online
         elementosIzqImagenOnlineRecord = QWidget()
         #elementosIzqImagenOnlineRecord.resize(640,640)
+        #cramos el widget para contener el banner
+        self.selCamaraOnlineHistoricos = QWidget()
         #creamos el layoutvertical para la coluimna de online
         layoutVerBanerCamOnline = QVBoxLayout()
         #geneero una tercer columna de informacion para la imagen a ser grabada
@@ -4021,6 +4023,13 @@ class MainWindow(QDialog):
         #armo un label para contener la imagen
         self.labelImagenOnlineRecorder_width = 640
         self.labelImagenOnlinerecorder_height = 480
+        #agregamos el layout al banner para la camara online. Esta tomando la mitad del espacio
+        #tenemos que ver bien como generar un tamaño fijo. similar al de los otros dos layouts 
+        #de la misma pantalla. En los otros dos layouts tenemos definido el tamaño por el tamaño 
+        #de  las imagenes pero en este layout no es asi. Vamos a tener que trabajar para poder 
+        #definirlo de esa forma. Por ahora sacamos el widget contenedor y agregamos el layout 
+        #directamente al widget general de camara online historico
+        #self.selCamaraOnlineHistoricos.setLayout(layoutHorBannerCamOnline)
         #creamos el label para contener la imagen
         self.labelImagenOnlineRecorder = QLabel(self)
         self.labelImagenOnlineRecorder.resize(self.labelImagenOnlineRecorder_width, self.labelImagenOnlinerecorder_height)
@@ -4066,6 +4075,7 @@ class MainWindow(QDialog):
         self.deleteFileImagenOnline.setEnabled(True)
         self.snapshotImagenOnline = QPushButton("Snapshot Image")
         self.snapshotImagenOnline.clicked.connect(self.makeSnapshotImagenOnline)
+        self.snapshotImagenOnline.setIcon(QIcon(os.path.join(basedir, "appIcons", "camera--plus.png")))
         self.snapshotImagenOnline.setEnabled(False)
         self.botonLibre1ImagenOnline = QPushButton("Libre")
         self.botonLibre1ImagenOnline.setEnabled(False)
