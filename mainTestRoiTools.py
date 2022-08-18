@@ -1,6 +1,7 @@
 
 from email.mime import image
 from functools import partial
+import gzip
 from threading import Thread
 from time import sleep, time
 from PyQt5 import QtGui, QtCore,QtWidgets
@@ -54,10 +55,14 @@ import cv2
 import os
 import random
 from matplotlib import pyplot as plt
-
 import datetime
+import asyncio
+import aiofiles
+import aiofiles.os
+import queue
 
-
+_sentinelStopThread = object() #objeto para indicar que los hilos deben detenerse
+_sentinelArrayImgSeparator = object() #objeto para indicar separador entre imagenes
 #direccion base para los archivos de imagen
 basedir = os.path.dirname(__file__)
 #detecto si se cargo la imagen
@@ -67,6 +72,84 @@ try:
     winddl.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
+#******************Declaro las funciones asincronicas*******************
+ #creamos la funcion para generar un directorio asincronico
+#esto definiendo un nombre en el raiz del programa genera 
+#una carpeta.
+async def crearDirectorioAsincronico():
+    returnQuery = await aiofiles.os.path.isdir('tmp')
+    #si no existe lo va a crear asincronicamente
+    await aiofiles.os.makedirs('tmp', exist_ok=True)
+#definimos una funcion para editar asincronicamente los archivos
+#con esto lo que buscamos es generar una imagen con anotaciones
+#de nuevo en la version final vamos a mostrar la lista de imagenes
+#y luego seleccionamos una para modificarla y guardarla
+async def modificarArchivoAsincronico():
+    #creamos una rachivo para escritura y le cargamos un contenido
+    async with aiofiles.open('test_write.txt', mode='w') as handle:
+        await handle.write('hello aplicacion de imagenes!')
+#definimos la funcion para leer contenido asincronico
+#aca debemos mostrar la lista de archivos de imagenes y dar la
+#posibilidad de seleccionar la misma. 
+#la imagen es doble es decir la imagen en temperatura y la imagen
+#en paleta de colores. Nosotros mostramos la imagen en temepratura
+#y dejamos la imagen en paleta de colores. 
+#esta parte del codigo es solo de pruebas en la version final 
+#debemos usar la lista de imagenees 
+async def leerContenidoAsincronico():
+    #leemos el contenido del archivo
+    async with aiofiles.open('test_write.txt', mode='r') as handle:
+        data = await handle.read()        
+    print(f'Read {len(data)} bytes')
+#definimos la funcion asincronica para borrar archivos. Borramos
+#un archivo existente esta funcion es solo de prueba 
+#la version correcta debe mostrar una lista de archivos y permitir
+#seleccionar el archivo a borrar
+async def borrarArchivoAsincronico():
+    #creamos para prueba un archivo y lo borramos esto debrmoes reemplazarlo 
+    async with aiofiles.open("files_delete.txt", mode='x') as handle:
+        handle.close()
+    #borramos el archivo creado en la linea de arriba
+    await aiofiles.os.remove("files_delete.txt")
+#definimos las funciones asincronicas para el guardado de archivos
+async def renombrarArchivoAsincronico():
+    returnQuery = await aiofiles.os.path.isfile('files_rename.txt')
+    if not returnQuery:
+        #esta funcion es de prueba para esto genera un archivo y lo renombra
+        #tomar en cuenta que esto lo podemos hacer solo de prueba en la version
+        #final debemos mostrar la lista de archivos que podriamos querer renombrar
+        #luego realizamos la seleccion de aca 
+        async with aiofiles.open("files_rename.txt", mode='x') as handle:
+            handle.close()
+        #renombramos el arhivo
+        returnQuery1 = await aiofiles.os.path.isfile('files_rename1.txt')
+        #si no existe tira falla
+        if not returnQuery1:
+            await aiofiles.os.rename("files_rename.txt", "files_rename1.txt")
+#**********************************************************************************
+#defino funcion para el guardado de archivos
+def saveQueueImageInDisk(args):
+    while True:
+        print("guardado de datos sincronico")
+        datoAcumulado = np.array([])
+        i = 0
+        while True:
+            token = args.get()
+            i += 1
+            nameFile = random.random()
+            if i >= 30:
+                f = gzip.GzipFile(str(nameFile) + ".npy.gz", "w")
+                np.save(file=f, arr=datoAcumulado)
+                f.close()
+                break
+            if token is _sentinelStopThread:
+                #finalizo el hilo
+                break
+            datoAcumulado = np.append(datoAcumulado, _sentinelArrayImgSeparator)
+            datoAcumulado = np.append(datoAcumulado, token.astype(int))
+        if token is _sentinelStopThread:
+            #finalizo el hilo
+            break
 #***************************************************
 #clase para herramientas de imagen
 class TestImage(QLabel):
@@ -2712,8 +2795,13 @@ class ProfileComboBox(QComboBox):
         super(ProfileComboBox, self).showPopup()        
 #Clase principal
 class MainWindow(QDialog):
+   
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
+        #creo la cola de datos
+        self.queueDatosOrigen = queue.Queue()
+        self.flagQueueReady = False
+        #flags para manejo de aplicacion
         self.mostrarImagenPopUpCambioFoco = False #indicamos al hilo de adquisicion en la signal emitida que muestre la imagen
         self.mostrarImagenPopUpCambioRango = False #utilizamos este flag para indicar si debe stremear la imagen a la popup de configuracion de rango de temperatura
         self.mostrarImagenPopUpCambioPaleta = False
@@ -3942,30 +4030,39 @@ class MainWindow(QDialog):
         #agregamos los botones
         self.playImageOnline = QPushButton("Play")
         self.playImageOnline.clicked.connect(self.playMostrarImageOnline)
+        self.playImageOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","control.png")))
         self.playImageOnline.setEnabled(True)
         self.stopImagenOnline = QPushButton("Stop")
         self.stopImagenOnline.clicked.connect(self.stopMostrarImagenOnline)
+        self.stopImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","control-stop-square.png")))
         self.stopImagenOnline.setEnabled(False)
         self.recordImagenOnline = QPushButton("Record Start")
         self.recordImagenOnline.clicked.connect(self.startRecordImagenOnline)
-        self.recordImagenOnline.setEnabled(False)
+        self.recordImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","control-record.png")))
+        self.recordImagenOnline.setEnabled(False)        
         self.newFolderImagenOnline = QPushButton("New Folder")
         self.newFolderImagenOnline.clicked.connect(self.createNewFolderImagenOnline)
+        self.newFolderImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","newspaper--plus.png")))
         self.newFolderImagenOnline.setEnabled(True)
         self.moveFileImagenOnline = QPushButton("Move File")
         self.moveFileImagenOnline.clicked.connect(self.makeMoveFileImagenOnline)
+        self.moveFileImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","document-move.png")))
         self.moveFileImagenOnline.setEnabled(True)
         self.noRecordImagenOnline = QPushButton("Record Stop")
         self.noRecordImagenOnline.clicked.connect(self.stopRecordImagenOnline)
+        self.noRecordImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","control-pause-record.png")))
         self.noRecordImagenOnline.setEnabled(False)
         self.renameFileImagenOnline = QPushButton("Rename File")
         self.renameFileImagenOnline.clicked.connect(self.makeRenameFileImagenOnline)
+        self.renameFileImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","document-rename.png")))
         self.renameFileImagenOnline.setEnabled(True)
         self.editFileImagenOnline = QPushButton("Edit File")
         self.editFileImagenOnline.clicked.connect(self.makeEditFileImagenOnline)
+        self.editFileImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons", "edit-image.png")))
         self.editFileImagenOnline.setEnabled(True)
         self.deleteFileImagenOnline = QPushButton("Delete File")
         self.deleteFileImagenOnline.clicked.connect(self.makeDeleteFileImagenOnline)
+        self.deleteFileImagenOnline.setIcon(QIcon(os.path.join(basedir, "appIcons", "node-delete-previous.png") ))
         self.deleteFileImagenOnline.setEnabled(True)
         self.snapshotImagenOnline = QPushButton("Snapshot Image")
         self.snapshotImagenOnline.clicked.connect(self.makeSnapshotImagenOnline)
@@ -4953,7 +5050,7 @@ class MainWindow(QDialog):
         self.renameFileImagenOnline.setEnabled(False)
         self.editFileImagenOnline.setEnabled(False)
         self.deleteFileImagenOnline.setEnabled(False)
-        self.snapshotImagenOnline.setEnabled(True)
+        self.snapshotImagenOnline.setEnabled(True)        
     def stopMostrarImagenOnline(self):
         print("stop")
         self.mostrarImagenPantallaRecorded = False
@@ -4972,22 +5069,43 @@ class MainWindow(QDialog):
         print("start record")
         self.recordImagenOnline.setEnabled(False)
         self.noRecordImagenOnline.setEnabled(True)
+        #cargamos la funcion que guarda en el  hilo de guardado de imagen
+        threads = []
+        for n in range(2):
+            t = Thread(target=saveQueueImageInDisk, args=(self.queueDatosOrigen,))
+            t.start()
+            threads.append(t)
+        #notifico que se debe cargar la queue
+        self.flagQueueReady = True
     def createNewFolderImagenOnline(self):
         print("new folder")
+        asyncio.run(crearDirectorioAsincronico())
     def makeMoveFileImagenOnline(self):
         print("move file")
+        #no implementamos la funcion porque en el so de windows 
+        #no nos esta permitiendo realizarla
     def stopRecordImagenOnline(self):
-        print("rename file")
+        print("detener record file")
         self.recordImagenOnline.setEnabled(True)
         self.noRecordImagenOnline.setEnabled(False)
+        #detenemos el flag de guardar archivo
+        self.flagQueueReady = False #indico que no encole mas imagenes
+        for i in range(2):
+            self.queueDatosOrigen.put(_sentinelStopThread)
+        print(i)
     def makeRenameFileImagenOnline(self):
         print("rename file")
+        asyncio.run(renombrarArchivoAsincronico())
     def makeEditFileImagenOnline(self):
         print("edit image")
+        asyncio.run(modificarArchivoAsincronico())
     def makeDeleteFileImagenOnline(self):
         print("delete file")
+        asyncio.run(borrarArchivoAsincronico())
     def makeSnapshotImagenOnline(self):
         print("snapshot image")
+        #leemos el contenido
+        asyncio.run(leerContenidoAsincronico())
     #***************************************************
     #funcion para obtener estampa de tiempo actual
     def now(self, x):
@@ -5192,7 +5310,7 @@ class MainWindow(QDialog):
         if self.mostrarImagenPantallaRecorded == True:
             print("stremin pantalla recorded")
             qt_img = self.convert_cv_qt(cv_img)
-            self.labelImagenOnlineRecorder.setPixmap(qt_img)
+            self.labelImagenOnlineRecorder.setPixmap(qt_img)                
         else:            
             #mostrar informacion en pantalla principal
             """Updates the image_label with a new opencv image"""
@@ -5262,378 +5380,382 @@ class MainWindow(QDialog):
     #***************************************************
     @pyqtSlot(np.ndarray)
     def thermal_image(self, thermal_img):
-        ancho = self.scrollArea.escalaImagen[0]#['ancho']#self.image_label.size().width()
-        alto = self.scrollArea.escalaImagen[1]#['alto']#self.image_label.size().height()
-        thermal_img = np.resize(thermal_img,(alto,ancho))
-        #thermal_imgMirror = thermal_img
-        #thermal_imgMirror = np.resize(thermal_imgMirror,(alto,ancho))
-        #Leer la lista de rectangulos 
-        #tengo que identificar el tamaño de la Roi rectangulo con su height and width si es mayor a 1 puedo extraer esa zona de la imagen
-        rect0PosX = self.scrollArea.listaRects[0].x()
-        rect0PosY = self.scrollArea.listaRects[0].y()
-        rect0Width = self.scrollArea.listaRects[0].width()
-        rect0Height = self.scrollArea.listaRects[0].height()        
-        #****
-        rect1PosX = self.scrollArea.listaRects[1].x()
-        rect1PosY = self.scrollArea.listaRects[1].y()
-        rect1Width = self.scrollArea.listaRects[1].width()
-        rect1Height = self.scrollArea.listaRects[1].height()
-        #tengo que identificar el tamaño de la Roi recta con la distancia entre el punto 0 y el punto 1 es mayor a 1 puedo extraer esa zona de la imagen
-        line0PosX1 = self.scrollArea.listaLineas[0].x1()
-        line0PosY1 = self.scrollArea.listaLineas[0].y1()
-        line0PosX2 = self.scrollArea.listaLineas[0].x2()
-        line0PosY2 = self.scrollArea.listaLineas[0].y2()
-        #****
-        line1PosX1 = self.scrollArea.listaLineas[1].x1()
-        line1PosY1 = self.scrollArea.listaLineas[1].y1()
-        line1PosX2 = self.scrollArea.listaLineas[1].x2()
-        line1PosY2 = self.scrollArea.listaLineas[1].y2()
-        #tengo que identificar el tamaño de la Roi elipse con width y el height si es mayor a 1 puedo extraer esa zona de la imagen
-        elipse0PosX = self.scrollArea.listaElipses[0].x()
-        elipse0PosY = self.scrollArea.listaElipses[0].y()
-        elipse0Width = self.scrollArea.listaElipses[0].width()
-        elipse0Height = self.scrollArea.listaElipses[0].height()
-        #****
-        elipse1PosX = self.scrollArea.listaElipses[1].x()
-        elipse1PosY = self.scrollArea.listaElipses[1].y()
-        elipse1Width = self.scrollArea.listaElipses[1].width()
-        elipse1Height = self.scrollArea.listaElipses[1].height()
-        #***************************************************
-        #***************************************************
-        #a zero los valores de medicion rect 1
-        roiRect1ImageValueMin = 0
-        roiRect1ImageValueMax = 0
-        roiRect1ImageValueAvg = 0
-        altoThermalImgDim, anchoThermalImgDim = ancho, alto #thermal_img.shape        
-        if (rect0Height > 1) and (rect0Width >1):
-            #sacamos los datos correspondientes a la primer roi y segunda roi rectangular
-            roiRect1ImageValue = thermal_img[rect0PosY:rect0PosY+rect0Height, rect0PosX:rect0PosX+rect0Width] #ponemos alrevez los indices porque la imagen esta invertida
-            if (roiRect1ImageValue.shape[0]>1) and (roiRect1ImageValue.shape[1]>1):
-                roiRect1ImageValueMin = np.amin(roiRect1ImageValue)
-                roiRect1ImageValueMax = np.amax(roiRect1ImageValue)
-                roiRect1ImageValueAvg = np.mean(roiRect1ImageValue)
-        
-        #cargo los indicadores para rectangulo 1
-        self.valor1IndTab1MinRoi1Rect.setText(str(roiRect1ImageValueMin))
-        self.valor2IndTab1AvgRoi1Rect.setText(str(roiRect1ImageValueAvg))
-        self.valor3IndTab1MaxRoi1Rect.setText(str(roiRect1ImageValueMax))
-        
-        #cargo los registros locales
-        self.rect1ValueMin = roiRect1ImageValueMin #el valor minimo calculado
-        self.rect1ValueAvg = roiRect1ImageValueAvg #el valor promedio calculado
-        self.rect1ValueMax = roiRect1ImageValueMax #el valor maximo calculado
-        #guardo el perfil horizontal y el perfil vertical de la roi
-        if (rect0Height > 1) and (rect0Width >1):
-            widthRoiRect1ImageValue = roiRect1ImageValue.shape[0]
-            heightRoiRect1ImageValue = roiRect1ImageValue.shape[1]
-            indiceXRoiRect1ImageValue = widthRoiRect1ImageValue / 2
-            indiceYHeightRoiRect1ImageValue = heightRoiRect1ImageValue / 2
-            profileVerticalRoi1Rect = roiRect1ImageValue[int(indiceXRoiRect1ImageValue),:]
-            profileHorizontalRoi1Rect = roiRect1ImageValue[:,int(indiceYHeightRoiRect1ImageValue)]
-            self.xdataIzq1RectHor = np.array(list(range(widthRoiRect1ImageValue)))
-            self.ydataIzq1RectHor = profileHorizontalRoi1Rect
-            self.xdataIzq1RectVert = np.array(list(range(heightRoiRect1ImageValue)))
-            self.ydataIzq1RectVert = profileVerticalRoi1Rect  
-        #a zero los valores de medicion rect 2
-        roiRect2ImageValueMin = 0
-        roiRect2ImageValueMax = 0
-        roiRect2ImageValueAvg = 0       
-        if (rect1Height > 1) and (rect1Width > 1):
-            roiRect2ImageValue = thermal_img[rect1PosY:rect1PosY+rect1Height,rect1PosX:rect1PosX+rect1Width]
-            if (roiRect2ImageValue.shape[0]>1) and (roiRect2ImageValue.shape[1]):
-                roiRect2ImageValueMin = np.amin(roiRect2ImageValue)
-                roiRect2ImageValueMax = np.amax(roiRect2ImageValue)
-                roiRect2ImageValueAvg = np.mean(roiRect2ImageValue)
-        
-        #cargo los indicadores para el rectangulo 2
-        self.valor4IndTab1MinRoi2Rect.setText(str(roiRect2ImageValueMin))
-        self.valor5IndTab1AvgRoi2Rect.setText(str(roiRect2ImageValueAvg))
-        self.valor6IndTab1MaxRoi2Rect.setText(str(roiRect2ImageValueMax))        
-        
-        #cargo los registros locales
-        self.rect2ValueMin = roiRect2ImageValueMin #cargo el valor minimo
-        self.rect2ValueAvg = roiRect2ImageValueAvg #cargo el valor promedio
-        self.rect2ValueMax = roiRect2ImageValueMax #cargo el valor maximo
-        #guardo el perfil horizontal y el perfil vertical de la roi
-        if (rect1Height > 1) and (rect1Width > 1):
-            widthRoiRect2ImageValue = roiRect2ImageValue.shape[0]
-            heightRoiRect2ImageValue = roiRect2ImageValue.shape[1]
-            indiceXRoiRect2ImageValue = widthRoiRect2ImageValue / 2
-            indiceYHeightRoiRect2ImageValue = heightRoiRect2ImageValue / 2
-            profileVerticalRoi2Rect = roiRect2ImageValue[int(indiceXRoiRect2ImageValue),:]
-            profileHorizontalRoi2Rect = roiRect2ImageValue[:,int(indiceYHeightRoiRect2ImageValue)]
-            self.xdataDer1RectHor = np.array(list(range(widthRoiRect2ImageValue)))
-            self.ydataDer1RectHor = profileHorizontalRoi2Rect
-            self.xdataDer1RectVert = np.array(list(range(heightRoiRect2ImageValue)))
-            self.ydataDer1RectVert = profileVerticalRoi2Rect 
-        #sacamos los datos correspondientres a la primer roi y segunda roi linea
-        largoLinea0 = line0PosY2 - line0PosY1 #cantidad de elementos
-        anchoLinea0 = line0PosX2 - line0PosX1
-        roiLine0ImageValueMin = 0
-        roiLine0ImageValueMax = 0
-        roiLine0ImageValueAvg = 0
-        if (largoLinea0 > 1) and (anchoLinea0 > 1):
-            valoresLinea0 =[]
-            for tupla in zip(range(line0PosY1,line0PosY2),range(line0PosX1,line0PosX2)):
-                indiceAnchoL0 = tupla[0] #cargo los indices
-                indiceAltoL0 = tupla[1]
-                anchoImagenL0, altoImagenL0 = altoThermalImgDim, anchoThermalImgDim #cargo la dimension de la imagen
-                if indiceAnchoL0>=anchoImagenL0: #verifico que este dentro de los limites
-                    indiceAnchoL0 = anchoImagenL0-1 #si no esta limito
-                if indiceAltoL0>=altoImagenL0: #verifico que este dentro de los limites
-                    indiceAltoL0 = altoImagenL0-1 #si no esta limito
-                valor = thermal_img[indiceAnchoL0,indiceAltoL0]
-                valoresLinea0.append(valor)
-            if len(valoresLinea0) > 0:
-                roiLine0ImageValueMin = np.amin(valoresLinea0)
-                roiLine0ImageValueMax = np.amax(valoresLinea0)
-                roiLine0ImageValueAvg = np.mean(valoresLinea0)
-        
-        #cargo los valores min avg y promedio en los indicadores
-        self.valor11IndTab1MinRoi1Line.setText(str(roiLine0ImageValueMin))
-        self.valor21IndTab1AvgRoi1Line.setText(str(roiLine0ImageValueAvg))
-        self.valor31IndTab1MaxRoi1Line.setText(str(roiLine0ImageValueMax))
-        
-        #cargo los registros locales
-        self.line1ValueMin = roiLine0ImageValueMin 
-        self.line1ValueAvg = roiLine0ImageValueAvg
-        self.line1ValueMax = roiLine0ImageValueMax
-        #
-        if (largoLinea0 > 1) and (anchoLinea0 > 1):
-            widthLine0 = len(valoresLinea0)
-            self.xdataIzq1Line = np.array(list(range(widthLine0)))
-            self.ydataIzq1Line = valoresLinea0
-        #
-        largoLinea1 = line1PosY2 - line1PosY1 #cantidad de elementos
-        anchoLinea1 = line1PosX2 - line1PosX1
-        roiLine1ImageValueMin = 0
-        roiLine1ImageValueMax = 0
-        roiLine1ImageValueAvg = 0
-        if (largoLinea1 > 1) and (anchoLinea1 > 1):
-            valoresLinea1 =[]
-            for tupla in zip(range(line1PosY1,line1PosY2),range(line1PosX1,line1PosX2)):
-                indiceAnchoL1 = tupla[0] #cargo los indices
-                indiceAltoL1 = tupla[1]
-                anchoImagenL1, altoImagenL1 = altoThermalImgDim, anchoThermalImgDim #cargo la dimension de la imagen 
-                if indiceAnchoL1>=anchoImagenL1: #verifico que este dentro de los limites
-                    indiceAnchoL1 = anchoImagenL1-1 #si no esta limito
-                if indiceAltoL1>=altoImagenL1: #verifico que este dentro de los limites
-                    indiceAltoL1 = altoImagenL1-1 #si no esta limito
-                valor = thermal_img[indiceAnchoL1,indiceAltoL1] #obtengo el dato
-                valoresLinea1.append(valor)
-            if len(valoresLinea1) > 0:
-                roiLine1ImageValueMin = np.amin(valoresLinea1)
-                roiLine1ImageValueMax = np.amax(valoresLinea1)
-                roiLine1ImageValueAvg = np.mean(valoresLinea1)
-        
-        #cargo los indicadores de min avg y promedio
-        self.valor41IndTab1MinRoi2Line.setText(str(roiLine1ImageValueMin))
-        self.valor51IndTab1AvgRoi2Line.setText(str(roiLine1ImageValueAvg))
-        self.valor61IndTab1MaxRoi2Line.setText(str(roiLine1ImageValueMax))
-        
-        #cargo los valores locales
-        self.line2ValueMin = roiLine1ImageValueMin
-        self.line2ValueAvg = roiLine1ImageValueAvg
-        self.line2ValueMax = roiLine1ImageValueMax
-        #
-        if (largoLinea1 > 1) and (anchoLinea1 > 1):
-            widthLine1 = len(valoresLinea1)
-            self.xdataDer1Line = np.array(list(range(widthLine1)))
-            self.ydataDer1Line = valoresLinea1
-        #sacamos los datos correspondientres a la primer roi y segunda roi elipse
-        #primero creamos una elipse con los datos de x0,y0 -- width,height
-        #elipse 0
-        valoresThermalElipse0Min = 0
-        valoresThermalElipse0Max = 0
-        valoresThermalElipse0Avg = 0
-        x0 = int(elipse0PosX)
-        y0 = int(elipse0PosY)
-        a = int(elipse0Width/2)
-        b = int(elipse0Height/2)
-        if (b > 1) and (a > 1) and (x0 > 1) and (y0 > 1):
-            #construimos la mascara
-            mask = np.zeros_like(thermal_img)
-            #mostramos filas y columnas
-            rows, cols = mask.shape
-            #creamos una ellipse blanca
-            mask = cv2.ellipse(mask, center=(x0,y0), axes=(a,b), angle=0, startAngle=0, endAngle=360, color=(255,255,255), thickness=-1 )
-            #aplico el filtro para dejar todo lo que esta fuera de la elipse en negro
-            result = np.bitwise_and(thermal_img.astype(int), mask.astype(int))            
-            #extraemos los componentes distintos de cero
-            valoresInternosElipse = result[result>0]
-            #calculamos los resultados
-            if len(valoresInternosElipse)>0:
-                valoresThermalElipse0Min = np.amax(valoresInternosElipse)
-                valoresThermalElipse0Max = np.amin(valoresInternosElipse)
-                valoresThermalElipse0Avg = np.mean(valoresInternosElipse)
-             
-        #cargo los valores en los indicadores
-        self.valor12IndTab1MinRoi1Ellipse.setText(str(valoresThermalElipse0Min))
-        self.valor22IndTab1AvgRoi1Ellipse.setText(str(valoresThermalElipse0Avg))
-        self.valor32IndTab1MaxRoi1Ellipse.setText(str(valoresThermalElipse0Max))
-        
-        #cargo los valores locales
-        self.ellipse1ValueMin = valoresThermalElipse0Min
-        self.ellipse1ValueAvg = valoresThermalElipse0Avg
-        self.ellipse1ValueMax = valoresThermalElipse0Max
-        #guardo el perfil horizontal y el perfil vertical de la roi
-        #calculamos los perfiles horizontal y vertical
-        if (int(elipse0Height) > 1) and (int(elipse0Width) > 1):
-            anchoMaximoEli0 = anchoThermalImgDim              #determino el tama;o actual de la imagen
-            altoMaximoEli0 = altoThermalImgDim               #luego calculo si la longitud solicitad
-            longValoresVerticales = elipse0PosY+elipse0Height   #supera el tamao de la imagen 
-            longValoresHorizontales = elipse0PosX+elipse0Width  #en el caso que lo haga recorto la solicitud
-            if longValoresHorizontales > anchoMaximoEli0:
-                longValoresHorizontales = anchoMaximoEli0 #recorto
-            if longValoresVerticales > altoMaximoEli0:
-                longValoresVerticales = altoMaximoEli0 #recorto
-            valoresThermalElipse0Vertical = thermal_img[int(elipse0PosY):int(longValoresVerticales),int(elipse0PosX+elipse0Width/2)]
-            valoresThermalElipse0Horizontal = thermal_img[int(elipse0PosY+elipse0Height/2),int(elipse0PosX):int(longValoresHorizontales)]
-            self.xdataIzq1ElipHor = np.array(list(range(len(valoresThermalElipse0Horizontal))))
-            self.ydataIzq1ElipHor = valoresThermalElipse0Horizontal
-            self.xdataIzq1ElipVer = np.array(list(range(len(valoresThermalElipse0Vertical))))
-            self.ydataIzq1ElipVer = valoresThermalElipse0Vertical 
-        #sacamos los datos correspondientes a la elipse 1
-        #elipse 1
-        valoresThermalElipse1Min = 0
-        valoresThermalElipse1Max = 0
-        valoresThermalElipse1Avg = 0
-        x01 = int(elipse1PosX)
-        y01 = int(elipse1PosY)
-        a1 = int(elipse1Width/2)
-        b1 = int(elipse1Height/2)
-        if (b1 > 1) and (a1 > 1) and (x01 > 1) and (y01 > 1):            
-            #construimos la mascara de la elipse 1
-            mask1 = np.zeros_like(thermal_img)
-            #mostramos filas y columnas
-            rows, cols = mask1.shape
-            #creamos una ellipse blanca
-            mask1 = cv2.ellipse(mask1, center=(x01,y01), axes=(a1,b1), angle=0, startAngle=0, endAngle=360, color=(255,255,255), thickness=-1)
-            #aplicamos el filtro para dejar todo lo que esta fuera de la elipse en negro
-            result1 = np.bitwise_and(thermal_img.astype(int), mask1.astype(int))
-            #extraenos los componentes distintos de cero
-            valoresInternosElipse1 = result1[result1>0]
-            if len(valoresInternosElipse1)>0:
-                valoresThermalElipse1Min = np.amin(valoresInternosElipse1)
-                valoresThermalElipse1Max = np.amax(valoresInternosElipse1)
-                valoresThermalElipse1Avg = np.mean(valoresInternosElipse1)        
-        #cargo los indicadores de los elipses 2
-        self.valor42IndTab1MinRoi2Ellipse.setText(str(valoresThermalElipse1Min))
-        self.valor52IndTab1AvgRoi2Ellipse.setText(str(valoresThermalElipse1Avg))
-        self.valor62IndTab1MaxRoi2Ellipse.setText(str(valoresThermalElipse1Max))
-        #cargo los valores locales
-        self.ellipse2ValueMin = valoresThermalElipse1Min
-        self.ellipse2ValueAvg = valoresThermalElipse1Max
-        self.ellipse2ValueMax = valoresThermalElipse1Avg
-        #guardo el perfil horizontal y el perfil vertical de la roi
-        #calculamos los perfiles horizontal y vertical
-        if (elipse1Height > 1) and (elipse1Width > 1):
-            anchoMaximoEli1 = anchoThermalImgDim              #determino el tama;o actual de la imagen
-            altoMaximoEli1 = altoThermalImgDim               #luego calculo si la longitud solicitad
-            longValoresVerticales1 = elipse1PosY+elipse1Height   #supera el tamao de la imagen 
-            longValoresHorizontales1 = elipse1PosX+elipse1Width  #en el caso que lo haga recorto la solicitud
-            if longValoresHorizontales1 > anchoMaximoEli1:
-                longValoresHorizontales = anchoMaximoEli1 # recorto
-            if longValoresVerticales1 > altoMaximoEli1:
-                longValoresVerticales = altoMaximoEli1 #recorto
-            valoresThermalElipse1Vertical = thermal_img[int(elipse1PosY):int(longValoresVerticales1),int(elipse1PosX+elipse1Width/2)]
-            valoresThermalElipse1Horizontal = thermal_img[int(elipse1PosY+elipse1Height/2),int(elipse1PosX):int(longValoresHorizontales1)]
-            self.xdataDer1ElipHor = np.array(list(range(len(valoresThermalElipse1Horizontal))))
-            self.ydataDer1ElipHor = valoresThermalElipse1Horizontal
-            self.xdataDer1ElipVer = np.array(list(range(len(valoresThermalElipse1Vertical))))
-            self.ydataDer1ElipVer = valoresThermalElipse1Vertical 
-        #verifico si el valor minimo es menor al error
-        #el valor de valorNuevoPreset1 es actualizado desde la popup de ajuste de alarma
-        if roiRect1ImageValueMin > float(self.valorNuevoPresetRoiMinRect1.text()):
-            self.valor1IndTab1MinRoi1Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor1IndTab1MinRoi1Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if roiRect1ImageValueAvg > float(self.valorNuevoPresetRoiAvgRect1.text()):
-            self.valor2IndTab1AvgRoi1Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor2IndTab1AvgRoi1Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if roiRect1ImageValueMax > float(self.valorNuevoPresetRoiMaxRect1.text()):
-            self.valor3IndTab1MaxRoi1Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor3IndTab1MaxRoi1Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if roiRect2ImageValueMin > float(self.valorNuevoPresetRoiMinRect2.text()):
-            self.valor4IndTab1MinRoi2Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor4IndTab1MinRoi2Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if roiRect2ImageValueAvg > float(self.valorNuevoPresetRoiAvgRect2.text()):
-            self.valor5IndTab1AvgRoi2Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor5IndTab1AvgRoi2Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if roiRect2ImageValueMax > float(self.valorNuevoPresetRoiMaxRect2.text()):
-            self.valor6IndTab1MaxRoi2Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor6IndTab1MaxRoi2Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if roiLine0ImageValueMin > float(self.valorNuevoPresetRoiMinLine1.text()):
-            self.valor11IndTab1MinRoi1Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor11IndTab1MinRoi1Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if roiLine0ImageValueAvg > float(self.valorNuevoPresetRoiAvgLine1.text()):
-            self.valor21IndTab1AvgRoi1Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor21IndTab1AvgRoi1Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if roiLine0ImageValueMax > float(self.valorNuevoPresetRoiMaxLine1.text()):
-            self.valor31IndTab1MaxRoi1Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor31IndTab1MaxRoi1Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if roiLine1ImageValueMin > float(self.valorNuevoPresetRoiMinLine2.text()):
-            self.valor41IndTab1MinRoi2Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor41IndTab1MinRoi2Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if roiLine1ImageValueAvg > float(self.valorNuevoPresetRoiAvgLine2.text()):
-            self.valor51IndTab1AvgRoi2Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor51IndTab1AvgRoi2Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if roiLine1ImageValueMax > float(self.valorNuevoPresetRoiMaxLine2.text()):
-            self.valor61IndTab1MaxRoi2Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor61IndTab1MaxRoi2Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #***************************** 
-        if valoresThermalElipse0Min > float(self.valorNuevoPresetRoiMinEllipse1.text()):
-            self.valor12IndTab1MinRoi1Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor12IndTab1MinRoi1Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if valoresThermalElipse0Avg > float(self.valorNuevoPresetRoiAvgEllipse1.text()):
-            self.valor22IndTab1AvgRoi1Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor22IndTab1AvgRoi1Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if valoresThermalElipse0Max > float(self.valorNuevoPresetRoiMaxEllipse1.text()):
-            self.valor32IndTab1MaxRoi1Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor32IndTab1MaxRoi1Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if valoresThermalElipse1Min > float(self.valorNuevoPresetRoiMinEllipse2.text()):
-            self.valor42IndTab1MinRoi2Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor42IndTab1MinRoi2Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if valoresThermalElipse1Avg > float(self.valorNuevoPresetRoiAvgEllipse2.text()):
-            self.valor52IndTab1AvgRoi2Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor52IndTab1AvgRoi2Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************
-        if valoresThermalElipse1Max > float(self.valorNuevoPresetRoiMaxEllipse2.text()):
-            self.valor62IndTab1MaxRoi2Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
-        else:
-            self.valor62IndTab1MaxRoi2Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        #*****************************              
+        if self.flagQueueReady == True: #si indicamos que tiene que guardar imagenes en la pila solo va a hacer esto sin mostrar mas informacion 
+            thermal_img_reshaped = thermal_img.flatten()
+            self.queueDatosOrigen.put(thermal_img_reshaped) #los datos en la pila van a ser sacados por el hilo en paralelo que guarda los datos en disco
+        else: #solo si no esta encolando los datos de imagen termografica va a sacar los datos para procesamiento
+            ancho = self.scrollArea.escalaImagen[0]#['ancho']#self.image_label.size().width()
+            alto = self.scrollArea.escalaImagen[1]#['alto']#self.image_label.size().height()
+            thermal_img = np.resize(thermal_img,(alto,ancho))
+            #thermal_imgMirror = thermal_img
+            #thermal_imgMirror = np.resize(thermal_imgMirror,(alto,ancho))
+            #Leer la lista de rectangulos 
+            #tengo que identificar el tamaño de la Roi rectangulo con su height and width si es mayor a 1 puedo extraer esa zona de la imagen
+            rect0PosX = self.scrollArea.listaRects[0].x()
+            rect0PosY = self.scrollArea.listaRects[0].y()
+            rect0Width = self.scrollArea.listaRects[0].width()
+            rect0Height = self.scrollArea.listaRects[0].height()        
+            #****
+            rect1PosX = self.scrollArea.listaRects[1].x()
+            rect1PosY = self.scrollArea.listaRects[1].y()
+            rect1Width = self.scrollArea.listaRects[1].width()
+            rect1Height = self.scrollArea.listaRects[1].height()
+            #tengo que identificar el tamaño de la Roi recta con la distancia entre el punto 0 y el punto 1 es mayor a 1 puedo extraer esa zona de la imagen
+            line0PosX1 = self.scrollArea.listaLineas[0].x1()
+            line0PosY1 = self.scrollArea.listaLineas[0].y1()
+            line0PosX2 = self.scrollArea.listaLineas[0].x2()
+            line0PosY2 = self.scrollArea.listaLineas[0].y2()
+            #****
+            line1PosX1 = self.scrollArea.listaLineas[1].x1()
+            line1PosY1 = self.scrollArea.listaLineas[1].y1()
+            line1PosX2 = self.scrollArea.listaLineas[1].x2()
+            line1PosY2 = self.scrollArea.listaLineas[1].y2()
+            #tengo que identificar el tamaño de la Roi elipse con width y el height si es mayor a 1 puedo extraer esa zona de la imagen
+            elipse0PosX = self.scrollArea.listaElipses[0].x()
+            elipse0PosY = self.scrollArea.listaElipses[0].y()
+            elipse0Width = self.scrollArea.listaElipses[0].width()
+            elipse0Height = self.scrollArea.listaElipses[0].height()
+            #****
+            elipse1PosX = self.scrollArea.listaElipses[1].x()
+            elipse1PosY = self.scrollArea.listaElipses[1].y()
+            elipse1Width = self.scrollArea.listaElipses[1].width()
+            elipse1Height = self.scrollArea.listaElipses[1].height()
+            #***************************************************
+            #***************************************************
+            #a zero los valores de medicion rect 1
+            roiRect1ImageValueMin = 0
+            roiRect1ImageValueMax = 0
+            roiRect1ImageValueAvg = 0
+            altoThermalImgDim, anchoThermalImgDim = ancho, alto #thermal_img.shape        
+            if (rect0Height > 1) and (rect0Width >1):
+                #sacamos los datos correspondientes a la primer roi y segunda roi rectangular
+                roiRect1ImageValue = thermal_img[rect0PosY:rect0PosY+rect0Height, rect0PosX:rect0PosX+rect0Width] #ponemos alrevez los indices porque la imagen esta invertida
+                if (roiRect1ImageValue.shape[0]>1) and (roiRect1ImageValue.shape[1]>1):
+                    roiRect1ImageValueMin = np.amin(roiRect1ImageValue)
+                    roiRect1ImageValueMax = np.amax(roiRect1ImageValue)
+                    roiRect1ImageValueAvg = np.mean(roiRect1ImageValue)
+            
+            #cargo los indicadores para rectangulo 1
+            self.valor1IndTab1MinRoi1Rect.setText(str(roiRect1ImageValueMin))
+            self.valor2IndTab1AvgRoi1Rect.setText(str(roiRect1ImageValueAvg))
+            self.valor3IndTab1MaxRoi1Rect.setText(str(roiRect1ImageValueMax))
+            
+            #cargo los registros locales
+            self.rect1ValueMin = roiRect1ImageValueMin #el valor minimo calculado
+            self.rect1ValueAvg = roiRect1ImageValueAvg #el valor promedio calculado
+            self.rect1ValueMax = roiRect1ImageValueMax #el valor maximo calculado
+            #guardo el perfil horizontal y el perfil vertical de la roi
+            if (rect0Height > 1) and (rect0Width >1):
+                widthRoiRect1ImageValue = roiRect1ImageValue.shape[0]
+                heightRoiRect1ImageValue = roiRect1ImageValue.shape[1]
+                indiceXRoiRect1ImageValue = widthRoiRect1ImageValue / 2
+                indiceYHeightRoiRect1ImageValue = heightRoiRect1ImageValue / 2
+                profileVerticalRoi1Rect = roiRect1ImageValue[int(indiceXRoiRect1ImageValue),:]
+                profileHorizontalRoi1Rect = roiRect1ImageValue[:,int(indiceYHeightRoiRect1ImageValue)]
+                self.xdataIzq1RectHor = np.array(list(range(widthRoiRect1ImageValue)))
+                self.ydataIzq1RectHor = profileHorizontalRoi1Rect
+                self.xdataIzq1RectVert = np.array(list(range(heightRoiRect1ImageValue)))
+                self.ydataIzq1RectVert = profileVerticalRoi1Rect  
+            #a zero los valores de medicion rect 2
+            roiRect2ImageValueMin = 0
+            roiRect2ImageValueMax = 0
+            roiRect2ImageValueAvg = 0       
+            if (rect1Height > 1) and (rect1Width > 1):
+                roiRect2ImageValue = thermal_img[rect1PosY:rect1PosY+rect1Height,rect1PosX:rect1PosX+rect1Width]
+                if (roiRect2ImageValue.shape[0]>1) and (roiRect2ImageValue.shape[1]):
+                    roiRect2ImageValueMin = np.amin(roiRect2ImageValue)
+                    roiRect2ImageValueMax = np.amax(roiRect2ImageValue)
+                    roiRect2ImageValueAvg = np.mean(roiRect2ImageValue)
+            
+            #cargo los indicadores para el rectangulo 2
+            self.valor4IndTab1MinRoi2Rect.setText(str(roiRect2ImageValueMin))
+            self.valor5IndTab1AvgRoi2Rect.setText(str(roiRect2ImageValueAvg))
+            self.valor6IndTab1MaxRoi2Rect.setText(str(roiRect2ImageValueMax))        
+            
+            #cargo los registros locales
+            self.rect2ValueMin = roiRect2ImageValueMin #cargo el valor minimo
+            self.rect2ValueAvg = roiRect2ImageValueAvg #cargo el valor promedio
+            self.rect2ValueMax = roiRect2ImageValueMax #cargo el valor maximo
+            #guardo el perfil horizontal y el perfil vertical de la roi
+            if (rect1Height > 1) and (rect1Width > 1):
+                widthRoiRect2ImageValue = roiRect2ImageValue.shape[0]
+                heightRoiRect2ImageValue = roiRect2ImageValue.shape[1]
+                indiceXRoiRect2ImageValue = widthRoiRect2ImageValue / 2
+                indiceYHeightRoiRect2ImageValue = heightRoiRect2ImageValue / 2
+                profileVerticalRoi2Rect = roiRect2ImageValue[int(indiceXRoiRect2ImageValue),:]
+                profileHorizontalRoi2Rect = roiRect2ImageValue[:,int(indiceYHeightRoiRect2ImageValue)]
+                self.xdataDer1RectHor = np.array(list(range(widthRoiRect2ImageValue)))
+                self.ydataDer1RectHor = profileHorizontalRoi2Rect
+                self.xdataDer1RectVert = np.array(list(range(heightRoiRect2ImageValue)))
+                self.ydataDer1RectVert = profileVerticalRoi2Rect 
+            #sacamos los datos correspondientres a la primer roi y segunda roi linea
+            largoLinea0 = line0PosY2 - line0PosY1 #cantidad de elementos
+            anchoLinea0 = line0PosX2 - line0PosX1
+            roiLine0ImageValueMin = 0
+            roiLine0ImageValueMax = 0
+            roiLine0ImageValueAvg = 0
+            if (largoLinea0 > 1) and (anchoLinea0 > 1):
+                valoresLinea0 =[]
+                for tupla in zip(range(line0PosY1,line0PosY2),range(line0PosX1,line0PosX2)):
+                    indiceAnchoL0 = tupla[0] #cargo los indices
+                    indiceAltoL0 = tupla[1]
+                    anchoImagenL0, altoImagenL0 = altoThermalImgDim, anchoThermalImgDim #cargo la dimension de la imagen
+                    if indiceAnchoL0>=anchoImagenL0: #verifico que este dentro de los limites
+                        indiceAnchoL0 = anchoImagenL0-1 #si no esta limito
+                    if indiceAltoL0>=altoImagenL0: #verifico que este dentro de los limites
+                        indiceAltoL0 = altoImagenL0-1 #si no esta limito
+                    valor = thermal_img[indiceAnchoL0,indiceAltoL0]
+                    valoresLinea0.append(valor)
+                if len(valoresLinea0) > 0:
+                    roiLine0ImageValueMin = np.amin(valoresLinea0)
+                    roiLine0ImageValueMax = np.amax(valoresLinea0)
+                    roiLine0ImageValueAvg = np.mean(valoresLinea0)
+            
+            #cargo los valores min avg y promedio en los indicadores
+            self.valor11IndTab1MinRoi1Line.setText(str(roiLine0ImageValueMin))
+            self.valor21IndTab1AvgRoi1Line.setText(str(roiLine0ImageValueAvg))
+            self.valor31IndTab1MaxRoi1Line.setText(str(roiLine0ImageValueMax))
+            
+            #cargo los registros locales
+            self.line1ValueMin = roiLine0ImageValueMin 
+            self.line1ValueAvg = roiLine0ImageValueAvg
+            self.line1ValueMax = roiLine0ImageValueMax
+            #
+            if (largoLinea0 > 1) and (anchoLinea0 > 1):
+                widthLine0 = len(valoresLinea0)
+                self.xdataIzq1Line = np.array(list(range(widthLine0)))
+                self.ydataIzq1Line = valoresLinea0
+            #
+            largoLinea1 = line1PosY2 - line1PosY1 #cantidad de elementos
+            anchoLinea1 = line1PosX2 - line1PosX1
+            roiLine1ImageValueMin = 0
+            roiLine1ImageValueMax = 0
+            roiLine1ImageValueAvg = 0
+            if (largoLinea1 > 1) and (anchoLinea1 > 1):
+                valoresLinea1 =[]
+                for tupla in zip(range(line1PosY1,line1PosY2),range(line1PosX1,line1PosX2)):
+                    indiceAnchoL1 = tupla[0] #cargo los indices
+                    indiceAltoL1 = tupla[1]
+                    anchoImagenL1, altoImagenL1 = altoThermalImgDim, anchoThermalImgDim #cargo la dimension de la imagen 
+                    if indiceAnchoL1>=anchoImagenL1: #verifico que este dentro de los limites
+                        indiceAnchoL1 = anchoImagenL1-1 #si no esta limito
+                    if indiceAltoL1>=altoImagenL1: #verifico que este dentro de los limites
+                        indiceAltoL1 = altoImagenL1-1 #si no esta limito
+                    valor = thermal_img[indiceAnchoL1,indiceAltoL1] #obtengo el dato
+                    valoresLinea1.append(valor)
+                if len(valoresLinea1) > 0:
+                    roiLine1ImageValueMin = np.amin(valoresLinea1)
+                    roiLine1ImageValueMax = np.amax(valoresLinea1)
+                    roiLine1ImageValueAvg = np.mean(valoresLinea1)
+            
+            #cargo los indicadores de min avg y promedio
+            self.valor41IndTab1MinRoi2Line.setText(str(roiLine1ImageValueMin))
+            self.valor51IndTab1AvgRoi2Line.setText(str(roiLine1ImageValueAvg))
+            self.valor61IndTab1MaxRoi2Line.setText(str(roiLine1ImageValueMax))
+            
+            #cargo los valores locales
+            self.line2ValueMin = roiLine1ImageValueMin
+            self.line2ValueAvg = roiLine1ImageValueAvg
+            self.line2ValueMax = roiLine1ImageValueMax
+            #
+            if (largoLinea1 > 1) and (anchoLinea1 > 1):
+                widthLine1 = len(valoresLinea1)
+                self.xdataDer1Line = np.array(list(range(widthLine1)))
+                self.ydataDer1Line = valoresLinea1
+            #sacamos los datos correspondientres a la primer roi y segunda roi elipse
+            #primero creamos una elipse con los datos de x0,y0 -- width,height
+            #elipse 0
+            valoresThermalElipse0Min = 0
+            valoresThermalElipse0Max = 0
+            valoresThermalElipse0Avg = 0
+            x0 = int(elipse0PosX)
+            y0 = int(elipse0PosY)
+            a = int(elipse0Width/2)
+            b = int(elipse0Height/2)
+            if (b > 1) and (a > 1) and (x0 > 1) and (y0 > 1):
+                #construimos la mascara
+                mask = np.zeros_like(thermal_img)
+                #mostramos filas y columnas
+                rows, cols = mask.shape
+                #creamos una ellipse blanca
+                mask = cv2.ellipse(mask, center=(x0,y0), axes=(a,b), angle=0, startAngle=0, endAngle=360, color=(255,255,255), thickness=-1 )
+                #aplico el filtro para dejar todo lo que esta fuera de la elipse en negro
+                result = np.bitwise_and(thermal_img.astype(int), mask.astype(int))            
+                #extraemos los componentes distintos de cero
+                valoresInternosElipse = result[result>0]
+                #calculamos los resultados
+                if len(valoresInternosElipse)>0:
+                    valoresThermalElipse0Min = np.amax(valoresInternosElipse)
+                    valoresThermalElipse0Max = np.amin(valoresInternosElipse)
+                    valoresThermalElipse0Avg = np.mean(valoresInternosElipse)
+                
+            #cargo los valores en los indicadores
+            self.valor12IndTab1MinRoi1Ellipse.setText(str(valoresThermalElipse0Min))
+            self.valor22IndTab1AvgRoi1Ellipse.setText(str(valoresThermalElipse0Avg))
+            self.valor32IndTab1MaxRoi1Ellipse.setText(str(valoresThermalElipse0Max))
+            
+            #cargo los valores locales
+            self.ellipse1ValueMin = valoresThermalElipse0Min
+            self.ellipse1ValueAvg = valoresThermalElipse0Avg
+            self.ellipse1ValueMax = valoresThermalElipse0Max
+            #guardo el perfil horizontal y el perfil vertical de la roi
+            #calculamos los perfiles horizontal y vertical
+            if (int(elipse0Height) > 1) and (int(elipse0Width) > 1):
+                anchoMaximoEli0 = anchoThermalImgDim              #determino el tama;o actual de la imagen
+                altoMaximoEli0 = altoThermalImgDim               #luego calculo si la longitud solicitad
+                longValoresVerticales = elipse0PosY+elipse0Height   #supera el tamao de la imagen 
+                longValoresHorizontales = elipse0PosX+elipse0Width  #en el caso que lo haga recorto la solicitud
+                if longValoresHorizontales > anchoMaximoEli0:
+                    longValoresHorizontales = anchoMaximoEli0 #recorto
+                if longValoresVerticales > altoMaximoEli0:
+                    longValoresVerticales = altoMaximoEli0 #recorto
+                valoresThermalElipse0Vertical = thermal_img[int(elipse0PosY):int(longValoresVerticales),int(elipse0PosX+elipse0Width/2)]
+                valoresThermalElipse0Horizontal = thermal_img[int(elipse0PosY+elipse0Height/2),int(elipse0PosX):int(longValoresHorizontales)]
+                self.xdataIzq1ElipHor = np.array(list(range(len(valoresThermalElipse0Horizontal))))
+                self.ydataIzq1ElipHor = valoresThermalElipse0Horizontal
+                self.xdataIzq1ElipVer = np.array(list(range(len(valoresThermalElipse0Vertical))))
+                self.ydataIzq1ElipVer = valoresThermalElipse0Vertical 
+            #sacamos los datos correspondientes a la elipse 1
+            #elipse 1
+            valoresThermalElipse1Min = 0
+            valoresThermalElipse1Max = 0
+            valoresThermalElipse1Avg = 0
+            x01 = int(elipse1PosX)
+            y01 = int(elipse1PosY)
+            a1 = int(elipse1Width/2)
+            b1 = int(elipse1Height/2)
+            if (b1 > 1) and (a1 > 1) and (x01 > 1) and (y01 > 1):            
+                #construimos la mascara de la elipse 1
+                mask1 = np.zeros_like(thermal_img)
+                #mostramos filas y columnas
+                rows, cols = mask1.shape
+                #creamos una ellipse blanca
+                mask1 = cv2.ellipse(mask1, center=(x01,y01), axes=(a1,b1), angle=0, startAngle=0, endAngle=360, color=(255,255,255), thickness=-1)
+                #aplicamos el filtro para dejar todo lo que esta fuera de la elipse en negro
+                result1 = np.bitwise_and(thermal_img.astype(int), mask1.astype(int))
+                #extraenos los componentes distintos de cero
+                valoresInternosElipse1 = result1[result1>0]
+                if len(valoresInternosElipse1)>0:
+                    valoresThermalElipse1Min = np.amin(valoresInternosElipse1)
+                    valoresThermalElipse1Max = np.amax(valoresInternosElipse1)
+                    valoresThermalElipse1Avg = np.mean(valoresInternosElipse1)        
+            #cargo los indicadores de los elipses 2
+            self.valor42IndTab1MinRoi2Ellipse.setText(str(valoresThermalElipse1Min))
+            self.valor52IndTab1AvgRoi2Ellipse.setText(str(valoresThermalElipse1Avg))
+            self.valor62IndTab1MaxRoi2Ellipse.setText(str(valoresThermalElipse1Max))
+            #cargo los valores locales
+            self.ellipse2ValueMin = valoresThermalElipse1Min
+            self.ellipse2ValueAvg = valoresThermalElipse1Max
+            self.ellipse2ValueMax = valoresThermalElipse1Avg
+            #guardo el perfil horizontal y el perfil vertical de la roi
+            #calculamos los perfiles horizontal y vertical
+            if (elipse1Height > 1) and (elipse1Width > 1):
+                anchoMaximoEli1 = anchoThermalImgDim              #determino el tama;o actual de la imagen
+                altoMaximoEli1 = altoThermalImgDim               #luego calculo si la longitud solicitad
+                longValoresVerticales1 = elipse1PosY+elipse1Height   #supera el tamao de la imagen 
+                longValoresHorizontales1 = elipse1PosX+elipse1Width  #en el caso que lo haga recorto la solicitud
+                if longValoresHorizontales1 > anchoMaximoEli1:
+                    longValoresHorizontales = anchoMaximoEli1 # recorto
+                if longValoresVerticales1 > altoMaximoEli1:
+                    longValoresVerticales = altoMaximoEli1 #recorto
+                valoresThermalElipse1Vertical = thermal_img[int(elipse1PosY):int(longValoresVerticales1),int(elipse1PosX+elipse1Width/2)]
+                valoresThermalElipse1Horizontal = thermal_img[int(elipse1PosY+elipse1Height/2),int(elipse1PosX):int(longValoresHorizontales1)]
+                self.xdataDer1ElipHor = np.array(list(range(len(valoresThermalElipse1Horizontal))))
+                self.ydataDer1ElipHor = valoresThermalElipse1Horizontal
+                self.xdataDer1ElipVer = np.array(list(range(len(valoresThermalElipse1Vertical))))
+                self.ydataDer1ElipVer = valoresThermalElipse1Vertical 
+            #verifico si el valor minimo es menor al error
+            #el valor de valorNuevoPreset1 es actualizado desde la popup de ajuste de alarma
+            if roiRect1ImageValueMin > float(self.valorNuevoPresetRoiMinRect1.text()):
+                self.valor1IndTab1MinRoi1Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor1IndTab1MinRoi1Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if roiRect1ImageValueAvg > float(self.valorNuevoPresetRoiAvgRect1.text()):
+                self.valor2IndTab1AvgRoi1Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor2IndTab1AvgRoi1Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if roiRect1ImageValueMax > float(self.valorNuevoPresetRoiMaxRect1.text()):
+                self.valor3IndTab1MaxRoi1Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor3IndTab1MaxRoi1Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if roiRect2ImageValueMin > float(self.valorNuevoPresetRoiMinRect2.text()):
+                self.valor4IndTab1MinRoi2Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor4IndTab1MinRoi2Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if roiRect2ImageValueAvg > float(self.valorNuevoPresetRoiAvgRect2.text()):
+                self.valor5IndTab1AvgRoi2Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor5IndTab1AvgRoi2Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if roiRect2ImageValueMax > float(self.valorNuevoPresetRoiMaxRect2.text()):
+                self.valor6IndTab1MaxRoi2Rect.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor6IndTab1MaxRoi2Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if roiLine0ImageValueMin > float(self.valorNuevoPresetRoiMinLine1.text()):
+                self.valor11IndTab1MinRoi1Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor11IndTab1MinRoi1Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if roiLine0ImageValueAvg > float(self.valorNuevoPresetRoiAvgLine1.text()):
+                self.valor21IndTab1AvgRoi1Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor21IndTab1AvgRoi1Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if roiLine0ImageValueMax > float(self.valorNuevoPresetRoiMaxLine1.text()):
+                self.valor31IndTab1MaxRoi1Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor31IndTab1MaxRoi1Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if roiLine1ImageValueMin > float(self.valorNuevoPresetRoiMinLine2.text()):
+                self.valor41IndTab1MinRoi2Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor41IndTab1MinRoi2Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if roiLine1ImageValueAvg > float(self.valorNuevoPresetRoiAvgLine2.text()):
+                self.valor51IndTab1AvgRoi2Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor51IndTab1AvgRoi2Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if roiLine1ImageValueMax > float(self.valorNuevoPresetRoiMaxLine2.text()):
+                self.valor61IndTab1MaxRoi2Line.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor61IndTab1MaxRoi2Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #***************************** 
+            if valoresThermalElipse0Min > float(self.valorNuevoPresetRoiMinEllipse1.text()):
+                self.valor12IndTab1MinRoi1Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor12IndTab1MinRoi1Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if valoresThermalElipse0Avg > float(self.valorNuevoPresetRoiAvgEllipse1.text()):
+                self.valor22IndTab1AvgRoi1Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor22IndTab1AvgRoi1Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if valoresThermalElipse0Max > float(self.valorNuevoPresetRoiMaxEllipse1.text()):
+                self.valor32IndTab1MaxRoi1Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor32IndTab1MaxRoi1Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if valoresThermalElipse1Min > float(self.valorNuevoPresetRoiMinEllipse2.text()):
+                self.valor42IndTab1MinRoi2Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor42IndTab1MinRoi2Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if valoresThermalElipse1Avg > float(self.valorNuevoPresetRoiAvgEllipse2.text()):
+                self.valor52IndTab1AvgRoi2Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor52IndTab1AvgRoi2Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************
+            if valoresThermalElipse1Max > float(self.valorNuevoPresetRoiMaxEllipse2.text()):
+                self.valor62IndTab1MaxRoi2Ellipse.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")
+            else:
+                self.valor62IndTab1MaxRoi2Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+            #*****************************              
     #defino la funcion asociada con el cambio de preset en el tab1
     def popUpSetBotonTab1(self, checkbox):
         print("ajustamos preset 1 tab1 = ", checkbox.toolTip() ) 
@@ -5820,6 +5942,7 @@ class MainWindow(QDialog):
         if checkbox.isChecked() == True:
             self.dlgChangePresetCam2 = PopUPWritePresetFocoCam(self.thread,self.image_label)
             self.dlgChangePresetCam2.show()
+    #defino la funcion para restaurar la configuracion de la camara 2
     def popUpRestartConfiguracionPresetCam2(self, checkbox):
         print("reset preset seleccion en camara 2")
         if checkbox.isChecked() == False:
@@ -6014,7 +6137,6 @@ class MainWindow(QDialog):
                 self.buttonEllipRoiActionHistoryDer.setChecked(False)
                 self.buttonZoomInActionHistoryDer.setChecked(False)
                 self.buttonZoomOutActionHistoryDer.setChecked(False)
-
     #Defino la funcion asociada a la barra de progreso para la camara 1
     def handleTimer1(self):
         value = self.pbarTab1.value()
