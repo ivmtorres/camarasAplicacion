@@ -1,3 +1,5 @@
+from concurrent.futures import thread
+from email.mime import image
 import gzip
 import queue
 import random
@@ -19,7 +21,7 @@ import aiofiles.os
 
 
 
-_sentinelArrayImgSeparator = object() #objeto para indicar separador entre imagenes
+_sentinelArrayImgSeparator = -273#definimos un valor debajo del cero absoluto#object() #objeto para indicar separador entre imagenes
 _sentinelStopThread = object() #objeto para indicar que los hilos deben detenerse
 _sentinelQueueImage = object()
 #definimos la zona donde vamos a tener el producer y el consumer
@@ -102,6 +104,37 @@ async def modificarArchivoAsincronico():
     #creamos un archivo para escritura y le cargamos un contenido
     async with aiofiles.open('test_write.txt', mode='w') as handle:
         await handle.write('hello world1')
+def leerArchivoSincronico(nombreArchivo):
+    #creamos una funcion para leer el archivo comprimido de manera sincronica
+    #cargamos el path a la imagen
+    pathArchivo = nombreArchivo
+    #print(pathArchivo)
+    #descomprimimos la imagen
+    f = gzip.GzipFile(pathArchivo, "r")
+    #cargamos la imagen como dato numpy
+    dato = np.load(f)
+    #print(f"contenido: {dato.size}")
+    #buscamos los marcadores separadores de imagenes
+    listaIndices = np.where(dato == _sentinelArrayImgSeparator)
+    #print(listaIndices)
+    #dividimos el contenido del archivo con los indices indicados por los separadores
+    resultado = np.array_split(dato, listaIndices[0])
+    #print(resultado)        
+    #instanciamos con los indices y generamos las imagenes termicas
+    #creamos una matriz de imagenes
+    matrizImgTermicas = np.zeros((288,382,29))
+    indice = 0
+    for i in resultado[1:]:        
+        subArrayDato = i[1:]        
+        imagen=np.reshape(subArrayDato,(288,382))
+        matrizImgTermicas[:,:,indice] = imagen
+        indice += 1
+    #selecciono una imagen para mostrar
+    #print(matrizImgTermicas[:,:,10])
+    imagenCV = np.array(matrizImgTermicas[:,:,10],dtype=np.uint8)
+    #threshed = cv2.adaptiveThreshold(imagenCV, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 3, 0)
+    heatmap = cv2.applyColorMap(imagenCV, cv2.COLORMAP_RAINBOW)
+    cv2.imshow('imagenTermica', heatmap)
 
 async def leerContenidoAsincronico():
     #leemos el contenido del archivo
@@ -137,26 +170,34 @@ def between_callback(args):
     loop.close()
     print("hilo finalizado")
 #****************************************
-def saveQueueImageInDisk(args):
+def saveQueueImageInDisk(args1, args2):
     while True:    
         print("guardado de datos sincronico 1")        
-        datoAcumulado = np.array([])
+        datoAcumuladoTh = np.array([])
+        datoAcumuladoCv = np.array([])
         i = 0
         while True:
-            token = args.get()
+            tokenThermal = args1.get()
+            tokenCV = args2.get()
+            print(tokenCV.shape)
             i += 1
             nameFile = random.random()                
             if i >= 30:
-                f = gzip.GzipFile(str(nameFile)+".npy.gz","w")
-                np.save(file=f, arr=datoAcumulado)
-                f.close()
+                fTh = gzip.GzipFile(str(nameFile)+".npTh.gz","w")
+                fCv = gzip.GzipFile(str(nameFile)+".npCv.gz","w")
+                np.save(file=fTh, arr=datoAcumuladoTh)
+                np.save(file=fCv, arr=datoAcumuladoCv)
+                fTh.close()
+                fCv.close()
                 break
-            if token is _sentinelStopThread:
+            if tokenThermal is _sentinelStopThread:
                 #finalizo el hilo
                 break
-            datoAcumulado = np.append(datoAcumulado,_sentinelArrayImgSeparator)
-            datoAcumulado = np.append(datoAcumulado,token.astype(int))        
-        if token is _sentinelStopThread:
+            datoAcumuladoTh = np.append(datoAcumuladoTh,_sentinelArrayImgSeparator)
+            datoAcumuladoTh = np.append(datoAcumuladoTh,tokenThermal.astype(int)) 
+            datoAcumuladoCv = np.append(datoAcumuladoCv,_sentinelArrayImgSeparator)       
+            datoAcumuladoCv = np.append(datoAcumuladoCv,tokenCV.astype(int))
+        if tokenThermal is _sentinelStopThread:
                 #finalizo el hilo
                 break
 
@@ -427,7 +468,7 @@ class VideoThread(QThread):
             frame = np_img.reshape(palette_height.value, palette_width.value, 3)[:,:,::-1]
             self.change_pixmap_signal.emit(frame)
             np_thermalEscalado = np_thermal / 10. - 100
-            frameThermal = np_thermalEscalado.reshape( thermal_height.value, thermal_width.value)
+            frameThermal = np_thermalEscalado.reshape( thermal_height.value, thermal_width.value)            
             self.change_thermal_signal.emit(frameThermal)
         # clean shutdown
         libir.evo_irimager_terminate()   
@@ -496,7 +537,8 @@ class App(QWidget):
         #flag switch thread
         self.contadorFlagSwithThread = 0
         #defino la cola que voy a utilizar para enviar los datos
-        self.queueDatosOrigen = queue.Queue()
+        self.queueDatosOrigenThermal = queue.Queue()
+        self.queueDatosOrigenCV = queue.Queue()
         #defino un flag para habilitar la carga de la cola
         self.flagQueueReady = False
         self.incSelection = True
@@ -656,7 +698,8 @@ class App(QWidget):
         vbox1.addWidget(self.botonNuevoFolder)        
         vbox1.addWidget(self.botonGuardarArchivo)
         vbox1.addWidget(self.botonStopGuardarArchivo)
-        vbox1.addWidget(self.botonModificarArchivo)     
+        vbox1.addWidget(self.botonModificarArchivo)
+        vbox1.addWidget(self.botonLeerArchivo)     
         vbox1.addWidget(self.botonBorrarArchivo)        
         vbox1.addWidget(self.botonMoverArchivo)        
         vbox1.addWidget(self.botonRenombrarArchivo)
@@ -701,7 +744,7 @@ class App(QWidget):
     def startGuardarArchivo(self):     
         threads = []
         for n in range(2):
-            t = Thread(target=saveQueueImageInDisk, args=(self.queueDatosOrigen,))
+            t = Thread(target=saveQueueImageInDisk, args=(self.queueDatosOrigenThermal,self.queueDatosOrigenCV))
             t.start()
             threads.append(t)                
         #notifico que se debe cargar la queue
@@ -713,7 +756,8 @@ class App(QWidget):
         #detenemos el flag de guardar archivo
         self.flagQueueReady = False #indico que no encole mas imagenes
         for i in range(6):
-            self.queueDatosOrigen.put(_sentinelStopThread)
+            self.queueDatosOrigenThermal.put(_sentinelStopThread)
+            self.queueDatosOrigenCV.put(_sentinelStopThread)
         print(i)
         self.botonGuardarArchivo.setEnabled(True)
         self.botonStopGuardarArchivo.setEnabled(False)
@@ -722,11 +766,14 @@ class App(QWidget):
         print("seleccionamos modificar nuevo archivo de imagen")
         #modificar archivo con contenido
         asyncio.run(modificarArchivoAsincronico())
+        
 
     def leerArchivo(self):
         print("seleccionamos leer archivo de imagen")
         #leer archivo con contenido
-        asyncio.run(leerContenidoAsincronico())
+        #asyncio.run(leerContenidoAsincronico())
+        nombreArchivo="0.9339396266406695.npy.gz"
+        leerArchivoSincronico(nombreArchivo)
 
     def nuevoFolder(self):
         print("seleccionamos crear nuevo directorio")
@@ -909,7 +956,9 @@ class App(QWidget):
         """Updates the image_label with a new opencv image""" #cada vez que el hilo procese una imagen emite una señal        
         qt_img = self.convert_cv_qt(cv_img)                     #esta señal esta asociada a esta funcion, la funcion
         self.image_label.setPixmap(qt_img)                  #recibe la señal la procesa y convirtiendo el dato qt a un dato de cv2 y lo carga
-        
+        cv_img_reshaped = cv_img.flatten()                  #convertimos la imagen cv en un array 1 dimensional
+        self.queueDatosOrigenCV.put(cv_img_reshaped)        #cargamos en la queue definida para el traspaso de imagenes visibles
+
     def convert_cv_qt(self, cv_img):                        #convertimos el dato en qt de imagen a un dato en cv2
         """Convert from an opencv image to QPixmap"""
         rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
@@ -923,7 +972,7 @@ class App(QWidget):
     def thermal_image(self, thermal_img):        
         if self.flagQueueReady:
             thermal_img_reshaped = thermal_img.flatten()            
-            self.queueDatosOrigen.put(thermal_img_reshaped)
+            self.queueDatosOrigenThermal.put(thermal_img_reshaped)
         else:
             self.contadorFlagSwithThread = 0
 if __name__=="__main__":

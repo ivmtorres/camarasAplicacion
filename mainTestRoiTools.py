@@ -65,6 +65,7 @@ _sentinelStopThread = object() #objeto para indicar que los hilos deben deteners
 _sentinelArrayImgSeparator = object() #objeto para indicar separador entre imagenes
 #direccion base para los archivos de imagen
 basedir = os.path.dirname(__file__)
+
 #detecto si se cargo la imagen
 try:
     from ctypes import winddl
@@ -72,6 +73,7 @@ try:
     winddl.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
+
 #******************Declaro las funciones asincronicas*******************
  #creamos la funcion para generar un directorio asincronico
 #esto definiendo un nombre en el raiz del programa genera 
@@ -80,6 +82,7 @@ async def crearDirectorioAsincronico():
     returnQuery = await aiofiles.os.path.isdir('tmp')
     #si no existe lo va a crear asincronicamente
     await aiofiles.os.makedirs('tmp', exist_ok=True)
+
 #definimos una funcion para editar asincronicamente los archivos
 #con esto lo que buscamos es generar una imagen con anotaciones
 #de nuevo en la version final vamos a mostrar la lista de imagenes
@@ -88,6 +91,7 @@ async def modificarArchivoAsincronico():
     #creamos una rachivo para escritura y le cargamos un contenido
     async with aiofiles.open('test_write.txt', mode='w') as handle:
         await handle.write('hello aplicacion de imagenes!')
+
 #definimos la funcion para leer contenido asincronico
 #aca debemos mostrar la lista de archivos de imagenes y dar la
 #posibilidad de seleccionar la misma. 
@@ -101,6 +105,7 @@ async def leerContenidoAsincronico():
     async with aiofiles.open('test_write.txt', mode='r') as handle:
         data = await handle.read()        
     print(f'Read {len(data)} bytes')
+
 #definimos la funcion asincronica para borrar archivos. Borramos
 #un archivo existente esta funcion es solo de prueba 
 #la version correcta debe mostrar una lista de archivos y permitir
@@ -111,6 +116,7 @@ async def borrarArchivoAsincronico():
         handle.close()
     #borramos el archivo creado en la linea de arriba
     await aiofiles.os.remove("files_delete.txt")
+
 #definimos las funciones asincronicas para el guardado de archivos
 async def renombrarArchivoAsincronico():
     returnQuery = await aiofiles.os.path.isfile('files_rename.txt')
@@ -127,6 +133,7 @@ async def renombrarArchivoAsincronico():
         if not returnQuery1:
             await aiofiles.os.rename("files_rename.txt", "files_rename1.txt")
 #**********************************************************************************
+
 #defino funcion para el guardado de archivos
 def saveQueueImageInDisk(args):
     while True:
@@ -151,6 +158,7 @@ def saveQueueImageInDisk(args):
             #finalizo el hilo
             break
 #***************************************************
+
 #clase para herramientas de imagen
 class TestImage(QLabel):
     def __init__(self):
@@ -961,6 +969,7 @@ class TestImage(QLabel):
                     self.parent().parent().presionTeclaEnEllipse2Flag = False
         ####
         self.update()
+
 #***************************************************
 #Clase para comunicacion con camara optris
 class EvoIRFrameMetadata(ct.Structure):
@@ -1290,6 +1299,7 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         self.tempAmbiente = valorTempAmbiente
         self._changeTempAmbiente = True
 #***************************************************
+
 #Clase para procesamiento de datos
 class ProcesamientoDatosThread(QThread):
     #definimos el canal de comunicaciones
@@ -1312,6 +1322,7 @@ class ProcesamientoDatosThread(QThread):
         self._run_flag_procesamiento = False #cambio el estado del flag
         self.wait()
 #***************************************************
+
 #Clase barra de niveles
 class _Bar(QtWidgets.QWidget):
     clickedValue = QtCore.pyqtSignal(int)
@@ -1380,6 +1391,7 @@ class _Bar(QtWidgets.QWidget):
     def _trigger_refresh(self,i):
         #print("valor actual: ",i)
         self.update()
+
 #Clase para mostrar la Powerbar 
 class PowerBar(QtWidgets.QWidget):    
     def __init__(self, steps=5, *args, **kwargs):    
@@ -1407,6 +1419,7 @@ class PowerBar(QtWidgets.QWidget):
         self._dial.valueChanged.connect(self._bar._trigger_refresh)
         #seteo el alyout 
         self.setLayout(layout)
+
 #Clase boton para checkear
 class AnimatedToggle(QCheckBox):
 
@@ -1523,6 +1536,7 @@ class AnimatedToggle(QCheckBox):
     def pulse_radius(self, pos):
         self._pulse_radius = pos
         self.update()
+
 #Clase para graficar curvas
 class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
