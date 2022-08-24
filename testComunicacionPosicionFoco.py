@@ -1,9 +1,7 @@
-from concurrent.futures import thread
-from email.mime import image
 import gzip
 import queue
 import random
-from threading import Thread, Semaphore
+from threading import Thread, Semaphore, Barrier
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout,QHBoxLayout, QPushButton, QRadioButton, QMenu, QLineEdit, QDoubleSpinBox, QSpinBox
 from PyQt5.QtGui import QPixmap, QDoubleValidator
@@ -18,12 +16,28 @@ import os
 import asyncio
 import aiofiles
 import aiofiles.os
+from datetime import datetime
 
 
-
+miBarrera = Barrier(3)
 _sentinelArrayImgSeparator = -273#definimos un valor debajo del cero absoluto#object() #objeto para indicar separador entre imagenes
-_sentinelStopThread = object() #objeto para indicar que los hilos deben detenerse
+_sentinelStopThread = -500 #object() #objeto para indicar que los hilos deben detenerse
 _sentinelQueueImage = object()
+
+class statusGuardadoThread(Thread):
+    def __init__(self, botonGuardarArchivo, botonStopGuardarArchivo):
+        Thread.__init__(self)
+        self.botonGuardado = botonGuardarArchivo
+        self.botonStopGuardado = botonStopGuardarArchivo
+    def run(self):
+        #espero a que los hilos de guardado liberen la barrera
+        miBarrera.wait()
+        #los hilos liberaros
+        self.botonGuardado.setEnabled(True)
+        
+
+
+
 #definimos la zona donde vamos a tener el producer y el consumer
 #entendemos el producer como la tarea asincronica que va a tomar las imagenes y colocarlas en una cola tan rapido como pueda. Planteamos 3 producer
 #entendemos el consumer como la tarea asincronica que va a tomar la cola y sacar las imagenes tan rapido como pueda para guardarlas en disco
@@ -80,10 +94,26 @@ async def consumer(queue):
     
 #definimos la zona donde vamos a probar el guardado asincronico
 async def crearDirectorioAsincronico():
-    returnQuery = await aiofiles.os.path.isdir('tmp')
+    returnQuery = await aiofiles.os.path.isdir('imagenes')
+    if not returnQuery:        
+        #creamos un directorio donde guardar las imagenes
+        await aiofiles.os.makedirs('imagenes', exist_ok=True)                                                                            
+    timeCreationFolderImages = datetime.now()    
+    timeCreationFolderImagesStrDay = timeCreationFolderImages.strftime("%b_%d_%Y")
+    returnQuery = await aiofiles.os.path.isdir('imagenes/'+timeCreationFolderImagesStrDay)
     if not returnQuery:
-        #creamos un directorio
-        await aiofiles.os.makedirs('tmp', exist_ok=True)                                                                            
+        await aiofiles.os.makedirs('imagenes/'+timeCreationFolderImagesStrDay,exist_ok=True)
+    timeCreationFolderImagesStrHour = timeCreationFolderImages.strftime("%H")
+    returnQuery = await aiofiles.os.path.isdir('imagenes/'+timeCreationFolderImagesStrDay+"/"+timeCreationFolderImagesStrHour)
+    if not returnQuery:
+        await aiofiles.os.makedirs('imagenes/'+timeCreationFolderImagesStrDay+"/"+timeCreationFolderImagesStrHour,exist_ok=True)
+    timeCreationFolderImagesStrMinSec = timeCreationFolderImages.strftime("%M_%S")
+    returnQuery = await aiofiles.os.path.isdir('imagenes/'+timeCreationFolderImagesStrDay+"/"+timeCreationFolderImagesStrHour+"/"+timeCreationFolderImagesStrMinSec)
+    if not returnQuery:
+        await aiofiles.os.makedirs('imagenes/'+timeCreationFolderImagesStrDay+"/"+timeCreationFolderImagesStrHour+"/"+timeCreationFolderImagesStrMinSec,exist_ok=True)
+    
+    #en este punto tengo creado un directorio donde voy a guardar las imagenes de esta grabacion
+    return 'imagenes/'+timeCreationFolderImagesStrDay+"/"+timeCreationFolderImagesStrHour+"/"+timeCreationFolderImagesStrMinSec
 
 async def crearArchivoAsincronico(args):
   
@@ -104,37 +134,76 @@ async def modificarArchivoAsincronico():
     #creamos un archivo para escritura y le cargamos un contenido
     async with aiofiles.open('test_write.txt', mode='w') as handle:
         await handle.write('hello world1')
+
 def leerArchivoSincronico(nombreArchivo):
     #creamos una funcion para leer el archivo comprimido de manera sincronica
     #cargamos el path a la imagen
     pathArchivo = nombreArchivo
-    #print(pathArchivo)
+    #print(pathArchivo)    
     #descomprimimos la imagen
-    f = gzip.GzipFile(pathArchivo, "r")
+    fTh = gzip.GzipFile(pathArchivo+".npTh.gz", "r")
+    fCv = gzip.GzipFile(pathArchivo+".npCv.gz", "r")
     #cargamos la imagen como dato numpy
-    dato = np.load(f)
+    datoTh = np.load(fTh)
+    datoCv = np.load(fCv)
     #print(f"contenido: {dato.size}")
     #buscamos los marcadores separadores de imagenes
-    listaIndices = np.where(dato == _sentinelArrayImgSeparator)
+    listaIndicesTh = np.where(datoTh == _sentinelArrayImgSeparator)
+    listaIndicesCv = np.where(datoCv == _sentinelArrayImgSeparator)
     #print(listaIndices)
     #dividimos el contenido del archivo con los indices indicados por los separadores
-    resultado = np.array_split(dato, listaIndices[0])
-    #print(resultado)        
-    #instanciamos con los indices y generamos las imagenes termicas
+    resultadoTh = np.array_split(datoTh, listaIndicesTh[0])
+    resultadoCv = np.array_split(datoCv, listaIndicesCv[0]) #va a retornar una lista con los indices
+    #print(len(resultadoCv))        
+    #print(resultadoCv[0].shape)
+    #print(resultadoCv[10].shape)
+    #instanciamos con los indices y generamos las imagenes th
     #creamos una matriz de imagenes
-    matrizImgTermicas = np.zeros((288,382,29))
+    matrizImgTh = np.zeros((288,382,29))
+    matrizImgCv = np.zeros((288,384,3,29))
+    #definimos un indice
     indice = 0
-    for i in resultado[1:]:        
+    #iteramos para sacar la imagen th
+    for i in resultadoTh[1:]:        
         subArrayDato = i[1:]        
         imagen=np.reshape(subArrayDato,(288,382))
-        matrizImgTermicas[:,:,indice] = imagen
+        matrizImgTh[:,:,indice] = imagen
+        indice += 1
+    #hacemos 0 el indice
+    indice=0
+    #iteramos para sacar la imagen cv
+    for i in resultadoCv[1:]:
+        subArrayDatoCv = i[1:]
+        imagenCv=np.reshape(subArrayDatoCv,(288,384,3))
+        matrizImgCv[:,:,:,indice] = imagenCv
         indice += 1
     #selecciono una imagen para mostrar
     #print(matrizImgTermicas[:,:,10])
-    imagenCV = np.array(matrizImgTermicas[:,:,10],dtype=np.uint8)
+    sampleImagenTh = np.array(matrizImgTh[:,:,10],dtype=np.uint8)
+    sampleImagenCv = np.array(matrizImgCv[:,:,:,1],dtype=np.uint8)
+    sampleImagenCvRGB = cv2.cvtColor(sampleImagenCv, cv2.COLOR_BGR2RGB)
+    #print(sampleImagenCvRGB.shape)
+    #print(sampleImagenCvRGB[:,:,0])
+    #print(sampleImagenCvRGB[:,:,1])
+    #print(sampleImagenCvRGB[:,:,2])
     #threshed = cv2.adaptiveThreshold(imagenCV, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 3, 0)
-    heatmap = cv2.applyColorMap(imagenCV, cv2.COLORMAP_RAINBOW)
-    cv2.imshow('imagenTermica', heatmap)
+    heatmapTh = cv2.applyColorMap(sampleImagenTh, cv2.COLORMAP_RAINBOW)
+    #heatmapCv = cv2.applyColorMap(sampleImagenCvRGB, cv2.COLORMAP_RAINBOW) #no usamos el mapa de colores para la imagen convencional
+    #mostramos la imagen
+    cv2.imshow('imagenTh', heatmapTh)
+    for i in range(1,29):
+        #observo los datos cargados cv
+        sampleImagenCv = np.array(matrizImgCv[:,:,:,i],dtype=np.uint8)
+        sampleImagenCvRGB = cv2.cvtColor(sampleImagenCv, cv2.COLOR_BGR2RGB)        
+        cv2.imshow('imagenCv', sampleImagenCvRGB)
+        #observo los datos cargados th
+        sampleImagenTh = np.array(matrizImgTh[:,:,i],dtype=np.uint8)    
+        heatmapTh = cv2.applyColorMap(sampleImagenTh, cv2.COLORMAP_RAINBOW)
+        cv2.imshow('imagenTh', heatmapTh)
+        #aguardamos el key
+        k = cv2.waitKey(0)
+        if k == 27:
+            break
 
 async def leerContenidoAsincronico():
     #leemos el contenido del archivo
@@ -170,7 +239,7 @@ def between_callback(args):
     loop.close()
     print("hilo finalizado")
 #****************************************
-def saveQueueImageInDisk(args1, args2):
+def saveQueueImageInDisk(args1, args2, path):
     while True:    
         print("guardado de datos sincronico 1")        
         datoAcumuladoTh = np.array([])
@@ -179,12 +248,12 @@ def saveQueueImageInDisk(args1, args2):
         while True:
             tokenThermal = args1.get()
             tokenCV = args2.get()
-            print(tokenCV.shape)
+            #print(tokenCV.shape) Mostramos la cantidad de datos que tiene la imagen en formato plano.
             i += 1
             nameFile = random.random()                
-            if i >= 30:
-                fTh = gzip.GzipFile(str(nameFile)+".npTh.gz","w")
-                fCv = gzip.GzipFile(str(nameFile)+".npCv.gz","w")
+            if i >= 30:                 #en total vamos a meter 30 imagenes en la pila 
+                fTh = gzip.GzipFile(path+"/"+str(nameFile)+".npTh.gz","w")
+                fCv = gzip.GzipFile(path+"/"+str(nameFile)+".npCv.gz","w")
                 np.save(file=fTh, arr=datoAcumuladoTh)
                 np.save(file=fCv, arr=datoAcumuladoCv)
                 fTh.close()
@@ -199,7 +268,9 @@ def saveQueueImageInDisk(args1, args2):
             datoAcumuladoCv = np.append(datoAcumuladoCv,tokenCV.astype(int))
         if tokenThermal is _sentinelStopThread:
                 #finalizo el hilo
+                print("Finalizo Guardado Asincronico 1")
                 break
+    miBarrera.wait()
 
 #Define EvoIRFrameMetadata structure for additional frame infos
 class EvoIRFrameMetadata(ct.Structure):
@@ -532,6 +603,8 @@ class VideoThread(QThread):
 class App(QWidget):
     def __init__(self):
         super().__init__()   
+        #path a guardado de archivos
+        self.pathDirImagesFile = ""
         #flag para indicar si estoy guardando con los hilos
         self.GuardandoDatos = False     
         #flag switch thread
@@ -744,7 +817,7 @@ class App(QWidget):
     def startGuardarArchivo(self):     
         threads = []
         for n in range(2):
-            t = Thread(target=saveQueueImageInDisk, args=(self.queueDatosOrigenThermal,self.queueDatosOrigenCV))
+            t = Thread(target=saveQueueImageInDisk, args=(self.queueDatosOrigenThermal,self.queueDatosOrigenCV, self.pathDirImagesFile))
             t.start()
             threads.append(t)                
         #notifico que se debe cargar la queue
@@ -755,12 +828,18 @@ class App(QWidget):
     def stopGuardarArchivo(self):
         #detenemos el flag de guardar archivo
         self.flagQueueReady = False #indico que no encole mas imagenes
-        for i in range(6):
+        for i in range(2): #envio dos stop uno para cada hilo que vamos a guardar
             self.queueDatosOrigenThermal.put(_sentinelStopThread)
             self.queueDatosOrigenCV.put(_sentinelStopThread)
         print(i)
-        self.botonGuardarArchivo.setEnabled(True)
         self.botonStopGuardarArchivo.setEnabled(False)
+        #creo el hilo que se queda esperando a que termine el guardado de los archivos con la concecuente vacioado de colas
+        miStatusGuardadoThread = statusGuardadoThread(self.botonGuardarArchivo, self.botonStopGuardarArchivo)
+        miStatusGuardadoThread.start()
+        #cuando termine tiene que habilitar el start guardado y deshabilitar el stop guardado
+        #self.botonGuardarArchivo.setEnabled(True)
+        
+
 
     def modificarArchivo(self):
         print("seleccionamos modificar nuevo archivo de imagen")
@@ -772,12 +851,12 @@ class App(QWidget):
         print("seleccionamos leer archivo de imagen")
         #leer archivo con contenido
         #asyncio.run(leerContenidoAsincronico())
-        nombreArchivo="0.9339396266406695.npy.gz"
+        nombreArchivo="0.3681546140705304"
         leerArchivoSincronico(nombreArchivo)
 
     def nuevoFolder(self):
         print("seleccionamos crear nuevo directorio")
-        asyncio.run(crearDirectorioAsincronico())
+        self.pathDirImagesFile = asyncio.run(crearDirectorioAsincronico())
 
     def verificoLimiteInferiorSpin(self):
         if self.limInferiorRangoTempPaletaManual.value() > self.limSuperiorRangoTempPaletaManual.value():
@@ -956,9 +1035,11 @@ class App(QWidget):
         """Updates the image_label with a new opencv image""" #cada vez que el hilo procese una imagen emite una señal        
         qt_img = self.convert_cv_qt(cv_img)                     #esta señal esta asociada a esta funcion, la funcion
         self.image_label.setPixmap(qt_img)                  #recibe la señal la procesa y convirtiendo el dato qt a un dato de cv2 y lo carga
-        cv_img_reshaped = cv_img.flatten()                  #convertimos la imagen cv en un array 1 dimensional
-        self.queueDatosOrigenCV.put(cv_img_reshaped)        #cargamos en la queue definida para el traspaso de imagenes visibles
-
+        if self.flagQueueReady:
+            cv_img_reshaped = cv_img.flatten()                  #convertimos la imagen cv en un array 1 dimensional
+            self.queueDatosOrigenCV.put(cv_img_reshaped)        #cargamos en la queue definida para el traspaso de imagenes visibles
+        else:
+            self.contadorFlagSwithThread = 0
     def convert_cv_qt(self, cv_img):                        #convertimos el dato en qt de imagen a un dato en cv2
         """Convert from an opencv image to QPixmap"""
         rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
@@ -980,3 +1061,4 @@ if __name__=="__main__":
     a = App()
     a.show()
     sys.exit(app.exec_()) 
+
