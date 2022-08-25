@@ -1,13 +1,14 @@
 import gzip
+from importlib.resources import path
 import queue
 import random
 from threading import Thread, Semaphore, Barrier
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout,QHBoxLayout, QPushButton, QRadioButton, QMenu, QLineEdit, QDoubleSpinBox, QSpinBox
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout,QHBoxLayout, QPushButton, QRadioButton, QMenu, QLineEdit, QDoubleSpinBox, QSpinBox, QDialog, QDialogButtonBox, QTreeView, QListView, QFileSystemModel
 from PyQt5.QtGui import QPixmap, QDoubleValidator
 import sys
 import cv2
-from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QDir
 from matplotlib.pyplot import text
 import numpy as np
 import ctypes as ct
@@ -23,20 +24,140 @@ miBarrera = Barrier(3)
 _sentinelArrayImgSeparator = -273#definimos un valor debajo del cero absoluto#object() #objeto para indicar separador entre imagenes
 _sentinelStopThread = -500 #object() #objeto para indicar que los hilos deben detenerse
 _sentinelQueueImage = object()
+pathFolder = "hola" #usamos esta variable compartida para registrar el path cargado en la popup de seleccion de archivo para leer
 
+#definimos una clase que vamos a utilizar como popup para seleccion de path
+class popUpListFolder(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Select folder to read")
+        QBtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        popUpLayout = QVBoxLayout(self)
+
+        hlay = QHBoxLayout()
+        
+        self.treeview = QTreeView()
+        self.listview = QListView()
+        
+
+        path = QDir().currentPath()
+
+        self.dirModel = QFileSystemModel()
+        self.dirModel.setRootPath(QDir.rootPath())
+        self.dirModel.setFilter(QDir.NoDotAndDotDot | QDir.AllDirs)
+
+        self.fileModel = QFileSystemModel()
+        self.fileModel.setFilter(QDir.NoDotAndDotDot | QDir.Files)
+
+        self.treeview.setModel(self.dirModel)
+        self.listview.setModel(self.fileModel)
+
+        self.treeview.setRootIndex(self.dirModel.index(path))
+        self.listview.setRootIndex(self.fileModel.index(path))
+
+        self.treeview.clicked.connect(self.on_clicked)
+        self.listview.clicked.connect(self.on_clickedlist)
+        
+        hlay.addWidget(self.treeview)
+        hlay.addWidget(self.listview)
+        popUpLayout.addLayout(hlay)
+        popUpLayout.addWidget(self.buttonBox)
+
+    def on_clicked(self, index):
+        path = self.dirModel.fileInfo(index).absoluteFilePath()
+        self.listview.setRootIndex(self.fileModel.setRootPath(path))
+    def on_clickedlist(self, index):
+        path = self.fileModel.fileInfo(index).absoluteFilePath()
+        global pathFolder
+        pathFolder = path
+#creamos una clase para poder mostrar una popup con las imagenes y 
+#dos botones un boton de avanzar imagen y otro boton de retroceder imagen
+#tambien un boton de cerrar popup
+class popUpMostrarImagenes(QDialog):
+    def __init__(self, matrizImgTh, matrizImgCv):
+        super().__init__()
+        self.matrizImgTh = matrizImgTh
+        self.matrizImgCv = matrizImgCv
+        self.indice = 0
+        self.setWindowTitle("Show Images")
+        QBtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        popUpLayout = QVBoxLayout(self)
+
+        hlayoutImagenes = QHBoxLayout()
+        self.imagenTh = QLabel("aca va la imagen Th")
+        self.imagenCv = QLabel("aca va la imagen Cv")
+        hlayoutImagenes.addWidget(self.imagenTh)
+        hlayoutImagenes.addWidget(self.imagenCv)
+
+        hlayoutBotones = QHBoxLayout()
+        self.buttonBackward = QPushButton("backward")
+        self.buttonBackward.clicked.connect(self.retroceder1Imagen)
+        self.buttonFordward = QPushButton("fordward")
+        self.buttonFordward.clicked.connect(self.avanzar1Imagen)
+        hlayoutBotones.addWidget(self.buttonBackward)
+        hlayoutBotones.addWidget(self.buttonFordward)
+
+        popUpLayout.addLayout(hlayoutImagenes)
+        popUpLayout.addLayout(hlayoutBotones)
+        popUpLayout.addWidget(self.buttonBox)
+
+    def retroceder1Imagen(self):
+        print("retroceder una imagen")
+        self.indice -= 1
+        if self.indice <= 0:
+            self.indice = 28
+        sampleImagenTh = np.array(self.matrizImgTh[:,:,self.indice],dtype=np.uint8)    
+        qt_imgTh = self.convert_th_qt(sampleImagenTh)
+        self.imagenTh.setPixmap(qt_imgTh)
+        sampleImagenCv = np.array(self.matrizImgCv[:,:,:, self.indice],dtype=np.uint8)
+        qt_imgCv = self.convert_cv_qt(sampleImagenCv)
+        self.imagenCv.setPixmap(qt_imgCv)
+        
+    def avanzar1Imagen(self):
+        print("avanzar una imagen")
+        self.indice += 1
+        if self.indice >= 29:
+            self.indice = 0
+        sampleImagenCv = np.array(self.matrizImgCv[:,:,:, self.indice],dtype=np.uint8)
+        qt_imgCv = self.convert_cv_qt(sampleImagenCv)
+        self.imagenCv.setPixmap(qt_imgCv)
+        sampleImagenTh = np.array(self.matrizImgTh[:,:,self.indice],dtype=np.uint8)    
+        qt_imgTh = self.convert_th_qt(sampleImagenTh)
+        self.imagenTh.setPixmap(qt_imgTh)
+    def convert_th_qt(self, th_img):
+        rgb_imageTh = cv2.cvtColor(th_img, cv2.COLOR_BGR2RGB)
+        h,w,ch = rgb_imageTh.shape
+        bytes_per_line = ch * w
+        convert_to_Qt_format = QtGui.QImage(rgb_imageTh.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
+        p = convert_to_Qt_format.scaled(390, 290, Qt.KeepAspectRatio)
+        return QPixmap.fromImage(p)
+    def convert_cv_qt(self, cv_img):
+        rgb_imageCv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        h,w,ch = rgb_imageCv.shape
+        bytes_per_line = ch * w
+        convert_to_Qt_format = QtGui.QImage(rgb_imageCv.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
+        p = convert_to_Qt_format.scaled(390,290,Qt.KeepAspectRatio)
+        return QPixmap.fromImage(p)
+#creamos un hilo para poder registrar cuando los dos hilos de guardado de
+#imagenes en archivo terminan
 class statusGuardadoThread(Thread):
-    def __init__(self, botonGuardarArchivo, botonStopGuardarArchivo):
+    def __init__(self, botonCrearFolder):
         Thread.__init__(self)
-        self.botonGuardado = botonGuardarArchivo
-        self.botonStopGuardado = botonStopGuardarArchivo
+        self.botonCrearFolder = botonCrearFolder
     def run(self):
         #espero a que los hilos de guardado liberen la barrera
         miBarrera.wait()
         #los hilos liberaros
-        self.botonGuardado.setEnabled(True)
+        self.botonCrearFolder.setEnabled(True)
         
-
-
 
 #definimos la zona donde vamos a tener el producer y el consumer
 #entendemos el producer como la tarea asincronica que va a tomar las imagenes y colocarlas en una cola tan rapido como pueda. Planteamos 3 producer
@@ -190,20 +311,29 @@ def leerArchivoSincronico(nombreArchivo):
     heatmapTh = cv2.applyColorMap(sampleImagenTh, cv2.COLORMAP_RAINBOW)
     #heatmapCv = cv2.applyColorMap(sampleImagenCvRGB, cv2.COLORMAP_RAINBOW) #no usamos el mapa de colores para la imagen convencional
     #mostramos la imagen
-    cv2.imshow('imagenTh', heatmapTh)
-    for i in range(1,29):
-        #observo los datos cargados cv
-        sampleImagenCv = np.array(matrizImgCv[:,:,:,i],dtype=np.uint8)
-        sampleImagenCvRGB = cv2.cvtColor(sampleImagenCv, cv2.COLOR_BGR2RGB)        
-        cv2.imshow('imagenCv', sampleImagenCvRGB)
-        #observo los datos cargados th
-        sampleImagenTh = np.array(matrizImgTh[:,:,i],dtype=np.uint8)    
-        heatmapTh = cv2.applyColorMap(sampleImagenTh, cv2.COLORMAP_RAINBOW)
-        cv2.imshow('imagenTh', heatmapTh)
-        #aguardamos el key
-        k = cv2.waitKey(0)
-        if k == 27:
-            break
+    #cv2.imshow('imagenTh', heatmapTh)
+    #en esta parte tenemos que desarrollar una popup que nos permita navegar por el par de imagene th y cv. 
+    #en este momento pasamos por las imagenes con el visualizador de opencv 
+    popUpImagenes = popUpMostrarImagenes(matrizImgTh=matrizImgTh, matrizImgCv=matrizImgCv)
+    if popUpImagenes.exec():
+        print("visualizacion ok")
+        """
+        for i in range(1,29):
+            #observo los datos cargados cv
+            sampleImagenCv = np.array(matrizImgCv[:,:,:,i],dtype=np.uint8)
+            sampleImagenCvRGB = cv2.cvtColor(sampleImagenCv, cv2.COLOR_BGR2RGB)        
+            cv2.imshow('imagenCv', sampleImagenCvRGB)
+            #observo los datos cargados th
+            sampleImagenTh = np.array(matrizImgTh[:,:,i],dtype=np.uint8)    
+            heatmapTh = cv2.applyColorMap(sampleImagenTh, cv2.COLORMAP_RAINBOW)
+            cv2.imshow('imagenTh', heatmapTh)
+            #aguardamos el key
+            k = cv2.waitKey(0)
+            if k == 27:
+                break    
+        """
+    else:
+        print("cancel")
 
 async def leerContenidoAsincronico():
     #leemos el contenido del archivo
@@ -263,9 +393,9 @@ def saveQueueImageInDisk(args1, args2, path):
                 #finalizo el hilo
                 break
             datoAcumuladoTh = np.append(datoAcumuladoTh,_sentinelArrayImgSeparator)
-            datoAcumuladoTh = np.append(datoAcumuladoTh,tokenThermal.astype(int)) 
+            datoAcumuladoTh = np.append(datoAcumuladoTh,tokenThermal) #.astype(int)
             datoAcumuladoCv = np.append(datoAcumuladoCv,_sentinelArrayImgSeparator)       
-            datoAcumuladoCv = np.append(datoAcumuladoCv,tokenCV.astype(int))
+            datoAcumuladoCv = np.append(datoAcumuladoCv,tokenCV)
         if tokenThermal is _sentinelStopThread:
                 #finalizo el hilo
                 print("Finalizo Guardado Asincronico 1")
@@ -732,6 +862,7 @@ class App(QWidget):
         #creamos el boton asociado a guardar la imagen 
         self.botonGuardarArchivo = QPushButton("SaveFile")
         self.botonGuardarArchivo.clicked.connect(self.startGuardarArchivo)
+        self.botonGuardarArchivo.setEnabled(False)
         #creamos el boton asociado a stop guardar la imagen
         self.botonStopGuardarArchivo = QPushButton("StopSave")
         self.botonStopGuardarArchivo.clicked.connect(self.stopGuardarArchivo)
@@ -739,18 +870,23 @@ class App(QWidget):
         #creamos el boton asociado a modificar la imagen
         self.botonModificarArchivo = QPushButton("EditFile")
         self.botonModificarArchivo.clicked.connect(self.modificarArchivo)
+        self.botonModificarArchivo.setEnabled(False)
         #creamos el boton asociado a leer la imagen
         self.botonLeerArchivo = QPushButton("ReadFile")
         self.botonLeerArchivo.clicked.connect(self.leerArchivo)
+        self.botonLeerArchivo.setEnabled(False)
         #creamos el boton asociada a borrar archivo
         self.botonBorrarArchivo = QPushButton("DeleteFile")
         self.botonBorrarArchivo.clicked.connect(self.borrarArchivo) 
+        self.botonBorrarArchivo.setEnabled(False)
         #creamos el boton de mover archivo
         self.botonMoverArchivo = QPushButton("MoveFile")
         self.botonMoverArchivo.clicked.connect(self.moverArchivo)
+        self.botonMoverArchivo.setEnabled(False)
         #creamos el boton cambiar nombre archivo
         self.botonRenombrarArchivo = QPushButton("RenameFile")
         self.botonRenombrarArchivo.clicked.connect(self.renombrarArchivo)
+        self.botonRenombrarArchivo.setEnabled(False)
         #creo boton de exit
         self.btnClose = QPushButton("Exit")
         self.btnClose.clicked.connect(self.closeApp)
@@ -834,7 +970,7 @@ class App(QWidget):
         print(i)
         self.botonStopGuardarArchivo.setEnabled(False)
         #creo el hilo que se queda esperando a que termine el guardado de los archivos con la concecuente vacioado de colas
-        miStatusGuardadoThread = statusGuardadoThread(self.botonGuardarArchivo, self.botonStopGuardarArchivo)
+        miStatusGuardadoThread = statusGuardadoThread(self.botonNuevoFolder)
         miStatusGuardadoThread.start()
         #cuando termine tiene que habilitar el start guardado y deshabilitar el stop guardado
         #self.botonGuardarArchivo.setEnabled(True)
@@ -851,12 +987,21 @@ class App(QWidget):
         print("seleccionamos leer archivo de imagen")
         #leer archivo con contenido
         #asyncio.run(leerContenidoAsincronico())
-        nombreArchivo="0.3681546140705304"
-        leerArchivoSincronico(nombreArchivo)
+        popUp = popUpListFolder()
+        if popUp.exec():
+            print(f"nuevo path:{pathFolder[:-8]}")
+            nombreArchivo=pathFolder[:-8]#"imagenes/Aug_24_2022/11/36_41/"+"0.5300385777829929"
+            leerArchivoSincronico(nombreArchivo)
+        else:
+            print("cancel")
+        
 
     def nuevoFolder(self):
         print("seleccionamos crear nuevo directorio")
         self.pathDirImagesFile = asyncio.run(crearDirectorioAsincronico())
+        self.botonGuardarArchivo.setEnabled(True)
+        self.botonLeerArchivo.setEnabled(True)
+        self.botonNuevoFolder.setEnabled(False)
 
     def verificoLimiteInferiorSpin(self):
         if self.limInferiorRangoTempPaletaManual.value() > self.limSuperiorRangoTempPaletaManual.value():
