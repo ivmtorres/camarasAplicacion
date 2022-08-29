@@ -1,14 +1,11 @@
 from PyQt5 import QtGui
-from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout, QPushButton
 from PyQt5.QtGui import QPixmap
 import sys
 import cv2
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread
 import numpy as np
-from ctypes.util import find_library
-import numpy as np
 import ctypes as ct
-import cv2
 import os
 
 #Define EvoIRFrameMetadata structure for additional frame infos
@@ -89,7 +86,7 @@ class VideoThread(QThread):
 
 
         # capture and display image till q is pressed
-        while chr(cv2.waitKey(1) & 255) != 'q':
+        while self._run_flag == True:
                 #get thermal and palette image with metadat
                 ret = libir.evo_irimager_get_thermal_palette_image_metadata(thermal_width, thermal_height, npThermalPointer, palette_width, palette_height, npImagePointer, ct.byref(metadata))
 
@@ -127,11 +124,13 @@ class App(QWidget):
         self.image_label.resize(self.disply_width, self.display_height)
         # create a text label
         self.textLabel = QLabel('Webcam')
-
+        stop = QPushButton("stop")
+        stop.clicked.connect(self.closeApp)
         # create a vertical box layout and add the two labels
         vbox = QVBoxLayout()
         vbox.addWidget(self.image_label)
         vbox.addWidget(self.textLabel)
+        vbox.addWidget(stop)
         # set the vbox layout as the widgets layout
         self.setLayout(vbox)
 
@@ -141,6 +140,10 @@ class App(QWidget):
         self.thread.change_pixmap_signal.connect(self.update_image)
         # start the thread
         self.thread.start()
+
+    def closeApp(self):
+        print("cierro aplicacion")
+        self.close()
 
     def closeEvent(self, event):
         self.thread.stop()

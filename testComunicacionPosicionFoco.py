@@ -5,7 +5,7 @@ import random
 from threading import Thread, Semaphore, Barrier
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout,QHBoxLayout, QPushButton, QRadioButton, QMenu, QLineEdit, QDoubleSpinBox, QSpinBox, QDialog, QDialogButtonBox, QTreeView, QListView, QFileSystemModel
-from PyQt5.QtGui import QPixmap, QDoubleValidator
+from PyQt5.QtGui import QPixmap, QDoubleValidator, QIcon
 import sys
 import cv2
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QDir
@@ -25,6 +25,14 @@ _sentinelArrayImgSeparator = -273#definimos un valor debajo del cero absoluto#ob
 _sentinelStopThread = -500 #object() #objeto para indicar que los hilos deben detenerse
 _sentinelQueueImage = object()
 pathFolder = "hola" #usamos esta variable compartida para registrar el path cargado en la popup de seleccion de archivo para leer
+
+basedir = os.path.dirname(__file__)
+try:
+    from ctypes import windll
+    myappid = 'com.labctrl.thermalvision.cams.00'
+    windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+except ImportError:
+    pass
 
 #definimos una clase que vamos a utilizar como popup para seleccion de path
 class popUpListFolder(QDialog):
@@ -454,13 +462,15 @@ class VideoThread(QThread):
     def run(self):
         # capture from thermal cam
         # load library
+        libir = ct.CDLL("c:\\irDirectSDK\\sdk\\x64\\libirimager.dll")
+        """
         if os.name == 'nt':
                 #windows:
                 libir = ct.CDLL("c:\\irDirectSDK\\sdk\\x64\\libirimager.dll") 
         else:
                 #linux:
                 libir = ct.cdll.LoadLibrary(ct.util.find_library("irdirectsdk"))
-
+        """
         #path to config xml file ---> ../config/generic.xml 
         pathXml = ct.c_char_p(b'C:\Users\lupus\OneDrive\Documentos\ProcesamientoDeImagenes\config\generic.xml ')
 
@@ -973,16 +983,12 @@ class App(QWidget):
         miStatusGuardadoThread = statusGuardadoThread(self.botonNuevoFolder)
         miStatusGuardadoThread.start()
         #cuando termine tiene que habilitar el start guardado y deshabilitar el stop guardado
-        #self.botonGuardarArchivo.setEnabled(True)
-        
-
-
+        #self.botonGuardarArchivo.setEnabled(True)        
     def modificarArchivo(self):
         print("seleccionamos modificar nuevo archivo de imagen")
         #modificar archivo con contenido
         asyncio.run(modificarArchivoAsincronico())
-        
-
+      
     def leerArchivo(self):
         print("seleccionamos leer archivo de imagen")
         #leer archivo con contenido
@@ -994,8 +1000,7 @@ class App(QWidget):
             leerArchivoSincronico(nombreArchivo)
         else:
             print("cancel")
-        
-
+   
     def nuevoFolder(self):
         print("seleccionamos crear nuevo directorio")
         self.pathDirImagesFile = asyncio.run(crearDirectorioAsincronico())
@@ -1171,6 +1176,7 @@ class App(QWidget):
     def closeApp(self):
         print("cierro aplicacion!")
         self.close() #genera el evento de close
+    
     def closeEvent(self, event): #capturo el evento de close y cierro el hilo
         self.thread.stop() #cierro el hilo
         event.accept()      
@@ -1203,7 +1209,8 @@ class App(QWidget):
             self.contadorFlagSwithThread = 0
 if __name__=="__main__":
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(os.path.join(basedir,"appIcons",'logo.ico')))
     a = App()
     a.show()
-    sys.exit(app.exec_()) 
-
+    #sys.exit(app.exec_()) 
+    app.exec()

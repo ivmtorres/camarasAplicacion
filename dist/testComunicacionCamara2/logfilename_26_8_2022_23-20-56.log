@@ -1,0 +1,46 @@
+DEBUG [IRLogger.cpp:105] @ 0.0003655s :***************************************************
+DEBUG [IRLogger.cpp:106] @ 0.0004844s :* IRImagerDirect SDK                              *
+DEBUG [IRLogger.cpp:107] @ 0.0005347s :***************************************************
+DEBUG [IRLogger.cpp:108] @ 0.00062s :* Version:             8.8.1
+DEBUG [IRLogger.cpp:109] @ 0.0006689s :* Commit Date:         Wed Nov 17 11:55:39 2021
+DEBUG [IRLogger.cpp:110] @ 0.0007132s :* Commit Branch:       master
+DEBUG [IRLogger.cpp:111] @ 0.0007873s :* Commit Hash:         71552585
+DEBUG [IRLogger.cpp:113] @ 0.0443271s :* Native Machine:      AMD64
+DEBUG [IRLogger.cpp:114] @ 0.0466409s :* Machine:             AMD64
+DEBUG [IRLogger.cpp:116] @ 0.0466889s :* OS:                  Windows 10 0 19043
+DEBUG [IRLogger.cpp:123] @ 0.0467159s :***************************************************
+WARNING [IRDeviceParams.cpp:198] @ 0.0475266s :XML parameter 'average' is deprecated and is not supported anymore.
+DEBUG [IRDeviceParams.cpp:220] @ 0.0475659s :Parameters
+DEBUG [IRDeviceParams.cpp:221] @ 0.0475937s :serial: 0
+DEBUG [IRDeviceParams.cpp:222] @ 0.0476192s :videoformatindex: 0
+DEBUG [IRDeviceParams.cpp:223] @ 0.0476444s :fov: 0
+DEBUG [IRDeviceParams.cpp:224] @ 0.0476736s :optics_text: 0000000000000000
+DEBUG [IRDeviceParams.cpp:225] @ 0.0477001s :formatspath: 00000227E0B675D0
+DEBUG [IRDeviceParams.cpp:226] @ 0.0477257s :calipath: 00000227E0AE83D0
+DEBUG [IRDeviceParams.cpp:227] @ 0.0477509s :temperature min: 0
+DEBUG [IRDeviceParams.cpp:228] @ 0.0477767s :temperature max: 250
+DEBUG [IRDeviceParams.cpp:229] @ 0.0478033s :framerate: 20
+DEBUG [IRDeviceParams.cpp:230] @ 0.0478292s :bispectral: 0
+DEBUG [IRDeviceParams.cpp:231] @ 0.047858s :flag automatic: 1
+DEBUG [IRDeviceParams.cpp:232] @ 0.0478832s :min interval: 15
+DEBUG [IRDeviceParams.cpp:233] @ 0.0479144s :max interval: 0
+DEBUG [IRDeviceParams.cpp:234] @ 0.0479446s :chip heating mode: 0
+DEBUG [IRDeviceParams.cpp:235] @ 0.0479714s :chip heating fixed val: 40
+DEBUG [IRDeviceParams.cpp:236] @ 0.0479989s :focus:  70
+DEBUG [IRDeviceParams.cpp:237] @ 0.0480254s :enable extended temp range: 0
+DEBUG [IRDeviceParams.cpp:238] @ 0.0480638s :buffer queue size: 5
+DEBUG [IRDeviceParams.cpp:239] @ 0.0480951s :enable high precision: 0
+DEBUG [IRDeviceParams.cpp:240] @ 0.0481267s :radialDistortionCorrectionMode: 0
+DEBUG [IRDeviceParams.cpp:241] @ 0.0488738s :deviceAPI: 0
+DEBUG [IRDeviceParams.cpp:242] @ 0.0489075s :useExternalProbeForReferencing: 0
+DEBUG [IRDeviceParams.cpp:243] @ 0.048935s :enableMultiThreading: 0
+DEBUG [IRDeviceParams.cpp:244] @ 0.0489623s :deviceIpAddress: 0.0.0.0
+DEBUG [IRDeviceParams.cpp:245] @ 0.0490083s :localUdpPort: 0
+DEBUG [Cali.cpp:87] @ 0.196013s :Calibration directory path: C:\Users\lupus\AppData\Roaming\Imager\Cali
+DEBUG [Cali.cpp:88] @ 0.196068s :Calibration file name: Cali-20064016.xml
+DEBUG [Cali.cpp:98] @ 0.196865s :Calibration data A: 1450 B:400 C:4095 D:1000
+INFO [IRImager.cpp:263] @ 0.198314s :Init thermal imager to 20064016 with size: 382x290@27 Hz
+DEBUG [Cali.cpp:87] @ 0.19859s :Calibration directory path: C:\Users\lupus\AppData\Roaming\Imager\Cali
+DEBUG [Cali.cpp:88] @ 0.198614s :Calibration file name: Cali-20064016.xml
+DEBUG [Cali.cpp:98] @ 0.199053s :Calibration data A: 1450 B:400 C:4095 D:1000
+ERROR [IRImager.cpp:326] @ 0.199691s :Formats.def file cannot be found. Check configuration of <formatspath> tag and existence of file.
