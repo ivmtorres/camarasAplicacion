@@ -79,9 +79,28 @@ except ImportError:
 #esto definiendo un nombre en el raiz del programa genera 
 #una carpeta.
 async def crearDirectorioAsincronico():
-    returnQuery = await aiofiles.os.path.isdir('tmp')
+    returnQuery = await aiofiles.os.path.isdir('imagenes')
     #si no existe lo va a crear asincronicamente
-    await aiofiles.os.makedirs('tmp', exist_ok=True)
+    #await aiofiles.os.makedirs('tmp', exist_ok=True)
+    if not returnQuery:        
+        #creamos un directorio donde guardar las imagenes
+        await aiofiles.os.makedirs('imagenes', exist_ok=True)                                                                            
+    timeCreationFolderImages = datetime.datetime.now()    
+    timeCreationFolderImagesStrDay = timeCreationFolderImages.strftime("%b_%d_%Y")
+    returnQuery = await aiofiles.os.path.isdir('imagenes/'+timeCreationFolderImagesStrDay)
+    if not returnQuery:
+        await aiofiles.os.makedirs('imagenes/'+timeCreationFolderImagesStrDay,exist_ok=True)
+    timeCreationFolderImagesStrHour = timeCreationFolderImages.strftime("%H")
+    returnQuery = await aiofiles.os.path.isdir('imagenes/'+timeCreationFolderImagesStrDay+"/"+timeCreationFolderImagesStrHour)
+    if not returnQuery:
+        await aiofiles.os.makedirs('imagenes/'+timeCreationFolderImagesStrDay+"/"+timeCreationFolderImagesStrHour,exist_ok=True)
+    timeCreationFolderImagesStrMinSec = timeCreationFolderImages.strftime("%M_%S")
+    returnQuery = await aiofiles.os.path.isdir('imagenes/'+timeCreationFolderImagesStrDay+"/"+timeCreationFolderImagesStrHour+"/"+timeCreationFolderImagesStrMinSec)
+    if not returnQuery:
+        await aiofiles.os.makedirs('imagenes/'+timeCreationFolderImagesStrDay+"/"+timeCreationFolderImagesStrHour+"/"+timeCreationFolderImagesStrMinSec,exist_ok=True)
+    
+    #en este punto tengo creado un directorio donde voy a guardar las imagenes de esta grabacion
+    return 'imagenes/'+timeCreationFolderImagesStrDay+"/"+timeCreationFolderImagesStrHour+"/"+timeCreationFolderImagesStrMinSec
 
 #definimos una funcion para editar asincronicamente los archivos
 #con esto lo que buscamos es generar una imagen con anotaciones
@@ -2812,6 +2831,8 @@ class MainWindow(QDialog):
    
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
+        #path a guardado de archivos
+        self.pathDirImagesFile = ""
         #creo la cola de datos
         self.queueDatosOrigen = queue.Queue()
         self.flagQueueReady = False
@@ -5103,7 +5124,9 @@ class MainWindow(QDialog):
         self.flagQueueReady = True
     def createNewFolderImagenOnline(self):
         print("new folder")
-        asyncio.run(crearDirectorioAsincronico())
+        self.pathDirImagesFile = asyncio.run(crearDirectorioAsincronico())
+        #falta la habilitacion de guardar e inhabilitar los botones        
+
     def makeMoveFileImagenOnline(self):
         print("move file")
         #no implementamos la funcion porque en el so de windows 
