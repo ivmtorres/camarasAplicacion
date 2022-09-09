@@ -6,7 +6,7 @@ from threading import Thread, Barrier
 from time import sleep, time
 from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette, QFont, QDoubleValidator
-from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRect, QLine, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty, QThread
+from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRect, QLine, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty, QThread, QDir
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -39,11 +39,16 @@ from PyQt5.QtWidgets import (
     QAction,
     QGraphicsEllipseItem,
     QScrollArea, 
-    QDoubleSpinBox   
+    QDoubleSpinBox,
+    QDialogButtonBox,
+    QTreeView,
+    QListView,
+    QFileSystemModel   
 )
 from PyQt5.QtGui import QIcon, QPaintEvent
 import matplotlib
 from matplotlib.widgets import Widget
+
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -65,6 +70,8 @@ import queue
 miBarrera = Barrier(3)
 _sentinelStopThread = -500#object() #objeto para indicar que los hilos deben detenerse
 _sentinelArrayImgSeparator = -273#object() #objeto para indicar separador entre imagenes
+pathFolder = "hola" #usamos esta variable compartida para registrar el path cargado en la popup de seleccion de archivo para leer 
+
 #direccion base para los archivos de imagen
 basedir = os.path.dirname(__file__)
 
@@ -75,6 +82,56 @@ try:
     winddl.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
+
+#definimos una clase que vamos a utilizar como popup para seleccion de path
+class popUpListFolder(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Select folder to read")
+        QBtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        popUpLayout = QVBoxLayout(self)
+
+        hlay = QHBoxLayout()
+
+        self.treeview = QTreeView()
+        self.listview = QListView()
+
+        path = QDir().currentPath()
+
+        self.dirModel = QFileSystemModel()
+        self.dirModel.setRootPath(QDir.rootPath())
+        self.dirModel.setFilter(QDir.NoDotAndDotDot | QDir.AllDirs)
+
+        self.fileModel = QFileSystemModel()
+        self.fileModel.setFilter(QDir.NoDotAndDotDot | QDir.Files)
+
+        self.treeview.setModel(self.dirModel)
+        self.listview.setModel(self.fileModel)
+
+        self.treeview.setRootIndex(self.dirModel.index(path))
+        self.listview.setRootIndex(self.fileModel.index(path))
+
+        self.treeview.clicked.connect(self.on_clicked)
+        self.listview.clicked.connect(self.on_clickedlist)
+
+        hlay.addWidget(self.treeview)
+        hlay.addWidget(self.listview)
+        popUpLayout.addLayout(hlay)
+        popUpLayout.addWidget(self.buttonBox)
+    
+    def on_clicked(self, index):
+        path = self.dirModel.fileInfo(index).absoluteFilePath()
+        self.listview.setRootIndex(self.fileModel.setRootPath(path))
+    
+    def on_clickedlist(self, index):
+        path = self.fileModel.fileInfo(index).absoluteFilePath()
+        global pathFolder
+        pathFolder = path
+     
 
 #******************Declaro las funciones asincronicas*******************
  #creamos la funcion para generar un directorio asincronico
@@ -112,6 +169,34 @@ async def modificarArchivoAsincronico():
     #creamos una rachivo para escritura y le cargamos un contenido
     async with aiofiles.open('test_write.txt', mode='w') as handle:
         await handle.write('hello aplicacion de imagenes!')
+
+#****Funciones para buscar imagenes historicas
+def leerArchivoSincronico(nombreArchivo):
+    pathArchivo = nombreArchivo
+    fTh = gzip.GzipFile(pathArchivo + ".npTh.gz", "r")
+    fCv = gzip.GzipFile(pathArchivo + ".npCv.gz", "r")
+    datoTh = np.load(fTh)
+    datoCv = np.load(fCv)
+    listaIndicesTh = np.where(datoTh == _sentinelArrayImgSeparator)
+    listaIndicesCv = np.where(datoCv == _sentinelArrayImgSeparator)
+    resultadoTh = np.array_split(datoTh, listaIndicesTh[0])
+    resultadoCv = np.array_split(datoCv, listaIndicesCv[0])
+    matrizImgTh = np.zeros((288,382,29))
+    matrizImgCv = np.zeros((288,384,3,29))
+    indice = 0
+    for i in resultadoTh[1:]:
+        subArrayDato = i[1:]
+        imagen = np.reshape(subArrayDato,(288,382))
+        matrizImgTh[:,:,indice] = imagen
+        indice += 1
+    indice = 0
+    for i in resultadoCv[1:]:
+        subArrayDatoCv = i[1:]
+        imagenCv = np.reshape(subArrayDatoCv, (288,384,3))
+        matrizImgCv[:,:,:,indice] = imagenCv
+        indice += 1
+    
+    return (matrizImgTh, matrizImgCv)
 
 #definimos la funcion para leer contenido asincronico
 #aca debemos mostrar la lista de archivos de imagenes y dar la
@@ -2853,6 +2938,14 @@ class MainWindow(QDialog):
    
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
+        #creo los registros donde llevo las imagens termicas y de vision 
+        #que leemos de los archivos
+        self.matrizImgThIzq = []
+        self.matrizImgCvIzq = []
+        self.matrizImgThDer = []
+        self.matrizImgCvDer = []
+        #indice para buscar las imagenes guardada
+        self.indice = 0
         #path a guardado de archivos
         self.pathDirImagesFile = ""
         #creo la cola de datos
@@ -2958,6 +3051,26 @@ class MainWindow(QDialog):
         self.img1ComboBoxReading.addItem(self.imag1_icon,"image_4") #por ahora lo dejamos hardcodeado
         self.img1ComboBoxReading.setToolTip("Push for select the image to show")
         
+        self.botonLeerArchivoIzq = QPushButton("ManSelFile")
+        self.botonLeerArchivoIzq.clicked.connect(self.leerArchivoIzq)
+        self.botonLeerArchivoIzq.setEnabled(False)
+        self.botonLeerArchivoIzq.setToolTip("Push for search image in system folder")
+        self.botonLeerArchivoIzq.setIcon(QIcon(os.path.join(basedir,"appIcons","folder.png")))
+
+        self.botonBackwardFileIzq = QPushButton("BackwardFile")
+        self.botonBackwardFileIzq.clicked.connect(self.retrocederArchivoIzq)
+        self.botonBackwardFileIzq.setEnabled(False)
+        self.botonBackwardFileIzq.setToolTip("Push for backward 1 image in selected folder")
+        self.botonBackwardFileIzq.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-180.png")))
+
+        self.botonFordwardFileIzq = QPushButton("FordwardFile")
+        self.botonFordwardFileIzq.clicked.connect(self.avanzarArchivoIzq)
+        self.botonFordwardFileIzq.setEnabled(False)
+        self.botonFordwardFileIzq.setToolTip("Push for foradward 1 image in selected folder")
+        self.botonFordwardFileIzq.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow.png")))
+
+        #
+        #Defino los elementos del banner historicos de la derecha
         self.camCombo2 = CamComboBox(self) #combo box de camaras para los historicos de la derecha
         self.camCombo2.popupAboutToBeShown.connect(self.populateCamCombo2)
 
@@ -2975,6 +3088,25 @@ class MainWindow(QDialog):
         self.img2ComboBoxReading.addItem(self.imag2_icon,"image_4") #por ahora lo dejamos hardcodeado
         self.img2ComboBoxReading.setToolTip("Push for select the image to show")
         
+        self.botonLeerArchivoDer = QPushButton("ManSelFile")
+        self.botonLeerArchivoDer.clicked.connect(self.leerArchivoDer)
+        self.botonLeerArchivoDer.setEnabled(False)
+        self.botonLeerArchivoDer.setToolTip("Push for search image in system folder")
+        self.botonLeerArchivoDer.setIcon(QIcon(os.path.join(basedir,"appIcons","folder.png")))
+
+        self.botonBackwardFileDer = QPushButton("BackwardFile")
+        self.botonBackwardFileDer.clicked.connect(self.retrocederArchivoDer)
+        self.botonBackwardFileDer.setEnabled(False)
+        self.botonBackwardFileDer.setToolTip("Push for backward 1 image in selected folder")
+        self.botonBackwardFileDer.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-180.png")))
+
+        self.botonFordwardFileDer = QPushButton("FordwardFile")
+        self.botonFordwardFileDer.clicked.connect(self.avanzarArchivoDer)
+        self.botonFordwardFileDer.setEnabled(False)
+        self.botonFordwardFileDer.setToolTip("Push for fordward 1 image in selected folder")
+        self.botonFordwardFileDer.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow.png")))
+        #
+        #
         self.setWindowTitle("Camera Applications")
         #***********************************************
         #***********************************************
@@ -4144,7 +4276,7 @@ class MainWindow(QDialog):
         self.botonLibre3ImagenOnline.setEnabled(False)
         self.botonLibre4ImagenOnline = QPushButton("Libre")
         self.botonLibre4ImagenOnline.setEnabled(False)
-        #creamos el grid layour
+        #creamos el grid layout
         layoutGridBotonesImagenOnline = QGridLayout()
         layoutGridBotonesImagenOnline.addWidget( self.playImageOnline, 0, 0)
         layoutGridBotonesImagenOnline.addWidget( self.stopImagenOnline, 0, 1)
@@ -4163,8 +4295,7 @@ class MainWindow(QDialog):
         #agregamos el grid layout al layout vertical
         layoutVerBanerCamOnline.addLayout(layoutGridBotonesImagenOnline)
         elementosIzqImagenOnlineRecord.setLayout(layoutVerBanerCamOnline)
-        
-        
+         
         
         #agrego la grafica para la ventana de historicos de la izquierda el grafico de curvas
         graficoHistoricoIzq = MplCanvas(self, width=2, height=2, dpi=100)
@@ -4271,19 +4402,25 @@ class MainWindow(QDialog):
         bannerSelCam1.addWidget(self.camCombo1)
         bannerSelCam1.addWidget(self.dateCam1Image)
         bannerSelCam1.addWidget(self.img1ComboBoxReading)
+        bannerSelCam1.addWidget(self.botonLeerArchivoIzq)
+        bannerSelCam1.addWidget(self.botonBackwardFileIzq)
+        bannerSelCam1.addWidget(self.botonFordwardFileIzq)
         bannerSelCam2.addWidget(textEditTab4BotonSelCam2)
         bannerSelCam2.addWidget(self.camCombo2)
         bannerSelCam2.addWidget(self.dateCam2Image)
         bannerSelCam2.addWidget(self.img2ComboBoxReading)
+        bannerSelCam2.addWidget(self.botonLeerArchivoDer)
+        bannerSelCam2.addWidget(self.botonBackwardFileDer)
+        bannerSelCam2.addWidget(self.botonFordwardFileDer)
         subWindowHistory1CamBanner.setLayout(bannerSelCam1)
         subWindowHistory2CamBanner.setLayout(bannerSelCam2)
 
         #genero la imagen 1 a la izquierda en la pantalla de historicos
-        imageHistory1CamScene = QGraphicsScene(0,0,0,0)
-        imageHistory1CamPixmap = QPixmap("imageCam1.jpg")
-        imageHistory1PixmapItem = imageHistory1CamScene.addPixmap(imageHistory1CamPixmap)
-        imageHistory1ViewPixMapItem = QGraphicsView(imageHistory1CamScene)
-        imageHistory1ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
+        self.imageHistory1CamScene = QGraphicsScene(0,0,0,0)
+        self.imageHistory1CamPixmap = QPixmap("imageCam1.jpg")
+        imageHistory1PixmapItem = self.imageHistory1CamScene.addPixmap(self.imageHistory1CamPixmap)
+        self.imageHistory1ViewPixMapItem = QGraphicsView(self.imageHistory1CamScene)
+        self.imageHistory1ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
         #genero un toolbar para la imagen de la izquierda en la pantalla de historicos
         toolBarImageHistoryIzq = QToolBar("Toolbar Image History 1")
         toolBarImageHistoryIzq.setIconSize(QSize(16,16))
@@ -4330,16 +4467,16 @@ class MainWindow(QDialog):
                 
         self.imgHistIzqWidgetLayout = QVBoxLayout() #defino el layout del toolbar y de la imagen
         self.imgHistIzqWidgetLayout.addWidget(toolBarImageHistoryIzq) #cargo el toolbar
-        self.imgHistIzqWidgetLayout.addWidget(imageHistory1ViewPixMapItem) #cargo la imagen
+        self.imgHistIzqWidgetLayout.addWidget(self.imageHistory1ViewPixMapItem) #cargo la imagen
         self.imgHistIzqWidget.setLayout(self.imgHistIzqWidgetLayout) #seteo el layout en el contenedor
 
         
         #genero la imagen 2
-        imageHistory2CamScene = QGraphicsScene(0,0,0,0)
-        imageHistory2CamPixmap = QPixmap("imageCam2.jpg")
-        imageHistory2PixmapItem = imageHistory2CamScene.addPixmap(imageHistory2CamPixmap)
-        imageHistory2ViewPixMapItem = QGraphicsView(imageHistory2CamScene)
-        imageHistory2ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
+        self.imageHistory2CamScene = QGraphicsScene(0,0,0,0)
+        self.imageHistory2CamPixmap = QPixmap("imageCam2.jpg")
+        imageHistory2PixmapItem = self.imageHistory2CamScene.addPixmap(self.imageHistory2CamPixmap)
+        self.imageHistory2ViewPixMapItem = QGraphicsView(self.imageHistory2CamScene)
+        self.imageHistory2ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
         #genero un toolbar para la imagen de la derecha en la pantalla de historicos
         toolBarImageHistoryDer = QToolBar("Toolbar Image History 2")
         toolBarImageHistoryDer.setIconSize(QSize(16,16))
@@ -4385,7 +4522,7 @@ class MainWindow(QDialog):
 
         self.imgHistDerWidgetLayout = QVBoxLayout() #defino el layout del contenedor de toolbar e imagen a derecha
         self.imgHistDerWidgetLayout.addWidget(toolBarImageHistoryDer)
-        self.imgHistDerWidgetLayout.addWidget(imageHistory2ViewPixMapItem)
+        self.imgHistDerWidgetLayout.addWidget(self.imageHistory2ViewPixMapItem)
         self.imgHistDerWidget.setLayout(self.imgHistDerWidgetLayout)
 
         #adjunto la imagen
@@ -5152,9 +5289,10 @@ class MainWindow(QDialog):
         print("new folder")
         self.pathDirImagesFile = asyncio.run(crearDirectorioAsincronico())
         #falta la habilitacion de guardar e inhabilitar los botones 
-        self.recordImagenOnline.setEnabled(True)
-        self.newFolderImagenOnline.setEnabled(False) 
-        #self.botonLeerArchivo.setEnabled(True)      
+        self.recordImagenOnline.setEnabled(True) #habilito guardar imagen
+        self.newFolderImagenOnline.setEnabled(False) #deshabilito el crear nuevo archivo
+        self.botonLeerArchivoIzq.setEnabled(True) #habilito los botones de busqueda de archivo Izq
+        self.botonLeerArchivoDer.setEnabled(True) #habilito los botones de busqueda de archivo Der     
         #no vamos a poner la habilitacion de leer porque asumimos que lo
         #vamosa buscar con las herramientas en el centro y extremo derecho 
         #de la pantalla
@@ -6351,9 +6489,85 @@ class MainWindow(QDialog):
             #Se va a abrir la ventana para realizar la carga de usuario y password
             self.dlgRequestUser = PopUpLoggin()
             self.dlgRequestUser.show()
+
+    #instancio a la clase que muestra la popup de busqueda en calendario
     def popUpSearchDateToHistory(self):
         self.dlgDateSearch = PopUpDateSelected()
         self.dlgDateSearch.show()
+    
+
+    #aca tengo que instanciar a la clase que muestra la popup que muestra los archivos donde buscar la imagen 
+    def leerArchivoIzq(self):
+        print("leer archivo para imagen historica izquierda")
+        popUp = popUpListFolder()
+        if popUp.exec():
+            print(f"nuevo path:{pathFolder[:-8]}")
+            nombreArchivo = pathFolder[:-8]
+            valorRetornadoMatriz = leerArchivoSincronico(nombreArchivo)
+            self.matrizImgThIzq = valorRetornadoMatriz[0]
+            self.matrizImgCvIzq = valorRetornadoMatriz[1]
+            self.botonBackwardFileIzq.setEnabled(True)
+            self.botonFordwardFileIzq.setEnabled(True)
+        else:
+            print("cancel")
+    #aca tengo que dar la funcionalidad de retroceder en las imagenes cargadas
+    def retrocederArchivoIzq(self):
+        print("presiono boton retroceder una imagen en historicos izquierda")
+        self.indice -= 1
+        if self.indice <= 0:
+            self.indice = 28
+        sampleImagenCv = np.array(self.matrizImgCvIzq[:,:,:,self.indice], dtype=np.uint8)
+        qt_imgCv = self.convert_cv_qt(sampleImagenCv)
+        self.imageHistory1CamScene.addPixmap(qt_imgCv)
+        self.imageHistory1ViewPixMapItem.setScene(self.imageHistory1CamScene)
+
+    #aca tengo que dar la funcionalidad de avanzar en la imagenes cargadas
+    def avanzarArchivoIzq(self):
+        print("presiono boton avanzar una imagen en historicos izquierda")
+        self.indice += 1
+        if self.indice >= 29:
+            self.indice = 0
+        sampleImagenCv = np.array(self.matrizImgCvIzq[:,:,:,self.indice], dtype=np.uint8)
+        qt_imgCv = self.convert_cv_qt(sampleImagenCv)
+        self.imageHistory1CamScene.addPixmap(qt_imgCv)
+        self.imageHistory1ViewPixMapItem.setScene(self.imageHistory1CamScene)
+
+    #aca tengo que instanciar a la clase que muestra la popup que muestra los archivos donde buscar la imagen 
+    def leerArchivoDer(self):
+        print("leer archivo para imagen historica derecha")
+        popUp = popUpListFolder()
+        if popUp.exec():
+            print(f"nuevo path:{pathFolder[:-8]}")
+            nombreArchivo = pathFolder[:-8]
+            (self.matrizImgThDer, self.matrizImgCvDer) = leerArchivoSincronico(nombreArchivo)
+            self.botonBackwardFileDer.setEnabled(True)
+            self.botonFordwardFileDer.setEnabled(True)
+        else:
+            print("cancel")
+
+    #aca tengo que dar la funcionalidad de retroceder en las magenes cargadas 
+    def retrocederArchivoDer(self):
+        print("presiono boton retroceder una imagen en historicos derecha")
+        self.indice -= 1
+        if self.indice <= 0:
+            self.indice = 28
+        sampleImagenCv = np.array(self.matrizImgCvDer[:,:,:,self.indice], dtype=np.uint8)
+        qt_imgCv = self.convert_cv_qt(sampleImagenCv)
+        self.imageHistory2CamScene.addPixmap(qt_imgCv)
+        self.imageHistory2ViewPixMapItem.setScene(self.imageHistory2CamScene)
+
+    #aca tengo que da la funionalidad de avanzar 
+    def avanzarArchivoDer(self):
+        print("presiono boton avanzar una imagen en historicos derecha")
+        self.indice += 1
+        if self.indice >= 29:
+            self.indice = 0
+        sampleImagenCv = np.array(self.matrizImgCvDer[:,:,:,self.indice], dtype=np.uint8)
+        qt_imgCv = self.convert_cv_qt(sampleImagenCv)
+        self.imageHistory2CamScene.addPixmap(qt_imgCv)
+        self.imageHistory2ViewPixMapItem.setScene(self.imageHistory2CamScene)
+
+    #*********
     #Defino la funcion asociada a cerrar la aplicación
     def closeApp(self):
         #self._run_flag = False        
