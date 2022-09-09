@@ -2,7 +2,7 @@
 from email.mime import image
 from functools import partial
 import gzip
-from threading import Thread
+from threading import Thread, Barrier
 from time import sleep, time
 from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette, QFont, QDoubleValidator
@@ -61,8 +61,10 @@ import aiofiles
 import aiofiles.os
 import queue
 
-_sentinelStopThread = object() #objeto para indicar que los hilos deben detenerse
-_sentinelArrayImgSeparator = object() #objeto para indicar separador entre imagenes
+
+miBarrera = Barrier(3)
+_sentinelStopThread = -500#object() #objeto para indicar que los hilos deben detenerse
+_sentinelArrayImgSeparator = -273#object() #objeto para indicar separador entre imagenes
 #direccion base para los archivos de imagen
 basedir = os.path.dirname(__file__)
 
@@ -152,30 +154,50 @@ async def renombrarArchivoAsincronico():
         if not returnQuery1:
             await aiofiles.os.rename("files_rename.txt", "files_rename1.txt")
 #**********************************************************************************
-
+#creamos un hilo para poder registrar cuando los dos hilos de guardado de
+#imagenes en archivo terminan
+class statusGuardadoThread(Thread):
+    def __init__(self, botonCrearFolder):
+        Thread.__init__(self)
+        self.botonCrearFolder = botonCrearFolder
+    def run(self):
+        #espero a que los hilos de guardado liberen la barrera
+        miBarrera.wait()
+        #los hilos liberados
+        self.botonCrearFolder.setEnabled(True)
+    
 #defino funcion para el guardado de archivos
-def saveQueueImageInDisk(args):
+def saveQueueImageInDisk(args1,args2,path):
     while True:
         print("guardado de datos sincronico")
-        datoAcumulado = np.array([])
+        datoAcumuladoTh = np.array([])
+        datoAcumuladoCv = np.array([])
         i = 0
         while True:
-            token = args.get()
+            tokenThermal = args1.get()
+            tokenCV = args2.get()
             i += 1
             nameFile = random.random()
             if i >= 30:
-                f = gzip.GzipFile(str(nameFile) + ".npy.gz", "w")
-                np.save(file=f, arr=datoAcumulado)
-                f.close()
+                fTh = gzip.GzipFile(path+"/"+str(nameFile) + ".npTh.gz", "w")
+                fCv = gzip.GzipFile(path+"/"+str(nameFile) + ".npCv.gz", "w")
+                np.save(file=fTh, arr=datoAcumuladoTh)
+                np.save(file=fCv, arr=datoAcumuladoCv)
+                fTh.close()
+                fCv.close()
                 break
-            if token is _sentinelStopThread:
+            if tokenThermal is _sentinelStopThread:
                 #finalizo el hilo
                 break
-            datoAcumulado = np.append(datoAcumulado, _sentinelArrayImgSeparator)
-            datoAcumulado = np.append(datoAcumulado, token.astype(int))
-        if token is _sentinelStopThread:
+            datoAcumuladoTh = np.append(datoAcumuladoTh, _sentinelArrayImgSeparator)
+            datoAcumuladoTh = np.append(datoAcumuladoTh, tokenThermal)
+            datoAcumuladoCv = np.append(datoAcumuladoCv,_sentinelArrayImgSeparator)
+            datoAcumuladoCv = np.append(datoAcumuladoCv, tokenCV)
+        if tokenThermal is _sentinelStopThread:
             #finalizo el hilo
+            print("Finalizo Guardado Asincronico 1")
             break
+    miBarrera.wait()
 #***************************************************
 
 #clase para herramientas de imagen
@@ -2834,7 +2856,9 @@ class MainWindow(QDialog):
         #path a guardado de archivos
         self.pathDirImagesFile = ""
         #creo la cola de datos
-        self.queueDatosOrigen = queue.Queue()
+        self.queueDatosOrigenThermal = queue.Queue()
+        self.queueDatosOrigenCV = queue.Queue()
+        #defino un flag para habilitar la carga de datos en la cola
         self.flagQueueReady = False
         #flags para manejo de aplicacion
         self.mostrarImagenPopUpCambioFoco = False #indicamos al hilo de adquisicion en la signal emitida que muestre la imagen
@@ -5117,16 +5141,23 @@ class MainWindow(QDialog):
         #cargamos la funcion que guarda en el  hilo de guardado de imagen
         threads = []
         for n in range(2):
-            t = Thread(target=saveQueueImageInDisk, args=(self.queueDatosOrigen,))
+            t = Thread(target=saveQueueImageInDisk, args=(self.queueDatosOrigenThermal,self.queueDatosOrigenCV,self.pathDirImagesFile))
             t.start()
             threads.append(t)
         #notifico que se debe cargar la queue
         self.flagQueueReady = True
+        self.noRecordImagenOnline.setEnabled(True)
+        self.recordImagenOnline.setEnabled(False)
     def createNewFolderImagenOnline(self):
         print("new folder")
         self.pathDirImagesFile = asyncio.run(crearDirectorioAsincronico())
-        #falta la habilitacion de guardar e inhabilitar los botones        
-
+        #falta la habilitacion de guardar e inhabilitar los botones 
+        self.recordImagenOnline.setEnabled(True)
+        self.newFolderImagenOnline.setEnabled(False) 
+        #self.botonLeerArchivo.setEnabled(True)      
+        #no vamos a poner la habilitacion de leer porque asumimos que lo
+        #vamosa buscar con las herramientas en el centro y extremo derecho 
+        #de la pantalla
     def makeMoveFileImagenOnline(self):
         print("move file")
         #no implementamos la funcion porque en el so de windows 
@@ -5138,8 +5169,15 @@ class MainWindow(QDialog):
         #detenemos el flag de guardar archivo
         self.flagQueueReady = False #indico que no encole mas imagenes
         for i in range(2):
-            self.queueDatosOrigen.put(_sentinelStopThread)
+            self.queueDatosOrigenThermal.put(_sentinelStopThread)
+            self.queueDatosOrigenCV.put(_sentinelStopThread)
         print(i)
+        #aca tiene que dar la habilitacion creando el hilo que termina
+        #los dos hilos tomando el ultimo lugar de la barrera
+        #self.botonNuevoFolder
+        miStatusGuardadoThread = statusGuardadoThread(self.newFolderImagenOnline)
+        miStatusGuardadoThread.start()
+
     def makeRenameFileImagenOnline(self):
         print("rename file")
         asyncio.run(renombrarArchivoAsincronico())
@@ -5351,13 +5389,17 @@ class MainWindow(QDialog):
             self.textEditTab1Boton.setText("Camara Conectada")
         else:
             self.textEditTab1Boton.setText("Camara Desconectada")
+
     @pyqtSlot(np.ndarray)
     def update_image(self, cv_img):
         #mostrar informacion en recorder
         if self.mostrarImagenPantallaRecorded == True:
-            print("stremin pantalla recorded")
+            #print("striming pantalla recorded")
             qt_img = self.convert_cv_qt(cv_img)
-            self.labelImagenOnlineRecorder.setPixmap(qt_img)                
+            self.labelImagenOnlineRecorder.setPixmap(qt_img)   
+            if self.flagQueueReady:
+                cv_img_reshaped = cv_img.flatten()
+                self.queueDatosOrigenCV.put(cv_img_reshaped)             
         else:            
             #mostrar informacion en pantalla principal
             """Updates the image_label with a new opencv image"""
@@ -5427,9 +5469,9 @@ class MainWindow(QDialog):
     #***************************************************
     @pyqtSlot(np.ndarray)
     def thermal_image(self, thermal_img):
-        if self.flagQueueReady == True: #si indicamos que tiene que guardar imagenes en la pila solo va a hacer esto sin mostrar mas informacion 
+        if self.flagQueueReady: #si indicamos que tiene que guardar imagenes en la pila solo va a hacer esto sin mostrar mas informacion 
             thermal_img_reshaped = thermal_img.flatten()
-            self.queueDatosOrigen.put(thermal_img_reshaped) #los datos en la pila van a ser sacados por el hilo en paralelo que guarda los datos en disco
+            self.queueDatosOrigenThermal.put(thermal_img_reshaped) #los datos en la pila van a ser sacados por el hilo en paralelo que guarda los datos en disco
         else: #solo si no esta encolando los datos de imagen termografica va a sacar los datos para procesamiento
             ancho = self.scrollArea.escalaImagen[0]#['ancho']#self.image_label.size().width()
             alto = self.scrollArea.escalaImagen[1]#['alto']#self.image_label.size().height()
