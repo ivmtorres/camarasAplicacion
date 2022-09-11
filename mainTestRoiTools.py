@@ -4298,15 +4298,15 @@ class MainWindow(QDialog):
          
         
         #agrego la grafica para la ventana de historicos de la izquierda el grafico de curvas
-        graficoHistoricoIzq = MplCanvas(self, width=2, height=2, dpi=100)
+        graficoHistoricoIzq = MplCanvas(self, width=300, height=2, dpi=100)
         #genero un dataframe de prueba para los historicos de la izquierda
         dfHistoricoIzq = pd.DataFrame([
-            [0,10],
-            [5,15],
-            [2,20],
-            [15,25],
-            [4,10]
-        ], columns=['A','B'])
+            [0,10,20],
+            [5,15,25],
+            [2,20,28],
+            [15,25,30],
+            [4,10,35]
+        ], columns=['A','B','C'])
         dfHistoricoIzq.plot(ax=graficoHistoricoIzq.axes)
         #agrego la grafica para la ventana de historicos de la derecha
         graficoHistoricoDer = MplCanvas(self, width=2, height=2, dpi=100)
@@ -4320,41 +4320,93 @@ class MainWindow(QDialog):
         ], columns=['A','B'])
         dfHistoricoDer.plot(ax=graficoHistoricoDer.axes)
         #agrego los indicadores de las mediciones 
-        #vamos a tener dos para los historicos a la izquierda
-        #agregamos el label 1 de la izquierda
-        self.label1MessurementRoi = QLabel("Show ROI 1:")        
-        self.label1MessurementRoi.setToolTip("Messurement to region of interest 1")
-        #agregamos el indicador 1 de la izquierda
+        #vamos a tener dos para los historicos a la izquierda correspondientes a un par de ROIs
+        #agregamos el label 1 de la izquierda 1
+        self.label1MessurementRoi = QLabel("Max ROI 1:")        
+        self.label1MessurementRoi.setToolTip("Messurement Max to region of interest 1")
+        #agregamos el indicador 1 de la izquierda 1
         self.valorMessurement1 = "10.52" #este valor va a ser el resultado de la roi 1
         self.output1MessurementRoi = QLabel(self.valorMessurement1)        
         self.output1MessurementRoi.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
         self.label1MessurementRoi.setBuddy(self.output1MessurementRoi)
-        #agregamos el label 2 de la izquierda
-        self.label2MessurementRoi = QLabel("Show ROI 2:")        
-        self.label2MessurementRoi.setToolTip("Messurement to region of interest 2")
-        #agregamos el indicador 2 de la izquierda
-        self.valorMessurement2 = "105.2" #este valor va a ser el resultado de la roi 2 
+        self.output1MessurementRoi.setFixedSize(QSize(50,40))        
+        #agregamos el label 2 de la izquierda 1
+        self.label2MessurementRoi = QLabel("Min ROI 1:")        
+        self.label2MessurementRoi.setToolTip("Messurement Min to region of interest 1")
+        #agregamos el indicador 2 de la izquierda 1
+        self.valorMessurement2 = "105.2" #este valor va a ser el resultado de la roi 1 
         self.output2MessurementRoi = QLabel(self.valorMessurement2)
         self.output2MessurementRoi.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
         self.label2MessurementRoi.setBuddy(self.output2MessurementRoi)
+        self.output2MessurementRoi.setFixedSize(QSize(50,40))
+        #agregamos el label 3 de la izquierda 1
+        self.label3MessurementRoi = QLabel("Avg ROI 1:")
+        self.label3MessurementRoi.setToolTip("Messurement Avg to region of interest 1")
+        #agregamos el indicador 3 de la izquierda 1
+        self.valorMessurement3 = "50.2" #este valor va a ser el resultado de la roi 1
+        self.output3MessurementRoi = QLabel(self.valorMessurement3)
+        self.output3MessurementRoi.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label3MessurementRoi.setBuddy(self.output3MessurementRoi)
+        self.output3MessurementRoi.setFixedSize(QSize(50,40))
+        #creo los elementos de la segunda roi para los elementos de la izquierda
+        #agregamos el label 1 de la izquierda 2
+        self.label1MessurementRoi2 = QLabel("Max ROI 2:")        
+        self.label1MessurementRoi2.setToolTip("Messurement Max to region of interest 1")
+        #agregamos el indicador 1 de la izquierda 2
+        self.valorMessurement1_2 = "10.52" #este valor va a ser el resultado de la roi 1
+        self.output1MessurementRoi2 = QLabel(self.valorMessurement1_2)        
+        self.output1MessurementRoi2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label1MessurementRoi2.setBuddy(self.output1MessurementRoi2)
+        self.output1MessurementRoi2.setFixedSize(QSize(50,40))
+        #agregamos el label 2 de la izquierda 2
+        self.label2MessurementRoi2 = QLabel("Min ROI 2:")        
+        self.label2MessurementRoi2.setToolTip("Messurement Min to region of interest 1")
+        #agregamos el indicador 2 de la izquierda 1
+        self.valorMessurement2_2 = "105.2" #este valor va a ser el resultado de la roi 1 
+        self.output2MessurementRoi2 = QLabel(self.valorMessurement2_2)
+        self.output2MessurementRoi2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label2MessurementRoi2.setBuddy(self.output2MessurementRoi)
+        self.output2MessurementRoi2.setFixedSize(QSize(50,40))
+        #agregamos el label 3 de la izquierda 1
+        self.label3MessurementRoi2 = QLabel("Avg ROI 2:")
+        self.label3MessurementRoi2.setToolTip("Messurement Avg to region of interest 1")
+        #agregamos el indicador 3 de la izquierda 1
+        self.valorMessurement3_2 = "50.2" #este valor va a ser el resultado de la roi 1
+        self.output3MessurementRoi2 = QLabel(self.valorMessurement3_2)
+        self.output3MessurementRoi2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label3MessurementRoi2.setBuddy(self.output3MessurementRoi2)
+        self.output3MessurementRoi2.setFixedSize(QSize(50,40))
         #genero un widget para mostrar la curva  y en 
         #horizontal un widget vertical con los indicadores
         #de ROI de medicion
         #creo el widget horizontal
         subWindowHistory1CamSubH = QWidget()
-        #creo el widget vertical
-        subWindowHistory1CamSubV = QWidget()
+        #creo el widget vertical 1
+        subWindowHistory1CamSubV1 = QWidget()
+        #creo el widget vertical 2
+        subWindowHistory1CamSubV2 = QWidget()
         #creo el layout vertical
         subWindowHistory1CamSubVLayout = QVBoxLayout()
         subWindowHistory1CamSubVLayout.addWidget(self.label1MessurementRoi)
         subWindowHistory1CamSubVLayout.addWidget(self.output1MessurementRoi)
         subWindowHistory1CamSubVLayout.addWidget(self.label2MessurementRoi)
         subWindowHistory1CamSubVLayout.addWidget(self.output2MessurementRoi)
-        subWindowHistory1CamSubV.setLayout(subWindowHistory1CamSubVLayout)
+        subWindowHistory1CamSubVLayout.addWidget(self.label3MessurementRoi)
+        subWindowHistory1CamSubVLayout.addWidget(self.output3MessurementRoi)
+        subWindowHistory1CamSubV1.setLayout(subWindowHistory1CamSubVLayout)
+        subWindowHistory1CamSubVLayout2 = QVBoxLayout()
+        subWindowHistory1CamSubVLayout2.addWidget(self.label1MessurementRoi2)
+        subWindowHistory1CamSubVLayout2.addWidget(self.output1MessurementRoi2)
+        subWindowHistory1CamSubVLayout2.addWidget(self.label2MessurementRoi2)
+        subWindowHistory1CamSubVLayout2.addWidget(self.output2MessurementRoi2)
+        subWindowHistory1CamSubVLayout2.addWidget(self.label3MessurementRoi2)
+        subWindowHistory1CamSubVLayout2.addWidget(self.output3MessurementRoi2)
+        subWindowHistory1CamSubV2.setLayout(subWindowHistory1CamSubVLayout2)
         #creo el layout horizontal
         subWindowHistory1CamSubHLayout = QHBoxLayout()
         subWindowHistory1CamSubHLayout.addWidget(graficoHistoricoIzq)
-        subWindowHistory1CamSubHLayout.addWidget(subWindowHistory1CamSubV)
+        subWindowHistory1CamSubHLayout.addWidget(subWindowHistory1CamSubV1)
+        subWindowHistory1CamSubHLayout.addWidget(subWindowHistory1CamSubV2)
         subWindowHistory1CamSubH.setLayout(subWindowHistory1CamSubHLayout)
         #agrego en la ventana a la derecha el grafico y los indicadores
         self.label1MessurementRoiDer = QLabel("Show ROI 1:")
