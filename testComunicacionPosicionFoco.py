@@ -462,7 +462,10 @@ class VideoThread(QThread):
     def run(self):
         # capture from thermal cam
         # load library
-        libir = ct.CDLL("c:\\irDirectSDK\\sdk\\x64\\libirimager.dll")
+        #libir = ct.CDLL("c:\\irDirectSDK\\sdk\\x64\\libirimager.dll")
+        path = QDir().currentPath()
+        print(path)
+        libir = ct.CDLL(path+"/libirimager.dll")
         """
         if os.name == 'nt':
                 #windows:
@@ -472,8 +475,8 @@ class VideoThread(QThread):
                 libir = ct.cdll.LoadLibrary(ct.util.find_library("irdirectsdk"))
         """
         #path to config xml file ---> ../config/generic.xml 
-        pathXml = ct.c_char_p(b'C:\Users\lupus\OneDrive\Documentos\ProcesamientoDeImagenes\config\generic.xml ')
-
+        #pathXml = ct.c_char_p(b'C:\Users\lupus\OneDrive\Documentos\ProcesamientoDeImagenes\config\generic.xml ')
+        pathXml = ct.c_char_p(b'generic.xml ')
         # init vars
         pathFormat = ct.c_char_p()
         

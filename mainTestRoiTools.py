@@ -1,5 +1,4 @@
 
-from email.mime import image
 from functools import partial
 import gzip
 from threading import Thread, Barrier
@@ -43,7 +42,10 @@ from PyQt5.QtWidgets import (
     QDialogButtonBox,
     QTreeView,
     QListView,
-    QFileSystemModel   
+    QFileSystemModel,
+    QGraphicsItem,
+    QGraphicsRectItem,
+    QGraphicsLineItem   
 )
 from PyQt5.QtGui import QIcon, QPaintEvent
 import matplotlib
@@ -284,7 +286,72 @@ def saveQueueImageInDisk(args1,args2,path):
             break
     miBarrera.wait()
 #***************************************************
+#estas clases se definieron para hacer 
+#customizable la seleccion de objetos
+#sobre la imagen mostrada
+class ClickableGraphicsRectItem(QGraphicsRectItem):
+    def __init__(self, x, y, w, h, pen, brush):
+        super(ClickableGraphicsRectItem,self).__init__(x, y, w, h)
+        self.setPen(pen)
+        self.setBrush(brush)
+        self.setFlags(self.ItemIsSelectable|self.ItemIsMovable|self.ItemIsFocusable)
+    def mousePressEvent(self, event):
+        super(ClickableGraphicsRectItem, self).mousePressEvent(event)
+        if event.button() == Qt.LeftButton:
+            self.scene().itemClickedRect.emit(self)
+            #print(event.pos())
+class ClickableGraphicsEllipseItem(QGraphicsEllipseItem):
+    def __init__(self,x, y, w, h, pen, brush):
+        super(ClickableGraphicsEllipseItem, self).__init__(x, y, w, h)
+        self.setPen(pen)
+        self.setBrush(brush)
+        self.setFlags(self.ItemIsSelectable|self.ItemIsMovable|self.ItemIsFocusable)
+    def mousePressEvent(self, event):
+        super(ClickableGraphicsEllipseItem,self).mousePressEvent(event)
+        if event.button() == Qt.LeftButton:
+            self.scene().itemClickedEllipse.emit(self)
+class ClickableGraphicsLineItem(QGraphicsLineItem):
+    def __init__(self,x, y, w, h, pen):
+        super(ClickableGraphicsLineItem, self).__init__(x, y, w, h)
+        self.setPen(pen)
+        self.setFlags(self.ItemIsSelectable|self.ItemIsMovable|self.ItemIsFocusable)
+    def mousePressEvent(self, event):
+        super(ClickableGraphicsLineItem,self).mousePressEvent(event)
+        if event.button() == Qt.LeftButton:
+            self.scene().itemClickedLine.emit(self)
 
+class ItemClickableGraphicsScene(QGraphicsScene):
+    itemClickedRect = pyqtSignal(QGraphicsItem)
+    itemClickedEllipse = pyqtSignal(QGraphicsItem)
+    itemClickedLine = pyqtSignal(QGraphicsItem)
+class ClickableItemView(QGraphicsView):
+    posXRect1 = 0
+    posYRect1 = 0
+    def mousePressEvent(self, event):
+        global posXRect1
+        global posYRect1
+        super(ClickableItemView,self).mousePressEvent(event)
+        print(event.pos())
+        #listo los items en la scene
+        listaItems = self.items()
+        print(listaItems)
+        #detecto si se realizo un click
+        if event.button() == Qt.LeftButton:
+            #identifico si algun item contiene el 
+            #la posicion donde se realizo el click 
+            item = self.itemAt(event.pos())
+            #verifico si el item que contiene la 
+            #posicion es instancia de RectItem
+            if isinstance(item, QGraphicsRectItem):
+                print('item {} clicked'.format(item.rect()))
+                print('item {} desplazado'.format(item.pos()))
+                posXRect1 = item.rect().x() + item.pos().x()
+                posYRect1 = item.rect().y() + item.pos().y()
+            
+                
+                        
+        #for item in listaItems:
+        #    print(item.pos())
 #clase para herramientas de imagen
 class TestImage(QLabel):
     def __init__(self):
@@ -2918,6 +2985,11 @@ class UserComboBox(QComboBox):
     def showPopup(self):
         self.popupAboutToBeShown.emit()
         super(UserComboBox,self).showPopup()
+class RoisComboBoxHistorico(QComboBox):
+    popupAboutToBeShown = pyqtSignal()
+    def showPopup(self):
+        self.popupAboutToBeShown.emit()
+        super(RoisComboBoxHistorico,self).showPopup()
 class CamComboBox(QComboBox):
     popupAboutToBeShown = pyqtSignal()
     def showPopup(self):
@@ -3021,6 +3093,12 @@ class MainWindow(QDialog):
         self.userCombo = UserComboBox(self) #combo box de usuarios
         self.userCombo.popupAboutToBeShown.connect(self.populateUserCombo)
         #
+        #hago una instancia a mi combox ==> roisComboBox
+        self.roisComboHistoricoIzquierda = RoisComboBoxHistorico(self)
+        self.roisComboHistoricoIzquierda.popupAboutToBeShown.connect(self.populateRoisComboHistoricosIzquierda)
+        #
+        self.roisComboHistoricoDerecha = RoisComboBoxHistorico(self)
+        self.roisComboHistoricoDerecha.popupAboutToBeShown.connect(self.populateRoisComboHistoricosDerecha)
         self.roiSelComboIzq = ROIComboBox(self)
         self.roiSelComboIzq.popupAboutToBeShown.connect(self.populateRoiCombo1)
         #
@@ -4309,15 +4387,15 @@ class MainWindow(QDialog):
         ], columns=['A','B','C'])
         dfHistoricoIzq.plot(ax=graficoHistoricoIzq.axes)
         #agrego la grafica para la ventana de historicos de la derecha
-        graficoHistoricoDer = MplCanvas(self, width=2, height=2, dpi=100)
+        graficoHistoricoDer = MplCanvas(self, width=300, height=2, dpi=100)
         #genero un dataframe de prueba para los historicos de la derecha
         dfHistoricoDer = pd.DataFrame([
-            [0,10],
-            [5,15],
-            [2,20],
-            [15,25],
-            [4,10]
-        ], columns=['A','B'])
+            [0,10,20],
+            [5,15,25],
+            [2,20,28],
+            [15,25,30],
+            [4,10,35]
+        ], columns=['A','B','C'])
         dfHistoricoDer.plot(ax=graficoHistoricoDer.axes)
         #agrego los indicadores de las mediciones 
         #vamos a tener dos para los historicos a la izquierda correspondientes a un par de ROIs
@@ -4409,37 +4487,90 @@ class MainWindow(QDialog):
         subWindowHistory1CamSubHLayout.addWidget(subWindowHistory1CamSubV2)
         subWindowHistory1CamSubH.setLayout(subWindowHistory1CamSubHLayout)
         #agrego en la ventana a la derecha el grafico y los indicadores
-        self.label1MessurementRoiDer = QLabel("Show ROI 1:")
-        self.label1MessurementRoiDer.setToolTip("Messurement to region of interest 1")
-        #agregamos el indicador 1 de la derecha
+        self.label1MessurementRoiDer = QLabel("Max ROI 1:")
+        self.label1MessurementRoiDer.setToolTip("Messurement Max to region of interest 1")
+        #agregamos el indicador 1 de la derecha 1
         self.valorMessurement1Der = "10.52"
         self.output1MessurementRoiDer = QLabel(self.valorMessurement1Der)
         self.output1MessurementRoiDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label1MessurementRoiDer.setBuddy(self.output1MessurementRoiDer)        
-        #agregamos el label 2 de la derecha
-        self.label2MessurementRoiDer = QLabel("Show ROI 2:")
-        self.label2MessurementRoiDer.setToolTip("Messurement to region of interest 2")
-        #agregamos el indicador 2 de la derecha
-        self.valorMessurement2 = "105.2"
-        self.output2MessurementRoiDer = QLabel(self.valorMessurement2)
+        self.label1MessurementRoiDer.setBuddy(self.output1MessurementRoiDer)   
+        self.output1MessurementRoiDer.setFixedSize(QSize(50,40))     
+        #agregamos el label 2 de la derecha 1
+        self.label2MessurementRoiDer = QLabel("Min ROI 2:")
+        self.label2MessurementRoiDer.setToolTip("Messurement Min to region of interest 2")
+        #agregamos el indicador 2 de la derecha 1
+        self.valorMessurement2Der = "105.2"
+        self.output2MessurementRoiDer = QLabel(self.valorMessurement2Der)
         self.output2MessurementRoiDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label2MessurementRoiDer.setBuddy(self.output2MessurementRoiDer)        
+        self.label2MessurementRoiDer.setBuddy(self.output2MessurementRoiDer)
+        self.output2MessurementRoiDer.setFixedSize(QSize(50,40))
+        #agregamos el label 3 de la derecha 1
+        self.label3MessurementRoiDer = QLabel("Avg Roi 1:")        
+        self.label3MessurementRoiDer.setToolTip("Messurement Avg to region of interest 1")
+        #agregamos el indicador 3 de la derecha 1
+        self.valorMessurement3Der = "50.2"
+        self.output3MessurementRoiDer = QLabel(self.valorMessurement3Der)
+        self.output3MessurementRoiDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label3MessurementRoiDer.setBuddy(self.output3MessurementRoiDer)
+        self.output3MessurementRoiDer.setFixedSize(QSize(50,40))
+        #agregamos los indicadores de la Roi Der 2
+        #agrego en la ventana a la derecha el grafico y los indicadores
+        self.label1MessurementRoiDer2 = QLabel("Max ROI 2:")
+        self.label1MessurementRoiDer2.setToolTip("Messurement Max to region of interest 2")
+        #agregamos el indicador 1 de la derecha 1
+        self.valorMessurement1Der2 = "10.52"
+        self.output1MessurementRoiDer2 = QLabel(self.valorMessurement1Der2)
+        self.output1MessurementRoiDer2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label1MessurementRoiDer2.setBuddy(self.output1MessurementRoiDer)   
+        self.output1MessurementRoiDer2.setFixedSize(QSize(50,40))     
+        #agregamos el label 2 de la derecha 1
+        self.label2MessurementRoiDer2 = QLabel("Min ROI 2:")
+        self.label2MessurementRoiDer2.setToolTip("Messurement Min to region of interest 2")
+        #agregamos el indicador 2 de la derecha 1
+        self.valorMessurementDer2 = "105.2"
+        self.output2MessurementRoiDer2 = QLabel(self.valorMessurementDer2)
+        self.output2MessurementRoiDer2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label2MessurementRoiDer2.setBuddy(self.output2MessurementRoiDer2)
+        self.output2MessurementRoiDer2.setFixedSize(QSize(50,40))
+        #agregamos el label 3 de la derecha 1
+        self.label3MessurementRoiDer2 = QLabel("Avg Roi 2:")        
+        self.label3MessurementRoiDer2.setToolTip("Messurement Avg to region of interest 2")
+        #agregamos el indicador 3 de la derecha 1
+        self.valorMessurement3Der2 = "50.2"
+        self.output3MessurementRoiDer2 = QLabel(self.valorMessurement3Der2)
+        self.output3MessurementRoiDer2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label3MessurementRoiDer2.setBuddy(self.output3MessurementRoiDer2)
+        self.output3MessurementRoiDer2.setFixedSize(QSize(50,40))
+        #****
         #agregamos el widget para el contenedor de la der
         #agregamos el widget para el contenedor de los
         #indicadores de medicion
         subWindowHistory2CamSubH = QWidget()
-        subWindowHistory2CamSubV = QWidget()
+        subWindowHistory2CamSubV1 = QWidget()
+        subWindowHistory2CamSubV2 = QWidget()
         #creamos el layout vertical
         subWindowHistory2CamSubVlayout = QVBoxLayout()
         subWindowHistory2CamSubVlayout.addWidget(self.label1MessurementRoiDer)
         subWindowHistory2CamSubVlayout.addWidget(self.output1MessurementRoiDer)
         subWindowHistory2CamSubVlayout.addWidget(self.label2MessurementRoiDer)
         subWindowHistory2CamSubVlayout.addWidget(self.output2MessurementRoiDer)
-        subWindowHistory2CamSubV.setLayout(subWindowHistory2CamSubVlayout)
+        subWindowHistory2CamSubVlayout.addWidget(self.label3MessurementRoiDer)
+        subWindowHistory2CamSubVlayout.addWidget(self.output3MessurementRoiDer)
+        subWindowHistory2CamSubV1.setLayout(subWindowHistory2CamSubVlayout)
+        subWindowHistory2CamSubVlayout2 = QVBoxLayout()
+        subWindowHistory2CamSubVlayout2.addWidget(self.label1MessurementRoiDer2)
+        subWindowHistory2CamSubVlayout2.addWidget(self.output1MessurementRoiDer2)
+        subWindowHistory2CamSubVlayout2.addWidget(self.label2MessurementRoiDer2)
+        subWindowHistory2CamSubVlayout2.addWidget(self.output2MessurementRoiDer2)
+        subWindowHistory2CamSubVlayout2.addWidget(self.label3MessurementRoiDer2)
+        subWindowHistory2CamSubVlayout2.addWidget(self.output3MessurementRoiDer2)
+        subWindowHistory2CamSubV2.setLayout(subWindowHistory2CamSubVlayout2)
+        
         #creamos el layout horizontal
         subWindowHistory2CamSubHLayout = QHBoxLayout()
         subWindowHistory2CamSubHLayout.addWidget(graficoHistoricoDer)
-        subWindowHistory2CamSubHLayout.addWidget(subWindowHistory2CamSubV)
+        subWindowHistory2CamSubHLayout.addWidget(subWindowHistory2CamSubV1)
+        subWindowHistory2CamSubHLayout.addWidget(subWindowHistory2CamSubV2)
         subWindowHistory2CamSubH.setLayout(subWindowHistory2CamSubHLayout)
         
         
@@ -4467,12 +4598,44 @@ class MainWindow(QDialog):
         subWindowHistory1CamBanner.setLayout(bannerSelCam1)
         subWindowHistory2CamBanner.setLayout(bannerSelCam2)
 
-        #genero la imagen 1 a la izquierda en la pantalla de historicos
-        self.imageHistory1CamScene = QGraphicsScene(0,0,0,0)
+        self.imageHistory1CamScene = ItemClickableGraphicsScene(0,0,384,288)#QGraphicsScene(0,0,0,0)        
         self.imageHistory1CamPixmap = QPixmap("imageCam1.jpg")
-        imageHistory1PixmapItem = self.imageHistory1CamScene.addPixmap(self.imageHistory1CamPixmap)
-        self.imageHistory1ViewPixMapItem = QGraphicsView(self.imageHistory1CamScene)
-        self.imageHistory1ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
+        self.imageHistory1PixmapItem = self.imageHistory1CamScene.addPixmap(self.imageHistory1CamPixmap)
+        #agrego los rectangulos
+        self.rect_list = [[20,30,70,35],
+        [50,100,60,100]]
+        self.ellip_list = [[60,60,30,30],
+        [80,80,30,30]]
+        self.line_list = [[10,10,80,80],
+        [80,80,10,10,]]
+        brush = QBrush(Qt.BDiagPattern)
+        pen = QPen(Qt.red)
+        pen.setWidth(2)
+        
+        self.listaItemsRect = []
+        for rect in self.rect_list:            
+            rect_item = ClickableGraphicsRectItem(rect[0],rect[1],rect[2],rect[3], pen, brush)            
+            self.listaItemsRect.append(rect_item)
+        for itemRect in self.listaItemsRect:
+            self.imageHistory1CamScene.addItem(itemRect)
+        
+        self.listaItemsEllipse = []
+        for ellipse in self.ellip_list:
+            ellip_item = ClickableGraphicsEllipseItem(ellipse[0],ellipse[1],ellipse[2],ellipse[3],pen,brush)
+            self.listaItemsEllipse.append(ellip_item)
+        for itemEllip in self.listaItemsEllipse:
+            self.imageHistory1CamScene.addItem(itemEllip)
+
+        self.listaItemsLine = []
+        for line in self.line_list:
+            line_item = ClickableGraphicsLineItem(line[0],line[1],line[2],line[3], pen)
+            self.listaItemsLine.append(line_item)
+        for itemLine in self.listaItemsLine:
+            self.imageHistory1CamScene.addItem(itemLine)
+
+        self.imageHistory1ViewPixMapItem = ClickableItemView(self.imageHistory1CamScene)#QGraphicsView(self.imageHistory1CamScene)
+        self.imageHistory1ViewPixMapItem.setRenderHint(QPainter.Antialiasing)        
+        #self.imageHistory1ViewPixMapItem.fitInView(QRectF(95,119,385,288),Qt.IgnoreAspectRatio)
         #genero un toolbar para la imagen de la izquierda en la pantalla de historicos
         toolBarImageHistoryIzq = QToolBar("Toolbar Image History 1")
         toolBarImageHistoryIzq.setIconSize(QSize(16,16))
@@ -4584,10 +4747,14 @@ class MainWindow(QDialog):
         tab4BotonHBox.setContentsMargins(5,5,5,5)        
         subHistory1VBox.addWidget(subWindowHistory1CamBanner) #agrego al historico vertical el banner de la camara 1
         subHistory1VBox.addWidget(self.imgHistIzqWidget)#imageHistory1ViewPixMapItem) #agrego al historico vertical 1 la imagen registrada       
+        subHistory1VBox.addWidget(self.roisComboHistoricoIzquierda)
         subHistory1VBox.addWidget(subWindowHistory1CamSubH)
+        
         subHistory2VBox.addWidget(subWindowHistory2CamBanner) #agrego al historico vertical el banner de la camara 2
         subHistory2VBox.addWidget(self.imgHistDerWidget) #agrego al historico vertical 2 la imagen registrada        
+        subHistory2VBox.addWidget(self.roisComboHistoricoDerecha)
         subHistory2VBox.addWidget(subWindowHistory2CamSubH)
+        
         subWindowHistory1Cam.setLayout(subHistory1VBox) #selecciono el layout vertical 1 para el widget history cam 1
         subWindowHistory2Cam.setLayout(subHistory2VBox) #selecciono el layout vertical 2 para el widget history cam 2       
         #agregamos el layout vertical
@@ -5535,7 +5702,6 @@ class MainWindow(QDialog):
             self._plot_refDer1.set_ydata(self.ydataDer1)
         #muestro los graficos derecha abajo
         self.dfTab1Der1.draw()
-        
     #
     def update_plots(self):
         #muestreo mas lento las funciones que grafican
@@ -6241,6 +6407,9 @@ class MainWindow(QDialog):
         if checkbox.isChecked() == False:
             self.dlgDefaultPresetCam3 = PopUpResetPresetCam()
             self.dlgDefaultPresetCam3.show()
+    #defino la funcion de click emitida por la imagen hsitorica de la izquierda
+    def clickedImageHistory1CamScene(self, item):
+        print('item {} clicked!'.format(item.rect()))
     #Defino la funcion para realizar zoom in
     def makeZoomIn(self, statusButton):
         print("Zoom In to the image", statusButton)
@@ -6541,7 +6710,25 @@ class MainWindow(QDialog):
             #Se va a abrir la ventana para realizar la carga de usuario y password
             self.dlgRequestUser = PopUpLoggin()
             self.dlgRequestUser.show()
-
+    #Defino la funcion asociada a seleccionar Rois
+    #***
+    def populateRoisComboHistoricosIzquierda(self):
+        #si la cantidad de Rois esta vacia la lleno
+        if not self.roisComboHistoricoIzquierda.count():
+            self.roisComboHistoricoIzquierda.addItems(['Rectangle','Elipse','Line'])
+        #agregamos los iconos
+        self.roisComboHistoricoIzquierda.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roisComboHistoricoIzquierda.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roisComboHistoricoIzquierda.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+    def populateRoisComboHistoricosDerecha(self):
+        #si la cantidad de Rois esta vacia la lleno
+        if not self.roisComboHistoricoDerecha.count():
+            self.roisComboHistoricoDerecha.addItems(['Rectangle','Elipse','Line'])
+        #agregamos los iconos
+        self.roisComboHistoricoDerecha.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roisComboHistoricoDerecha.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roisComboHistoricoDerecha.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))   
+    #***
     #instancio a la clase que muestra la popup de busqueda en calendario
     def popUpSearchDateToHistory(self):
         self.dlgDateSearch = PopUpDateSelected()
@@ -6570,8 +6757,10 @@ class MainWindow(QDialog):
             self.indice = 28
         sampleImagenCv = np.array(self.matrizImgCvIzq[:,:,:,self.indice], dtype=np.uint8)
         qt_imgCv = self.convert_cv_qt(sampleImagenCv)
-        self.imageHistory1CamScene.addPixmap(qt_imgCv)
-        self.imageHistory1ViewPixMapItem.setScene(self.imageHistory1CamScene)
+        self.imageHistory1CamScene.removeItem(self.imageHistory1PixmapItem)
+        self.imageHistory1PixmapItem=self.imageHistory1CamScene.addPixmap(qt_imgCv)                
+        self.imageHistory1PixmapItem.setZValue(-1)
+        self.imageHistory1ViewPixMapItem.setScene(self.imageHistory1CamScene)        
 
     #aca tengo que dar la funcionalidad de avanzar en la imagenes cargadas
     def avanzarArchivoIzq(self):
@@ -6581,9 +6770,10 @@ class MainWindow(QDialog):
             self.indice = 0
         sampleImagenCv = np.array(self.matrizImgCvIzq[:,:,:,self.indice], dtype=np.uint8)
         qt_imgCv = self.convert_cv_qt(sampleImagenCv)
-        self.imageHistory1CamScene.addPixmap(qt_imgCv)
-        self.imageHistory1ViewPixMapItem.setScene(self.imageHistory1CamScene)
-
+        self.imageHistory1CamScene.removeItem(self.imageHistory1PixmapItem)
+        self.imageHistory1PixmapItem=self.imageHistory1CamScene.addPixmap(qt_imgCv)                
+        self.imageHistory1PixmapItem.setZValue(-1)
+        self.imageHistory1ViewPixMapItem.setScene(self.imageHistory1CamScene)        
     #aca tengo que instanciar a la clase que muestra la popup que muestra los archivos donde buscar la imagen 
     def leerArchivoDer(self):
         print("leer archivo para imagen historica derecha")
