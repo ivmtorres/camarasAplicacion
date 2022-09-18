@@ -73,7 +73,8 @@ miBarrera = Barrier(3)
 _sentinelStopThread = -500#object() #objeto para indicar que los hilos deben detenerse
 _sentinelArrayImgSeparator = -273#object() #objeto para indicar separador entre imagenes
 pathFolder = "hola" #usamos esta variable compartida para registrar el path cargado en la popup de seleccion de archivo para leer 
-
+posXRect1 = 10
+posYRect1 = 10
 #direccion base para los archivos de imagen
 basedir = os.path.dirname(__file__)
 
@@ -299,7 +300,7 @@ class ClickableGraphicsRectItem(QGraphicsRectItem):
         super(ClickableGraphicsRectItem, self).mousePressEvent(event)
         if event.button() == Qt.LeftButton:
             self.scene().itemClickedRect.emit(self)
-            #print(event.pos())
+            print("click Rect")
 class ClickableGraphicsEllipseItem(QGraphicsEllipseItem):
     def __init__(self,x, y, w, h, pen, brush):
         super(ClickableGraphicsEllipseItem, self).__init__(x, y, w, h)
@@ -310,6 +311,7 @@ class ClickableGraphicsEllipseItem(QGraphicsEllipseItem):
         super(ClickableGraphicsEllipseItem,self).mousePressEvent(event)
         if event.button() == Qt.LeftButton:
             self.scene().itemClickedEllipse.emit(self)
+            print("click Elipse")
 class ClickableGraphicsLineItem(QGraphicsLineItem):
     def __init__(self,x, y, w, h, pen):
         super(ClickableGraphicsLineItem, self).__init__(x, y, w, h)
@@ -319,22 +321,22 @@ class ClickableGraphicsLineItem(QGraphicsLineItem):
         super(ClickableGraphicsLineItem,self).mousePressEvent(event)
         if event.button() == Qt.LeftButton:
             self.scene().itemClickedLine.emit(self)
-
+            print("click Line")
+#defino la clase para la escena que va a contener la imagen y los objetos
 class ItemClickableGraphicsScene(QGraphicsScene):
     itemClickedRect = pyqtSignal(QGraphicsItem)
     itemClickedEllipse = pyqtSignal(QGraphicsItem)
     itemClickedLine = pyqtSignal(QGraphicsItem)
+#defino la clase del objeto grafico que va a contener la escena
 class ClickableItemView(QGraphicsView):
-    posXRect1 = 0
-    posYRect1 = 0
-    def mousePressEvent(self, event):
-        global posXRect1
-        global posYRect1
+    global posXRect1
+    global posYRect1
+    def mousePressEvent(self, event):        
         super(ClickableItemView,self).mousePressEvent(event)
-        print(event.pos())
+        #print(event.pos())
         #listo los items en la scene
         listaItems = self.items()
-        print(listaItems)
+        #print(listaItems)
         #detecto si se realizo un click
         if event.button() == Qt.LeftButton:
             #identifico si algun item contiene el 
@@ -343,15 +345,10 @@ class ClickableItemView(QGraphicsView):
             #verifico si el item que contiene la 
             #posicion es instancia de RectItem
             if isinstance(item, QGraphicsRectItem):
-                print('item {} clicked'.format(item.rect()))
-                print('item {} desplazado'.format(item.pos()))
+                #print('item {} clicked'.format(item.rect()))
+                #print('item {} desplazado'.format(item.pos()))                
                 posXRect1 = item.rect().x() + item.pos().x()
                 posYRect1 = item.rect().y() + item.pos().y()
-            
-                
-                        
-        #for item in listaItems:
-        #    print(item.pos())
 #clase para herramientas de imagen
 class TestImage(QLabel):
     def __init__(self):
@@ -4600,39 +4597,45 @@ class MainWindow(QDialog):
 
         self.imageHistory1CamScene = ItemClickableGraphicsScene(0,0,384,288)#QGraphicsScene(0,0,0,0)        
         self.imageHistory1CamPixmap = QPixmap("imageCam1.jpg")
+        self.imageHistory1CamScene.itemClickedRect.connect(self.clickedImageHistory1CamScene)
         self.imageHistory1PixmapItem = self.imageHistory1CamScene.addPixmap(self.imageHistory1CamPixmap)
-        #agrego los rectangulos
+        #creo la posicion inicial los rectangulos
         self.rect_list = [[20,30,70,35],
         [50,100,60,100]]
+        #creo la posicion inicial elipse
         self.ellip_list = [[60,60,30,30],
         [80,80,30,30]]
+        #creo la posicion inicial lineas
         self.line_list = [[10,10,80,80],
         [80,80,10,10,]]
         brush = QBrush(Qt.BDiagPattern)
         pen = QPen(Qt.red)
         pen.setWidth(2)
-        
+        #agrego las rois rect
         self.listaItemsRect = []
         for rect in self.rect_list:            
             rect_item = ClickableGraphicsRectItem(rect[0],rect[1],rect[2],rect[3], pen, brush)            
+            rect_item.hide()
             self.listaItemsRect.append(rect_item)
         for itemRect in self.listaItemsRect:
             self.imageHistory1CamScene.addItem(itemRect)
-        
+        #agrego las rois ellipse
         self.listaItemsEllipse = []
         for ellipse in self.ellip_list:
             ellip_item = ClickableGraphicsEllipseItem(ellipse[0],ellipse[1],ellipse[2],ellipse[3],pen,brush)
+            ellip_item.hide()
             self.listaItemsEllipse.append(ellip_item)
         for itemEllip in self.listaItemsEllipse:
             self.imageHistory1CamScene.addItem(itemEllip)
-
+        #agrego las rois lineas
         self.listaItemsLine = []
         for line in self.line_list:
             line_item = ClickableGraphicsLineItem(line[0],line[1],line[2],line[3], pen)
+            line_item.hide()
             self.listaItemsLine.append(line_item)
         for itemLine in self.listaItemsLine:
             self.imageHistory1CamScene.addItem(itemLine)
-
+        #creo la escena
         self.imageHistory1ViewPixMapItem = ClickableItemView(self.imageHistory1CamScene)#QGraphicsView(self.imageHistory1CamScene)
         self.imageHistory1ViewPixMapItem.setRenderHint(QPainter.Antialiasing)        
         #self.imageHistory1ViewPixMapItem.fitInView(QRectF(95,119,385,288),Qt.IgnoreAspectRatio)
@@ -4687,10 +4690,47 @@ class MainWindow(QDialog):
 
         
         #genero la imagen 2
-        self.imageHistory2CamScene = QGraphicsScene(0,0,0,0)
+        self.imageHistory2CamScene = ItemClickableGraphicsScene(0,0,384,288)#QGraphicsScene(0,0,0,0)
         self.imageHistory2CamPixmap = QPixmap("imageCam2.jpg")
-        imageHistory2PixmapItem = self.imageHistory2CamScene.addPixmap(self.imageHistory2CamPixmap)
-        self.imageHistory2ViewPixMapItem = QGraphicsView(self.imageHistory2CamScene)
+        self.imageHistory2PixmapItem = self.imageHistory2CamScene.addPixmap(self.imageHistory2CamPixmap)
+        #creo la posicion incial los rectangulos
+        self.rect_list2 = [[20,30,70,35],
+        [50,100,60,100]]
+        #creo la posicion inicial elipse
+        self.ellip_list2 = [[60,60,30,30],
+        [80,80,30,30]]
+        #creo la posicion inicial linea
+        self.line_list2 = [[10,10,80,80],
+        [80,80,10,10]]
+        brush = QBrush(Qt.BDiagPattern)
+        pen = QPen(Qt.red)
+        pen.setWidth(2)
+        #agrego las rois rect
+        self.listaItemsRect2 = []
+        for rect2 in self.rect_list2:
+            rect_item2 = ClickableGraphicsRectItem(rect2[0],rect2[1],rect2[2],rect2[3],pen,brush)
+            rect_item2.hide()
+            self.listaItemsRect2.append(rect_item2)
+        for itemRect2 in self.listaItemsRect2:
+            self.imageHistory2CamScene.addItem(itemRect2)
+        #agrego las rois ellipse
+        self.listaItemsEllipse2 = []
+        for ellipse2 in self.ellip_list2:
+            ellip_item2 = ClickableGraphicsEllipseItem(ellipse2[0],ellipse2[1],ellipse2[2],ellipse2[3],pen,brush)
+            ellip_item2.hide()
+            self.listaItemsEllipse2.append(ellip_item2)
+        for itemEllip2 in self.listaItemsEllipse2:
+            self.imageHistory2CamScene.addItem(itemEllip2)
+        #agrego las rois lineas
+        self.listaItemsLine2 = []
+        for line2 in self.line_list2:
+            line_item2 = ClickableGraphicsLineItem(line2[0],line2[1],line2[2],line2[3],pen)
+            line_item2.hide()
+            self.listaItemsLine2.append(line_item2)
+        for itemLine2 in self.listaItemsLine2:
+            self.imageHistory2CamScene.addItem(itemLine2)
+        #creo la escena
+        self.imageHistory2ViewPixMapItem = ClickableItemView(self.imageHistory2CamScene)#QGraphicsView(self.imageHistory2CamScene)
         self.imageHistory2ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
         #genero un toolbar para la imagen de la derecha en la pantalla de historicos
         toolBarImageHistoryDer = QToolBar("Toolbar Image History 2")
@@ -6409,6 +6449,9 @@ class MainWindow(QDialog):
             self.dlgDefaultPresetCam3.show()
     #defino la funcion de click emitida por la imagen hsitorica de la izquierda
     def clickedImageHistory1CamScene(self, item):
+        #imprimimos capturando la forma del rectang
+        #vamos a identificar cual es el rect
+        #y vamos a cambiar la forma que tiene
         print('item {} clicked!'.format(item.rect()))
     #Defino la funcion para realizar zoom in
     def makeZoomIn(self, statusButton):
@@ -6436,14 +6479,16 @@ class MainWindow(QDialog):
                 self.buttonEllipRoiActionImageTab3.setChecked(False)
                 self.buttonZoomOutActionImageTab3.setChecked(False)
             elif data == "zoomInTabHistoryIzq":
-                self.buttonRectRoiActionHistoryIzq.setChecked(False)
-                self.buttonLineRoiActionHistoryIzq.setChecked(False)
-                self.buttonEllipRoiActionHistoryIzq.setChecked(False)
+                print("tengo que meter zoom en izq")
+                #self.buttonRectRoiActionHistoryIzq.setChecked(False)
+                #self.buttonLineRoiActionHistoryIzq.setChecked(False)
+                #self.buttonEllipRoiActionHistoryIzq.setChecked(False)
                 self.buttonZoomOutActionHistoryIzq.setChecked(False)
             elif data == "zoomInTabHistoryDer":
-                self.buttonRectRoiActionHistoryDer.setChecked(False)
-                self.buttonLineRoiActionHistoryDer.setChecked(False)
-                self.buttonEllipRoiActionHistoryDer.setChecked(False)
+                print("tengo que meter zoom en der")
+                #self.buttonRectRoiActionHistoryDer.setChecked(False)
+                #self.buttonLineRoiActionHistoryDer.setChecked(False)
+                #self.buttonEllipRoiActionHistoryDer.setChecked(False)
                 self.buttonZoomOutActionHistoryDer.setChecked(False)
     #Defino la funcion para realizar zoom out
     def makeZoomOut(self, statusButton):
@@ -6471,15 +6516,17 @@ class MainWindow(QDialog):
                 self.buttonEllipRoiActionImageTab3.setChecked(False)
                 self.buttonZoomInActionImageTab3.setChecked(False)
             elif data == "zoomOutTabHistoryIzq":
-                self.buttonRectRoiActionHistoryIzq.setChecked(False)
-                self.buttonLineRoiActionHistoryIzq.setChecked(False)
-                self.buttonEllipRoiActionHistoryIzq.setChecked(False)
+                print("tengo que sacar zoom en izq")
+                #self.buttonRectRoiActionHistoryIzq.setChecked(False)
+                #self.buttonLineRoiActionHistoryIzq.setChecked(False)
+                #self.buttonEllipRoiActionHistoryIzq.setChecked(False)
                 self.buttonZoomInActionHistoryIzq.setChecked(False)
             elif data == "zoomOutTabHistoryDer":
-                self.buttonRectRoiActionHistoryDer.setChecked(False)
-                self.buttonLineRoiActionHistoryDer.setChecked(False)
-                self.buttonEllipRoiActionHistoryDer.setChecked(False)
-                self.buttonZoomInActionHistoryIzq.setChecked(False)
+                print("tengo que sacar zoom en der")
+                #self.buttonRectRoiActionHistoryDer.setChecked(False)
+                #self.buttonLineRoiActionHistoryDer.setChecked(False)
+                #self.buttonEllipRoiActionHistoryDer.setChecked(False)
+                self.buttonZoomInActionHistoryDer.setChecked(False)
     #Defino la funcion para dibujar roi rectangulos
     def drawROIRectangle(self, statusButton):
         print("Dibujar Roi Rectangulo", statusButton)
@@ -6506,15 +6553,30 @@ class MainWindow(QDialog):
                 self.buttonZoomInActionImageTab3.setChecked(False)
                 self.buttonZoomOutActionImageTab3.setChecked(False)                
             elif data == "roiRectanguloTabHistoryIzq":
-                self.buttonLineRoiActionHistoryIzq.setChecked(False)
-                self.buttonEllipRoiActionHistoryIzq.setChecked(False)
+                print("tengo que mostrar u ocultar los rectangulos der")
+                #self.buttonLineRoiActionHistoryIzq.setChecked(False)
+                #self.buttonEllipRoiActionHistoryIzq.setChecked(False)
                 self.buttonZoomInActionHistoryIzq.setChecked(False)
                 self.buttonZoomOutActionHistoryIzq.setChecked(False)
+                #mostramos los rectangulos
+                self.listaItemsRect[0].show()
+                self.listaItemsRect[1].show()
             elif data == "roiRectanguloTabHistoryDer":
-                self.buttonLineRoiActionHistoryDer.setChecked(False)
-                self.buttonEllipRoiActionHistoryDer.setChecked(False)
+                print("tengo que mostrar u ocultar los rectangulos der")
+                #self.buttonLineRoiActionHistoryDer.setChecked(False)
+                #self.buttonEllipRoiActionHistoryDer.setChecked(False)
                 self.buttonZoomInActionHistoryDer.setChecked(False)
-                self.buttonZoomOutActionHistoryDer.setChecked(False) 
+                self.buttonZoomOutActionHistoryDer.setChecked(False)
+                #mostramos los rectangulos
+                self.listaItemsRect2[0].show()
+                self.listaItemsRect2[1].show()
+        else:
+            if data == "roiRectanguloTabHistoryIzq" :
+                self.listaItemsRect[0].hide()
+                self.listaItemsRect[1].hide()
+            elif data == "roiRectanguloTabHistoryDer":
+                self.listaItemsRect2[0].hide()
+                self.listaItemsRect2[1].hide()
     #Defino la funcion para dibujar roi ellipses
     def drawROICircle(self, statusButton):
         print("Dibujar Roi Ellipse", statusButton)
@@ -6541,15 +6603,28 @@ class MainWindow(QDialog):
                 self.buttonZoomInActionImageTab3.setChecked(False)
                 self.buttonZoomOutActionImageTab3.setChecked(False)
             elif data == "roiEllipseTabHistoryIzq":
-                self.buttonRectRoiActionHistoryIzq.setChecked(False)
-                self.buttonLineRoiActionHistoryIzq.setChecked(False)
+                print("tengo que mostrar u ocultar circulo izq")
+                #self.buttonRectRoiActionHistoryIzq.setChecked(False)
+                #self.buttonLineRoiActionHistoryIzq.setChecked(False)
                 self.buttonZoomInActionHistoryIzq.setChecked(False)
                 self.buttonZoomOutActionHistoryIzq.setChecked(False)
+                self.listaItemsEllipse[0].show()
+                self.listaItemsEllipse[1].show()
             elif data == "roiEllipseTabHistoryDer":
-                self.buttonRectRoiActionHistoryDer.setChecked(False)
-                self.buttonLineRoiActionHistoryDer.setChecked(False)
+                print("tengo que mostrar u ocultar circulo der")
+                #self.buttonRectRoiActionHistoryDer.setChecked(False)
+                #self.buttonLineRoiActionHistoryDer.setChecked(False)
                 self.buttonZoomInActionHistoryDer.setChecked(False)
                 self.buttonZoomOutActionHistoryDer.setChecked(False)
+                self.listaItemsEllipse2[0].show()
+                self.listaItemsEllipse2[1].show()
+        else:
+            if data == "roiEllipseTabHistoryIzq":
+                self.listaItemsEllipse[0].hide()
+                self.listaItemsEllipse[1].hide()
+            elif data == "roiEllipseTabHistoryDer":
+                self.listaItemsEllipse2[0].hide()
+                self.listaItemsEllipse2[1].hide()
     #Defino la funcion para dibujar roi rectas
     def drawROILine(self, statusButton):
         print("Dibujar Roi Linea", statusButton)
@@ -6576,15 +6651,28 @@ class MainWindow(QDialog):
                 self.buttonZoomInActionImageTab3.setChecked(False)
                 self.buttonZoomOutActionImageTab3.setChecked(False)
             elif data == "roiLineTabHistoryIzq":
-                self.buttonRectRoiActionHistoryIzq.setChecked(False)
-                self.buttonEllipRoiActionHistoryIzq.setChecked(False)
+                print("tengo que mostrar u ocultar linea izq")
+                #self.buttonRectRoiActionHistoryIzq.setChecked(False)
+                #self.buttonEllipRoiActionHistoryIzq.setChecked(False)
                 self.buttonZoomInActionHistoryIzq.setChecked(False)
                 self.buttonZoomOutActionHistoryIzq.setChecked(False)
+                self.listaItemsLine[0].show()
+                self.listaItemsLine[1].show()
             elif data == "roiLineTabHistoryDer":
-                self.buttonRectRoiActionHistoryDer.setChecked(False)
-                self.buttonEllipRoiActionHistoryDer.setChecked(False)
+                print("tengo que mostrar u ocultar linea der")
+                #self.buttonRectRoiActionHistoryDer.setChecked(False)
+                #self.buttonEllipRoiActionHistoryDer.setChecked(False)
                 self.buttonZoomInActionHistoryDer.setChecked(False)
                 self.buttonZoomOutActionHistoryDer.setChecked(False)
+                self.listaItemsLine2[0].show()
+                self.listaItemsLine2[1].show()
+        else:
+            if data == "roiLineTabHistoryIzq":
+                self.listaItemsLine[0].hide()
+                self.listaItemsLine[1].hide()
+            elif data == "roiLineTabHistoryDer":
+                self.listaItemsLine2[0].hide()
+                self.listaItemsLine2[1].hide()
     #Defino la funcion asociada a la barra de progreso para la camara 1
     def handleTimer1(self):
         value = self.pbarTab1.value()
@@ -6733,8 +6821,6 @@ class MainWindow(QDialog):
     def popUpSearchDateToHistory(self):
         self.dlgDateSearch = PopUpDateSelected()
         self.dlgDateSearch.show()
-    
-
     #aca tengo que instanciar a la clase que muestra la popup que muestra los archivos donde buscar la imagen 
     def leerArchivoIzq(self):
         print("leer archivo para imagen historica izquierda")
@@ -6761,7 +6847,6 @@ class MainWindow(QDialog):
         self.imageHistory1PixmapItem=self.imageHistory1CamScene.addPixmap(qt_imgCv)                
         self.imageHistory1PixmapItem.setZValue(-1)
         self.imageHistory1ViewPixMapItem.setScene(self.imageHistory1CamScene)        
-
     #aca tengo que dar la funcionalidad de avanzar en la imagenes cargadas
     def avanzarArchivoIzq(self):
         print("presiono boton avanzar una imagen en historicos izquierda")
@@ -6786,7 +6871,6 @@ class MainWindow(QDialog):
             self.botonFordwardFileDer.setEnabled(True)
         else:
             print("cancel")
-
     #aca tengo que dar la funcionalidad de retroceder en las magenes cargadas 
     def retrocederArchivoDer(self):
         print("presiono boton retroceder una imagen en historicos derecha")
@@ -6795,9 +6879,10 @@ class MainWindow(QDialog):
             self.indice = 28
         sampleImagenCv = np.array(self.matrizImgCvDer[:,:,:,self.indice], dtype=np.uint8)
         qt_imgCv = self.convert_cv_qt(sampleImagenCv)
-        self.imageHistory2CamScene.addPixmap(qt_imgCv)
-        self.imageHistory2ViewPixMapItem.setScene(self.imageHistory2CamScene)
-
+        self.imageHistory2CamScene.removeItem(self.imageHistory2PixmapItem)
+        self.imageHistory2PixmapItem=self.imageHistory2CamScene.addPixmap(qt_imgCv)                
+        self.imageHistory2PixmapItem.setZValue(-1)
+        self.imageHistory2ViewPixMapItem.setScene(self.imageHistory2CamScene)                
     #aca tengo que da la funionalidad de avanzar 
     def avanzarArchivoDer(self):
         print("presiono boton avanzar una imagen en historicos derecha")
@@ -6806,9 +6891,10 @@ class MainWindow(QDialog):
             self.indice = 0
         sampleImagenCv = np.array(self.matrizImgCvDer[:,:,:,self.indice], dtype=np.uint8)
         qt_imgCv = self.convert_cv_qt(sampleImagenCv)
-        self.imageHistory2CamScene.addPixmap(qt_imgCv)
-        self.imageHistory2ViewPixMapItem.setScene(self.imageHistory2CamScene)
-
+        self.imageHistory2CamScene.removeItem(self.imageHistory2PixmapItem)
+        self.imageHistory2PixmapItem=self.imageHistory2CamScene.addPixmap(qt_imgCv)                
+        self.imageHistory2PixmapItem.setZValue(-1)
+        self.imageHistory2ViewPixMapItem.setScene(self.imageHistory2CamScene)                
     #*********
     #Defino la funcion asociada a cerrar la aplicación
     def closeApp(self):
