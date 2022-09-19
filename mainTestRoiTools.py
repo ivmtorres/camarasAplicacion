@@ -298,9 +298,13 @@ class ClickableGraphicsRectItem(QGraphicsRectItem):
         self.setFlags(self.ItemIsSelectable|self.ItemIsMovable|self.ItemIsFocusable)
     def mousePressEvent(self, event):
         super(ClickableGraphicsRectItem, self).mousePressEvent(event)
-        if event.button() == Qt.LeftButton:
-            self.scene().itemClickedRect.emit(self)
+        if event.button() == Qt.LeftButton:            
             print("click Rect")
+    def mouseReleaseEvent(self, event):
+        super(ClickableGraphicsRectItem, self).mouseReleaseEvent(event)
+        if event.button() == Qt.LeftButton:
+            print("release Rect")
+            self.scene().itemClickedRect.emit(self)
 class ClickableGraphicsEllipseItem(QGraphicsEllipseItem):
     def __init__(self,x, y, w, h, pen, brush):
         super(ClickableGraphicsEllipseItem, self).__init__(x, y, w, h)
@@ -4597,17 +4601,21 @@ class MainWindow(QDialog):
 
         self.imageHistory1CamScene = ItemClickableGraphicsScene(0,0,384,288)#QGraphicsScene(0,0,0,0)        
         self.imageHistory1CamPixmap = QPixmap("imageCam1.jpg")
-        self.imageHistory1CamScene.itemClickedRect.connect(self.clickedImageHistory1CamScene)
+        #defino las funciones que se ejecutan cuando se dispara la señal desde la scene
+        self.imageHistory1CamScene.itemClickedRect.connect(self.clickedRectImageHistory1CamScene)
+        self.imageHistory1CamScene.itemClickedEllipse.connect(self.clickedEllipImageHistory1CamScene)
+        self.imageHistory1CamScene.itemClickedLine.connect(self.clickedLineImageHIstory1CamScene)
+        #agrego a la scene la imagen por defecto
         self.imageHistory1PixmapItem = self.imageHistory1CamScene.addPixmap(self.imageHistory1CamPixmap)
         #creo la posicion inicial los rectangulos
-        self.rect_list = [[20,30,70,35],
-        [50,100,60,100]]
+        self.rect_list = [[0,0,70,35],
+        [0,0,60,100]]
         #creo la posicion inicial elipse
-        self.ellip_list = [[60,60,30,30],
-        [80,80,30,30]]
+        self.ellip_list = [[0,60,30,30],
+        [0,0,30,30]]
         #creo la posicion inicial lineas
-        self.line_list = [[10,10,80,80],
-        [80,80,10,10,]]
+        self.line_list = [[0,0,80,80],
+        [0,0,10,10,]]
         brush = QBrush(Qt.BDiagPattern)
         pen = QPen(Qt.red)
         pen.setWidth(2)
@@ -4694,14 +4702,14 @@ class MainWindow(QDialog):
         self.imageHistory2CamPixmap = QPixmap("imageCam2.jpg")
         self.imageHistory2PixmapItem = self.imageHistory2CamScene.addPixmap(self.imageHistory2CamPixmap)
         #creo la posicion incial los rectangulos
-        self.rect_list2 = [[20,30,70,35],
-        [50,100,60,100]]
+        self.rect_list2 = [[0,0,70,35],
+        [0,0,60,100]]
         #creo la posicion inicial elipse
-        self.ellip_list2 = [[60,60,30,30],
-        [80,80,30,30]]
+        self.ellip_list2 = [[0,0,30,30],
+        [0,0,30,30]]
         #creo la posicion inicial linea
-        self.line_list2 = [[10,10,80,80],
-        [80,80,10,10]]
+        self.line_list2 = [[0,0,80,80],
+        [0,0,10,10]]
         brush = QBrush(Qt.BDiagPattern)
         pen = QPen(Qt.red)
         pen.setWidth(2)
@@ -6447,12 +6455,73 @@ class MainWindow(QDialog):
         if checkbox.isChecked() == False:
             self.dlgDefaultPresetCam3 = PopUpResetPresetCam()
             self.dlgDefaultPresetCam3.show()
-    #defino la funcion de click emitida por la imagen hsitorica de la izquierda
-    def clickedImageHistory1CamScene(self, item):
+    #defino la funcion de click emitida por la imagen hsitorica de la izquierda al click en rect
+    def clickedRectImageHistory1CamScene(self, item):
         #imprimimos capturando la forma del rectang
         #vamos a identificar cual es el rect
         #y vamos a cambiar la forma que tiene
-        print('item {} clicked!'.format(item.rect()))
+        #print('item {} clicked!'.format(item.rect()))
+        #buscamos el item rectangulo que esta disparando
+        #el evento.
+        itemRect1 = self.listaItemsRect[0]
+        itemRect2 = self.listaItemsRect[1]
+        #print("el item rect seleccionado es: {}".format(item))
+        #print("el item rect 1 es: {}".format(itemRect1))
+        #print("el item rect 2 es: {}".format(itemRect2))
+        dx = item.pos().x() #desplazamiento x
+        dy = item.pos().y() #desplazamiento y
+        x0 = item.rect().x() #posicion inicial x
+        y0 = item.rect().y() #posicion inicial y
+        x = x0 + dx #calculo la posicion final x
+        y = y0 + dy #calculo la posicion final y
+        if item == itemRect1:            
+            print(f"Select rectangle 1, pos {x} pos {y}")
+            print(f"Shift Pos x: {dx} Pos y: {dy}")
+            print(f"Origen Pos x: {x0} Pos y: {y0}")
+            #item.setRect(x,y,item.rect().width(),item.rect().height())
+        elif item == itemRect2:
+            print(f"Select rectangle 2, pos {x} pos {y}")
+            #item.setRect(x,y,item.rect().width(),item.rect().height())
+            print(f"Shift Pos x: {dx} Pos y: {dy}")
+            print(f"Origen Pos x: {x0} Pos y: {y0}")
+        else:
+            print("no es el rect")
+    #defino la funcion de click emitida por la imagen hsitorica de la izquierda al click en elipse
+    def clickedEllipImageHistory1CamScene(self, item):
+        #imprimimos capturan la forma de la elipse
+        #vamosa identificar cual es la elipse
+        #y vamos a cambiar la forma que tiene
+        #print('item {} clicked!'.format(item.rect()))
+        #buscamos el item elipse que esta disparando el evento
+        itemEllip1 = self.listaItemsEllipse[0]
+        itemEllip2 = self.listaItemsEllipse[1]
+        #print("el item ellip seleccionado es: {}".format(item))
+        #print("el item ellip 1 es: {}".format(itemEllip1))
+        #print("el item ellip 2 es: {}".format(itemEllip2))
+        if item == itemEllip1:
+            print("Select elipse 1")
+        elif item == itemEllip2:
+            print("Select ellipse 2")
+        else:
+            print("no es elipse")
+    #defino la funcion de click emitida por la imagen historico de la izquierda al click en la recta
+    def clickedLineImageHIstory1CamScene(self, item):
+        #imprimimos capturando la forma de la recta
+        #vamos a identificar cual es la linea 
+        #y vamos a cambiar la forma que tiene
+        #print('item {} clicked!'.format(item.line()))
+        #buscamos el item linea que esta disparando el evento
+        itemLine1 = self.listaItemsLine[0]
+        itemLine2 = self.listaItemsLine[1]
+        #print("el item line seleccionador es: {}".format(item))
+        #print("el item line 1 es: {}".format(itemLine1))
+        #print("el item line 2 es: {}".format(itemLine2))
+        if item == itemLine1:
+            print("Select line 1")
+        elif item == itemLine2:
+            print("Select line 2")
+        else:
+            print("no es line")
     #Defino la funcion para realizar zoom in
     def makeZoomIn(self, statusButton):
         print("Zoom In to the image", statusButton)
