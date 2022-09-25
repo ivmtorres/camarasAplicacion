@@ -85,8 +85,8 @@ try:
     winddl.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
-#definimos la clase rectangulo de dimension ajustable
-class GraphicsRectItem(QGraphicsRectItem):
+#definimos la clase elipse de dimension ajustable
+class ClickableReSizedGraphicsEllipItem(QGraphicsEllipseItem):
     handleTopLeft = 1 #voy a generar marcas numericas para indicar si se esta seleccionando alguno de los puntos de modificacion del rectangulo
     handleTopMiddle = 2 #puede ser que se seleccione las esquinas o los laterales tambien puedo seleccionar la parte superior o inferior
     handleTopRight = 3
@@ -110,8 +110,8 @@ class GraphicsRectItem(QGraphicsRectItem):
         handleBottomRight: Qt.SizeFDiagCursor
     }
     #sobre escribimo la funcion init
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, x, y, w, h, pen, brush):#*args):
+        super(ClickableReSizedGraphicsEllipItem,self).__init__(x,y,w,h)#*args)
         self.handles = {} #creamos un diccionario para manejar los puntos de modificacion de forma
         self.handleSelected = None #un flag para indicar si seleccionamos o no un borde
         self.mousePressPos = None #un flag para indicar si se presiono o no el mouse y se esta cambiando la forma del rectangulo
@@ -122,7 +122,8 @@ class GraphicsRectItem(QGraphicsRectItem):
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True) #indicamos que el item puede modificar su geometria
         self.setFlag(QGraphicsItem.ItemIsFocusable, True) #indicamos que es enfocable
         self.updateHandlesPos() #llamamo a la funcion que maneja la posicion
-    
+        self.rectBrush = brush
+        self.rectPen = pen
     def handleAt(self, point):
         #indicamos que indicador esta siendo seleccionado
         for k, v, in self.handles.items():
@@ -165,7 +166,9 @@ class GraphicsRectItem(QGraphicsRectItem):
         self.mousePressPos = None
         self.mousePressRect = None
         self.update()
-    
+        if mouseEvent.button() == Qt.LeftButton:
+            print("Release ellipse")
+            self.scene().itemClickedEllipse.emit(self)
     def boundingRect(self):
         #devolvemos los limites del rect incluyendo el manejo de retamao
         o = self.handleSize + self.handleSpace
@@ -175,6 +178,7 @@ class GraphicsRectItem(QGraphicsRectItem):
         #actualizamos el tamaño ajustando al tamaño y posicion nuevo
         s = self.handleSize
         b = self.boundingRect()
+        
         self.handles[self.handleTopLeft] = QRectF(b.left(),b.top(),s,s)
         self.handles[self.handleTopMiddle] = QRectF(b.center().x() - s/2, b.top(), s, s)
         self.handles[self.handleTopRight] = QRectF(b.right() - s, b.top(), s, s)
@@ -205,6 +209,7 @@ class GraphicsRectItem(QGraphicsRectItem):
             rect.setLeft(boundingRect.left() + offset)
             rect.setTop(boundingRect.top() + offset)
             self.setRect(rect)
+            
         elif self.handleSelected == self.handleTopMiddle:
             fromY = self.mousePressRect.top()
             toY = fromY + mousePos.y() - self.mousePressPos.y()
@@ -212,6 +217,7 @@ class GraphicsRectItem(QGraphicsRectItem):
             boundingRect.setTop(toY)
             rect.setTop(boundingRect.top() + offset)
             self.setRect(rect)
+            
         elif self.handleSelected == self.handleTopRight:
             fromX = self.mousePressRect.right()
             fromY = self.mousePressRect.top()
@@ -224,6 +230,7 @@ class GraphicsRectItem(QGraphicsRectItem):
             rect.setRight(boundingRect.right() - offset)
             rect.setTop(boundingRect.top() + offset)
             self.setRect(rect)
+            
         elif self.handleSelected == self.handleMiddleLeft:
             fromX = self.mousePressRect.left()
             toX = fromX + mousePos.x() - self.mousePressPos.x()
@@ -231,6 +238,7 @@ class GraphicsRectItem(QGraphicsRectItem):
             boundingRect.setLeft(toX)
             rect.setLeft(boundingRect.left() + offset)
             self.setRect(rect)
+            
         elif self.handleSelected == self.handleMiddleRight:
             fromX = self.mousePressRect.right()
             toX = fromX + mousePos.x() - self.mousePressPos.x()
@@ -238,6 +246,7 @@ class GraphicsRectItem(QGraphicsRectItem):
             boundingRect.setRight(toX)
             rect.setRight(boundingRect.right() - offset)
             self.setRect(rect)
+            
         elif self.handleSelected == self.handleBottomLeft:
             fromX = self.mousePressRect.left()
             fromY = self.mousePressRect.bottom()
@@ -250,6 +259,7 @@ class GraphicsRectItem(QGraphicsRectItem):
             rect.setLeft(boundingRect.left() + offset)
             rect.setBottom(boundingRect.bottom() - offset)
             self.setRect(rect)
+            
         elif self.handleSelected == self.handleBottomMiddle:
             fromY = self.mousePressRect.bottom()
             toY = fromY + mousePos.y() - self.mousePressPos.y()
@@ -257,6 +267,7 @@ class GraphicsRectItem(QGraphicsRectItem):
             boundingRect.setBottom(toY)
             rect.setBottom(boundingRect.bottom() - offset)
             self.setRect(rect)
+            
         elif self.handleSelected == self.handleBottomRight:
             fromX = self.mousePressRect.right()
             fromY = self.mousePressRect.bottom()
@@ -269,10 +280,10 @@ class GraphicsRectItem(QGraphicsRectItem):
             rect.setRight(boundingRect.right() - offset)
             rect.setBottom(boundingRect.bottom() - offset)
             self.setRect(rect)
-        
+            
         self.updateHandlesPos()
     
-    def shape(self):
+    def shape(self): #sobre escribimos el metodo shape del objeto rectangulo. Parece que este metodo se llama siempre que se realice una actualizacion de la imagen
         #retorna la forma del item como un QPainterPAth
         path = QPainterPath()
         path.addRect(self.rect())
@@ -283,11 +294,457 @@ class GraphicsRectItem(QGraphicsRectItem):
 
     def paint(self, painter, option, widget = None):
         #digujamos el nodo en el visor de graficos
-        painter.setBrush(QBrush(QColor(255,0,0,100)))
-        painter.setPen(QPen(QColor(0,0,0,255),1.0,Qt.SolidLine,Qt.RoundCap, Qt.RoundJoin))
+        painter.setBrush(QBrush(QColor(255,0,0,255)))
+        painter.setPen(QPen(QColor(0,255,0,255),1.0,Qt.SolidLine,Qt.RoundCap, Qt.RoundJoin))
         for handle, rect in self.handles.items():
             if self.handleSelected is None or handle == self.handleSelected:
                 painter.drawEllipse(rect)
+        painter.setBrush(self.rectBrush)#QBrush(QColor(0,0,0,0)))
+        painter.setPen(self.rectPen)#QPen(QColor(0,255,0,255),1.0,Qt.SolidLine,Qt.RoundCap, Qt.RoundJoin))
+        painter.drawEllipse(self.rect())
+#definimos la clase rectangulo de dimension ajustable
+class ClickableReSizedGraphicsRectItem(QGraphicsRectItem):
+    handleTopLeft = 1 #voy a generar marcas numericas para indicar si se esta seleccionando alguno de los puntos de modificacion del rectangulo
+    handleTopMiddle = 2 #puede ser que se seleccione las esquinas o los laterales tambien puedo seleccionar la parte superior o inferior
+    handleTopRight = 3
+    handleMiddleLeft = 4
+    handleMiddleRight = 5
+    handleBottomLeft = 6
+    handleBottomMiddle = 7
+    handleBottomRight = 8
+
+    handleSize = 8 #defino un tamaño en pixeles para la seleccion 
+    handleSpace = -4 #defino un espacio 
+
+    handleCursors = { #creo los cursores asociados a cada punto que permite la modificacion de la roi
+        handleTopLeft: Qt.SizeFDiagCursor,
+        handleTopMiddle: Qt.SizeVerCursor,
+        handleTopRight: Qt.SizeBDiagCursor,
+        handleMiddleLeft: Qt.SizeHorCursor,
+        handleMiddleRight: Qt.SizeHorCursor,
+        handleBottomLeft: Qt.SizeBDiagCursor,
+        handleBottomMiddle: Qt.SizeVerCursor,
+        handleBottomRight: Qt.SizeFDiagCursor
+    }
+    #sobre escribimo la funcion init
+    def __init__(self, x, y, w, h, pen, brush):#*args):
+        super(ClickableReSizedGraphicsRectItem,self).__init__(x,y,w,h)#*args)
+        self.handles = {} #creamos un diccionario para manejar los puntos de modificacion de forma
+        self.handleSelected = None #un flag para indicar si seleccionamos o no un borde
+        self.mousePressPos = None #un flag para indicar si se presiono o no el mouse y se esta cambiando la forma del rectangulo
+        self.mousePressRect = None #un flag para indicar si se presiono o no el mouse y se esta cambiando la posicion del rectangulo
+        self.setAcceptHoverEvents(True) #indicamos que acepta la funcion hover es decir el evento cuando el mouse pasa por encima del objeto
+        self.setFlag(QGraphicsItem.ItemIsMovable, True) #indicamos que el item en la escena es movible
+        self.setFlag(QGraphicsItem.ItemIsSelectable, True) #indicamos que el item es seleccionable dentro de la escena, lo podemos marcar
+        self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True) #indicamos que el item puede modificar su geometria
+        self.setFlag(QGraphicsItem.ItemIsFocusable, True) #indicamos que es enfocable
+        self.updateHandlesPos() #llamamo a la funcion que maneja la posicion
+        self.rectBrush = brush
+        self.rectPen = pen
+    def handleAt(self, point):
+        #indicamos que indicador esta siendo seleccionado
+        for k, v, in self.handles.items():
+            if v.contains(point):
+                return k
+        return None
+    
+    def hoverMoveEvent(self, moveEvent):
+        #se ejecuta cuando pasa sobre el rect sin presionar
+        if self.isSelected():
+            handle = self.handleAt(moveEvent.pos())
+            cursor = Qt.ArrowCursor if handle is None else self.handleCursors[handle]
+            self.setCursor(cursor)
+        super().hoverMoveEvent(moveEvent)
+    
+    def hoverLeaveEvent(self, moveEvent):
+        #ejecuto cuando salgo de la forma rect sin presionar
+        self.setCursor(Qt.ArrowCursor)
+        super().hoverLeaveEvent(moveEvent)
+
+    def mousePressEvent(self, mouseEvent):
+        #ejecutamos cuando hacemos click
+        self.handleSelected = self.handleAt(mouseEvent.pos())
+        if self.handleSelected:
+            self.mousePressPos = mouseEvent.pos()
+            self.mousePressRect = self.boundingRect()
+        super().mousePressEvent(mouseEvent)
+    
+    def mouseMoveEvent(self, mouseEvent):
+        #ejecuamtos mientras movemos el mouse siendo presionado
+        if self.handleSelected is not None:
+            self.interactiveResize(mouseEvent.pos())
+        else:
+            super().mouseMoveEvent(mouseEvent)
+    
+    def mouseReleaseEvent(self, mouseEvent):
+        #ejecuamta cuando soltamos el lcick
+        super().mouseReleaseEvent(mouseEvent)
+        self.handleSelected = None
+        self.mousePressPos = None
+        self.mousePressRect = None
+        self.update()
+        if mouseEvent.button() == Qt.LeftButton:
+            print("release Rect")
+            self.scene().itemClickedRect.emit(self)
+    
+    def boundingRect(self):
+        #devolvemos los limites del rect incluyendo el manejo de retamao
+        o = self.handleSize + self.handleSpace
+        return self.rect().adjusted(-o, -o, o, o)
+
+    def updateHandlesPos(self):
+        #actualizamos el tamaño ajustando al tamaño y posicion nuevo
+        s = self.handleSize
+        b = self.boundingRect()
+        
+        self.handles[self.handleTopLeft] = QRectF(b.left(),b.top(),s,s)
+        self.handles[self.handleTopMiddle] = QRectF(b.center().x() - s/2, b.top(), s, s)
+        self.handles[self.handleTopRight] = QRectF(b.right() - s, b.top(), s, s)
+        self.handles[self.handleMiddleLeft] = QRectF(b.left(), b.center().y() - s/2, s, s)
+        self.handles[self.handleMiddleRight] = QRectF(b.right() - s, b.center().y() - s/2, s, s)
+        self.handles[self.handleBottomLeft] = QRectF(b.left(), b.bottom() - s, s, s)
+        self.handles[self.handleBottomMiddle] = QRectF(b.center().x() - s/2, b.bottom() - s, s, s)
+        self.handles[self.handleBottomRight] = QRectF(b.right() - s, b.bottom() -s, s, s)
+        
+    def interactiveResize(self, mousePos):
+        #ajustamos el tamaño interactivamente
+        offset = self.handleSize + self.handleSpace
+        boundingRect = self.boundingRect()
+        rect = self.rect()
+        diff = QPointF(0,0)
+
+        self.prepareGeometryChange()
+        if self.handleSelected == self.handleTopLeft:
+            #si agarre este extremo
+            fromX = self.mousePressRect.left()
+            fromY = self.mousePressRect.top()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            diff.setX(toX - fromX)
+            diff.setY(toY - fromY)
+            boundingRect.setLeft(toX)
+            boundingRect.setTop(toY)
+            rect.setLeft(boundingRect.left() + offset)
+            rect.setTop(boundingRect.top() + offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleTopMiddle:
+            fromY = self.mousePressRect.top()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            diff.setY(toY - fromY)
+            boundingRect.setTop(toY)
+            rect.setTop(boundingRect.top() + offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleTopRight:
+            fromX = self.mousePressRect.right()
+            fromY = self.mousePressRect.top()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            diff.setX(toX - fromX)
+            diff.setY(toY - fromY)
+            boundingRect.setRight(toX)
+            boundingRect.setTop(toY)
+            rect.setRight(boundingRect.right() - offset)
+            rect.setTop(boundingRect.top() + offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleMiddleLeft:
+            fromX = self.mousePressRect.left()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            diff.setX(toX - fromX)
+            boundingRect.setLeft(toX)
+            rect.setLeft(boundingRect.left() + offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleMiddleRight:
+            fromX = self.mousePressRect.right()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            diff.setX(toX - fromX)
+            boundingRect.setRight(toX)
+            rect.setRight(boundingRect.right() - offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleBottomLeft:
+            fromX = self.mousePressRect.left()
+            fromY = self.mousePressRect.bottom()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            diff.setX(toX - fromX)
+            diff.setY(toY - fromY)
+            boundingRect.setLeft(toX)
+            boundingRect.setBottom(toY)
+            rect.setLeft(boundingRect.left() + offset)
+            rect.setBottom(boundingRect.bottom() - offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleBottomMiddle:
+            fromY = self.mousePressRect.bottom()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            diff.setY(toY - fromY)
+            boundingRect.setBottom(toY)
+            rect.setBottom(boundingRect.bottom() - offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleBottomRight:
+            fromX = self.mousePressRect.right()
+            fromY = self.mousePressRect.bottom()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            diff.setX(toX - fromX)
+            diff.setY(toY - fromY)
+            boundingRect.setRight(toX)
+            boundingRect.setBottom(toY)
+            rect.setRight(boundingRect.right() - offset)
+            rect.setBottom(boundingRect.bottom() - offset)
+            self.setRect(rect)
+            
+        self.updateHandlesPos()
+    
+    def shape(self): #sobre escribimos el metodo shape del objeto rectangulo. Parece que este metodo se llama siempre que se realice una actualizacion de la imagen
+        #retorna la forma del item como un QPainterPAth
+        path = QPainterPath()
+        path.addRect(self.rect())
+        if self.isSelected():
+            for shape in self.handles.values():
+                path.addEllipse(shape)
+        return path
+
+    def paint(self, painter, option, widget = None):
+        #digujamos el nodo en el visor de graficos
+        painter.setBrush(QBrush(QColor(255,0,0,255)))
+        painter.setPen(QPen(QColor(0,255,0,255),1.0,Qt.SolidLine,Qt.RoundCap, Qt.RoundJoin))
+        for handle, rect in self.handles.items():
+            if self.handleSelected is None or handle == self.handleSelected:
+                painter.drawEllipse(rect)
+        painter.setBrush(self.rectBrush)#QBrush(QColor(0,0,0,0)))
+        painter.setPen(self.rectPen)#QPen(QColor(0,255,0,255),1.0,Qt.SolidLine,Qt.RoundCap, Qt.RoundJoin))
+        painter.drawRect(self.rect())
+#definimo la clase line de dimension ajustable
+class ClickableReSizedGraphicsLineItem(QGraphicsRectItem):
+    handleTopLeft = 1 #voy a generar marcas numericas para indicar si se esta seleccionando alguno de los puntos de modificacion del rectangulo
+    handleTopMiddle = 2 #puede ser que se seleccione las esquinas o los laterales tambien puedo seleccionar la parte superior o inferior
+    handleTopRight = 3
+    handleMiddleLeft = 4
+    handleMiddleRight = 5
+    handleBottomLeft = 6
+    handleBottomMiddle = 7
+    handleBottomRight = 8
+
+    handleSize = 8 #defino un tamaño en pixeles para la seleccion 
+    handleSpace = -4 #defino un espacio 
+
+    handleCursors = { #creo los cursores asociados a cada punto que permite la modificacion de la roi
+        handleTopLeft: Qt.SizeFDiagCursor,
+        handleTopMiddle: Qt.SizeVerCursor,
+        handleTopRight: Qt.SizeBDiagCursor,
+        handleMiddleLeft: Qt.SizeHorCursor,
+        handleMiddleRight: Qt.SizeHorCursor,
+        handleBottomLeft: Qt.SizeBDiagCursor,
+        handleBottomMiddle: Qt.SizeVerCursor,
+        handleBottomRight: Qt.SizeFDiagCursor
+    }
+    #sobre escribimo la funcion init
+    def __init__(self, x, y, w, h, pen, brush):#*args):
+        super(ClickableReSizedGraphicsLineItem,self).__init__(x,y,w,h)#*args)
+        self.handles = {} #creamos un diccionario para manejar los puntos de modificacion de forma
+        self.handleSelected = None #un flag para indicar si seleccionamos o no un borde
+        self.mousePressPos = None #un flag para indicar si se presiono o no el mouse y se esta cambiando la forma del rectangulo
+        self.mousePressRect = None #un flag para indicar si se presiono o no el mouse y se esta cambiando la posicion del rectangulo
+        self.setAcceptHoverEvents(True) #indicamos que acepta la funcion hover es decir el evento cuando el mouse pasa por encima del objeto
+        self.setFlag(QGraphicsItem.ItemIsMovable, True) #indicamos que el item en la escena es movible
+        self.setFlag(QGraphicsItem.ItemIsSelectable, True) #indicamos que el item es seleccionable dentro de la escena, lo podemos marcar
+        self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True) #indicamos que el item puede modificar su geometria
+        self.setFlag(QGraphicsItem.ItemIsFocusable, True) #indicamos que es enfocable
+        self.updateHandlesPos() #llamamo a la funcion que maneja la posicion
+        self.rectBrush = brush
+        self.rectPen = pen
+    def handleAt(self, point):
+        #indicamos que indicador esta siendo seleccionado
+        for k, v, in self.handles.items():
+            if v.contains(point):
+                return k
+        return None
+    
+    def hoverMoveEvent(self, moveEvent):
+        #se ejecuta cuando pasa sobre el rect sin presionar
+        if self.isSelected():
+            handle = self.handleAt(moveEvent.pos())
+            cursor = Qt.ArrowCursor if handle is None else self.handleCursors[handle]
+            self.setCursor(cursor)
+        super().hoverMoveEvent(moveEvent)
+    
+    def hoverLeaveEvent(self, moveEvent):
+        #ejecuto cuando salgo de la forma rect sin presionar
+        self.setCursor(Qt.ArrowCursor)
+        super().hoverLeaveEvent(moveEvent)
+
+    def mousePressEvent(self, mouseEvent):
+        #ejecutamos cuando hacemos click
+        self.handleSelected = self.handleAt(mouseEvent.pos())
+        if self.handleSelected:
+            self.mousePressPos = mouseEvent.pos()
+            self.mousePressRect = self.boundingRect()
+        super().mousePressEvent(mouseEvent)
+    
+    def mouseMoveEvent(self, mouseEvent):
+        #ejecuamtos mientras movemos el mouse siendo presionado
+        if self.handleSelected is not None:
+            self.interactiveResize(mouseEvent.pos())
+        else:
+            super().mouseMoveEvent(mouseEvent)
+    
+    def mouseReleaseEvent(self, mouseEvent):
+        #ejecuamta cuando soltamos el lcick
+        super().mouseReleaseEvent(mouseEvent)
+        self.handleSelected = None
+        self.mousePressPos = None
+        self.mousePressRect = None
+        self.update()
+        if mouseEvent.button() == Qt.LeftButton:
+            print("Release rect")
+            self.scene().itemClickedLine.emit(self)
+
+    def boundingRect(self):
+        #devolvemos los limites del rect incluyendo el manejo de retamao
+        o = self.handleSize + self.handleSpace
+        return self.rect().adjusted(-o, -o, o, o)
+
+    def updateHandlesPos(self):
+        #actualizamos el tamaño ajustando al tamaño y posicion nuevo
+        s = self.handleSize
+        b = self.boundingRect()
+        
+        self.handles[self.handleTopLeft] = QRectF(b.left(),b.top(),s,s)
+        self.handles[self.handleTopMiddle] = QRectF(b.center().x() - s/2, b.top(), s, s)
+        self.handles[self.handleTopRight] = QRectF(b.right() - s, b.top(), s, s)
+        self.handles[self.handleMiddleLeft] = QRectF(b.left(), b.center().y() - s/2, s, s)
+        self.handles[self.handleMiddleRight] = QRectF(b.right() - s, b.center().y() - s/2, s, s)
+        self.handles[self.handleBottomLeft] = QRectF(b.left(), b.bottom() - s, s, s)
+        self.handles[self.handleBottomMiddle] = QRectF(b.center().x() - s/2, b.bottom() - s, s, s)
+        self.handles[self.handleBottomRight] = QRectF(b.right() - s, b.bottom() -s, s, s)
+        
+    def interactiveResize(self, mousePos):
+        #ajustamos el tamaño interactivamente
+        offset = self.handleSize + self.handleSpace
+        boundingRect = self.boundingRect()
+             
+        print(boundingRect)
+        rect = self.rect()
+        diff = QPointF(0,0)
+
+        self.prepareGeometryChange()
+        if self.handleSelected == self.handleTopLeft:
+            #si agarre este extremo
+            fromX = self.mousePressRect.left()
+            fromY = self.mousePressRect.top()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            diff.setX(toX - fromX)
+            diff.setY(toY - fromY)
+            boundingRect.setLeft(toX)
+            boundingRect.setTop(toY)
+            rect.setLeft(boundingRect.left() + offset)
+            rect.setTop(boundingRect.top() + offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleTopMiddle:
+            fromY = self.mousePressRect.top()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            print(toY - fromY)
+            diff.setY(toY - fromY)
+            boundingRect.setTop(toY)
+            rect.setTop(boundingRect.top() + offset)
+            self.setRect(rect)
+            print(rect)
+            print(rect.left(),rect.top(),rect.right(),rect.bottom())
+
+        elif self.handleSelected == self.handleTopRight:
+            fromX = self.mousePressRect.right()
+            fromY = self.mousePressRect.top()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            diff.setX(toX - fromX)
+            diff.setY(toY - fromY)
+            boundingRect.setRight(toX)
+            boundingRect.setTop(toY)
+            rect.setRight(boundingRect.right() - offset)
+            rect.setTop(boundingRect.top() + offset)
+            self.setRect(rect)
+
+        elif self.handleSelected == self.handleMiddleLeft:
+            fromX = self.mousePressRect.left()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            diff.setX(toX - fromX)
+            boundingRect.setLeft(toX)
+            rect.setLeft(boundingRect.left() + offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleMiddleRight:
+            fromX = self.mousePressRect.right()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            diff.setX(toX - fromX)
+            boundingRect.setRight(toX)
+            rect.setRight(boundingRect.right() - offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleBottomLeft:
+            fromX = self.mousePressRect.left()
+            fromY = self.mousePressRect.bottom()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            diff.setX(toX - fromX)
+            diff.setY(toY - fromY)
+            boundingRect.setLeft(toX)
+            boundingRect.setBottom(toY)
+            rect.setLeft(boundingRect.left() + offset)
+            rect.setBottom(boundingRect.bottom() - offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleBottomMiddle:
+            fromY = self.mousePressRect.bottom()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            diff.setY(toY - fromY)
+            boundingRect.setBottom(toY)
+            rect.setBottom(boundingRect.bottom() - offset)
+            self.setRect(rect)
+            
+        elif self.handleSelected == self.handleBottomRight:
+            fromX = self.mousePressRect.right()
+            fromY = self.mousePressRect.bottom()
+            toX = fromX + mousePos.x() - self.mousePressPos.x()
+            toY = fromY + mousePos.y() - self.mousePressPos.y()
+            diff.setX(toX - fromX)
+            diff.setY(toY - fromY)
+            boundingRect.setRight(toX)
+            boundingRect.setBottom(toY)
+            rect.setRight(boundingRect.right() - offset)
+            rect.setBottom(boundingRect.bottom() - offset)
+            self.setRect(rect)
+            
+        self.updateHandlesPos()
+    
+    def shape(self): #sobre escribimos el metodo shape del objeto rectangulo. Parece que este metodo se llama siempre que se realice una actualizacion de la imagen
+        #retorna la forma del item como un QPainterPAth
+        path = QPainterPath()
+        path.addRect(self.rect())
+        if self.isSelected():
+            for shape in self.handles.values():
+                path.addEllipse(shape)
+        return path
+
+    def paint(self, painter, option, widget = None):
+        #digujamos el nodo en el visor de graficos
+        painter.setBrush(QBrush(QColor(255,0,0,255)))
+        painter.setPen(QPen(QColor(0,255,0,255),1.0,Qt.SolidLine,Qt.RoundCap, Qt.RoundJoin))
+        for handle, rect in self.handles.items():
+            if self.handleSelected is None or handle == self.handleSelected:
+                painter.drawEllipse(rect)
+
+        painter.setBrush(self.rectBrush)#QBrush(QColor(0,0,0,0)))
+        painter.setPen(self.rectPen)#QPen(QColor(0,255,0,255),1.0,Qt.SolidLine,Qt.RoundCap, Qt.RoundJoin))
+        painter.drawLine(self.rect().topLeft(), self.rect().bottomRight())# drawRect(self.rect())
+  
 #definimos una clase que vamos a utilizar como popup para seleccion de path
 class popUpListFolder(QDialog):
     def __init__(self):
@@ -491,7 +948,9 @@ def saveQueueImageInDisk(args1,args2,path):
 #***************************************************
 #estas clases se definieron para hacer 
 #customizable la seleccion de objetos
-#sobre la imagen mostrada
+#sobre la imagen mostrada, Son Rois fijas
+#y las estamos reemplazando por las Rois
+#ajustables dinamicamente
 class ClickableGraphicsRectItem(QGraphicsRectItem):
     def __init__(self, x, y, w, h, pen, brush):
         super(ClickableGraphicsRectItem,self).__init__(x, y, w, h)
@@ -4806,7 +5265,7 @@ class MainWindow(QDialog):
         #defino las funciones que se ejecutan cuando se dispara la señal desde la scene
         self.imageHistory1CamScene.itemClickedRect.connect(self.clickedRectImageHistory1CamScene)
         self.imageHistory1CamScene.itemClickedEllipse.connect(self.clickedEllipImageHistory1CamScene)
-        self.imageHistory1CamScene.itemClickedLine.connect(self.clickedLineImageHIstory1CamScene)
+        self.imageHistory1CamScene.itemClickedLine.connect(self.clickedLineImageHIstory1CamScene)    
         #agrego a la scene la imagen por defecto
         self.imageHistory1PixmapItem = self.imageHistory1CamScene.addPixmap(self.imageHistory1CamPixmap)
         #creo la posicion inicial los rectangulos
@@ -4817,14 +5276,14 @@ class MainWindow(QDialog):
         [0,0,30,30]]
         #creo la posicion inicial lineas
         self.line_list = [[0,0,80,80],
-        [0,0,10,10,]]
+        [0,0,80,80,]]
         brush = QBrush(Qt.BDiagPattern)
         pen = QPen(Qt.red)
         pen.setWidth(2)
         #agrego las rois rect
         self.listaItemsRect = []
         for rect in self.rect_list:            
-            rect_item = ClickableGraphicsRectItem(rect[0],rect[1],rect[2],rect[3], pen, brush)            
+            rect_item = ClickableReSizedGraphicsRectItem(rect[0],rect[1],rect[2],rect[3], pen, brush)            
             rect_item.hide()
             self.listaItemsRect.append(rect_item)
         for itemRect in self.listaItemsRect:
@@ -4832,7 +5291,7 @@ class MainWindow(QDialog):
         #agrego las rois ellipse
         self.listaItemsEllipse = []
         for ellipse in self.ellip_list:
-            ellip_item = ClickableGraphicsEllipseItem(ellipse[0],ellipse[1],ellipse[2],ellipse[3],pen,brush)
+            ellip_item = ClickableReSizedGraphicsEllipItem(ellipse[0],ellipse[1],ellipse[2],ellipse[3],pen,brush)
             ellip_item.hide()
             self.listaItemsEllipse.append(ellip_item)
         for itemEllip in self.listaItemsEllipse:
@@ -4840,7 +5299,7 @@ class MainWindow(QDialog):
         #agrego las rois lineas
         self.listaItemsLine = []
         for line in self.line_list:
-            line_item = ClickableGraphicsLineItem(line[0],line[1],line[2],line[3], pen)
+            line_item = ClickableReSizedGraphicsLineItem(line[0],line[1],line[2],line[3], pen,brush)
             line_item.hide()
             self.listaItemsLine.append(line_item)
         for itemLine in self.listaItemsLine:
@@ -4902,6 +5361,11 @@ class MainWindow(QDialog):
         #genero la imagen 2
         self.imageHistory2CamScene = ItemClickableGraphicsScene(0,0,384,288)#QGraphicsScene(0,0,0,0)
         self.imageHistory2CamPixmap = QPixmap("imageCam2.jpg")
+        #defino las funciones
+        self.imageHistory2CamScene.itemClickedRect.connect(self.clickedRectImageHistory2CamScene)
+        self.imageHistory2CamScene.itemClickedEllipse.connect(self.clickedEllipImageHistory2CamScene)
+        self.imageHistory2CamScene.itemClickedLine.connect(self.clickedLineImageHIstory2CamScene)
+        
         self.imageHistory2PixmapItem = self.imageHistory2CamScene.addPixmap(self.imageHistory2CamPixmap)
         #creo la posicion incial los rectangulos
         self.rect_list2 = [[0,0,70,35],
@@ -4911,14 +5375,14 @@ class MainWindow(QDialog):
         [0,0,30,30]]
         #creo la posicion inicial linea
         self.line_list2 = [[0,0,80,80],
-        [0,0,10,10]]
+        [0,0,80,80]]
         brush = QBrush(Qt.BDiagPattern)
         pen = QPen(Qt.red)
         pen.setWidth(2)
         #agrego las rois rect
         self.listaItemsRect2 = []
         for rect2 in self.rect_list2:
-            rect_item2 = ClickableGraphicsRectItem(rect2[0],rect2[1],rect2[2],rect2[3],pen,brush)
+            rect_item2 = ClickableReSizedGraphicsRectItem(rect2[0],rect2[1],rect2[2],rect2[3],pen,brush)
             rect_item2.hide()
             self.listaItemsRect2.append(rect_item2)
         for itemRect2 in self.listaItemsRect2:
@@ -4926,7 +5390,7 @@ class MainWindow(QDialog):
         #agrego las rois ellipse
         self.listaItemsEllipse2 = []
         for ellipse2 in self.ellip_list2:
-            ellip_item2 = ClickableGraphicsEllipseItem(ellipse2[0],ellipse2[1],ellipse2[2],ellipse2[3],pen,brush)
+            ellip_item2 = ClickableReSizedGraphicsEllipItem(ellipse2[0],ellipse2[1],ellipse2[2],ellipse2[3],pen,brush)
             ellip_item2.hide()
             self.listaItemsEllipse2.append(ellip_item2)
         for itemEllip2 in self.listaItemsEllipse2:
@@ -4934,7 +5398,7 @@ class MainWindow(QDialog):
         #agrego las rois lineas
         self.listaItemsLine2 = []
         for line2 in self.line_list2:
-            line_item2 = ClickableGraphicsLineItem(line2[0],line2[1],line2[2],line2[3],pen)
+            line_item2 = ClickableReSizedGraphicsLineItem(line2[0],line2[1],line2[2],line2[3],pen,brush)
             line_item2.hide()
             self.listaItemsLine2.append(line_item2)
         for itemLine2 in self.listaItemsLine2:
@@ -6700,10 +7164,20 @@ class MainWindow(QDialog):
         #print("el item ellip seleccionado es: {}".format(item))
         #print("el item ellip 1 es: {}".format(itemEllip1))
         #print("el item ellip 2 es: {}".format(itemEllip2))
+        dx = item.pos().x()
+        dy = item.pos().y()
+        x0 = item.rect().x()
+        y0 = item.rect().y()
+        x = x0 + dx
+        y = y0 + dy        
         if item == itemEllip1:
-            print("Select elipse 1")
+            print(f"Select elipse 1, pos {x} pox {y}")
+            print(f"Shift Pox x: {dx} Pos y: {dy}")
+            print(f"Origen Pos x: {x0} Pos y: {y0}")
         elif item == itemEllip2:
-            print("Select ellipse 2")
+            print(f"Select ellipse 2, pos {x} pos {y}")
+            print(f"Shift Pos x: {dx} Pos y: {dy}")
+            print(f"Origen Pos x: {x0} Pos y: {y0}")
         else:
             print("no es elipse")
     #defino la funcion de click emitida por la imagen historico de la izquierda al click en la recta
@@ -6718,12 +7192,112 @@ class MainWindow(QDialog):
         #print("el item line seleccionador es: {}".format(item))
         #print("el item line 1 es: {}".format(itemLine1))
         #print("el item line 2 es: {}".format(itemLine2))
+        dx = item.pos().x()
+        dy = item.pos().y()
+        x0 = item.rect().x()
+        y0 = item.rect().y()
+        x = x0 + dx
+        y = y0 + dy
+        
         if item == itemLine1:
-            print("Select line 1")
+            print(f"Select line 1, pos {x} pos {y}")
+            print(f"Shift Pos x:{dx} Pos y: {dy}")
+            print(f"Origen Pos x:{x0} Pos y:{y0}")            
         elif item == itemLine2:
-            print("Select line 2")
+            print(f"Select line 2, pos {x} pos {y}")
+            print(f"Shift Pos x: {dx} Pos y: {dy}")
+            print(f"Origen Pos x: {x0} Pos y: {y0}")
         else:
             print("no es line")
+    #defino la funcion de click emitida por la imagen hsitorica de la izquierda al click en rect
+    def clickedRectImageHistory2CamScene(self, item):
+        #imprimimos capturando la forma del rectang
+        #vamos a identificar cual es el rect
+        #y vamos a cambiar la forma que tiene
+        #print('item {} clicked!'.format(item.rect()))
+        #buscamos el item rectangulo que esta disparando
+        #el evento.
+        itemRect1 = self.listaItemsRect2[0]
+        itemRect2 = self.listaItemsRect2[1]
+        #print("el item rect seleccionado es: {}".format(item))
+        #print("el item rect 1 es: {}".format(itemRect1))
+        #print("el item rect 2 es: {}".format(itemRect2))
+        dx = item.pos().x() #desplazamiento x
+        dy = item.pos().y() #desplazamiento y
+        x0 = item.rect().x() #posicion inicial x
+        y0 = item.rect().y() #posicion inicial y
+        x = x0 + dx #calculo la posicion final x
+        y = y0 + dy #calculo la posicion final y
+        if item == itemRect1:            
+            print(f"Select rectangle 1, pos {x} pos {y}")
+            print(f"Shift Pos x: {dx} Pos y: {dy}")
+            print(f"Origen Pos x: {x0} Pos y: {y0}")
+            #item.setRect(x,y,item.rect().width(),item.rect().height())
+        elif item == itemRect2:
+            print(f"Select rectangle 2, pos {x} pos {y}")
+            #item.setRect(x,y,item.rect().width(),item.rect().height())
+            print(f"Shift Pos x: {dx} Pos y: {dy}")
+            print(f"Origen Pos x: {x0} Pos y: {y0}")
+        else:
+            print("no es el rect")
+    #defino la funcion de click emitida por la imagen hsitorica de la izquierda al click en elipse
+    def clickedEllipImageHistory2CamScene(self, item):
+        #imprimimos capturan la forma de la elipse
+        #vamosa identificar cual es la elipse
+        #y vamos a cambiar la forma que tiene
+        #print('item {} clicked!'.format(item.rect()))
+        #buscamos el item elipse que esta disparando el evento
+        itemEllip1 = self.listaItemsEllipse2[0]
+        itemEllip2 = self.listaItemsEllipse2[1]
+        #print("el item ellip seleccionado es: {}".format(item))
+        #print("el item ellip 1 es: {}".format(itemEllip1))
+        #print("el item ellip 2 es: {}".format(itemEllip2))
+        dx = item.pos().x()
+        dy = item.pos().y()
+        x0 = item.rect().x()
+        y0 = item.rect().y()
+        x = x0 + dx
+        y = y0 + dy        
+        if item == itemEllip1:
+            print(f"Select elipse 1, pos {x} pox {y}")
+            print(f"Shift Pox x: {dx} Pos y: {dy}")
+            print(f"Origen Pos x: {x0} Pos y: {y0}")
+        elif item == itemEllip2:
+            print(f"Select ellipse 2, pos {x} pos {y}")
+            print(f"Shift Pos x: {dx} Pos y: {dy}")
+            print(f"Origen Pos x: {x0} Pos y: {y0}")
+        else:
+            print("no es elipse")
+    #defino la funcion de click emitida por la imagen historico de la izquierda al click en la recta
+    def clickedLineImageHIstory2CamScene(self, item):
+        #imprimimos capturando la forma de la recta
+        #vamos a identificar cual es la linea 
+        #y vamos a cambiar la forma que tiene
+        #print('item {} clicked!'.format(item.line()))
+        #buscamos el item linea que esta disparando el evento
+        itemLine1 = self.listaItemsLine2[0]
+        itemLine2 = self.listaItemsLine2[1]
+        #print("el item line seleccionador es: {}".format(item))
+        #print("el item line 1 es: {}".format(itemLine1))
+        #print("el item line 2 es: {}".format(itemLine2))
+        dx = item.pos().x()
+        dy = item.pos().y()
+        x0 = item.rect().x()
+        y0 = item.rect().y()
+        x = x0 + dx
+        y = y0 + dy
+        
+        if item == itemLine1:
+            print(f"Select line 1, pos {x} pos {y}")
+            print(f"Shift Pos x:{dx} Pos y: {dy}")
+            print(f"Origen Pos x:{x0} Pos y:{y0}")            
+        elif item == itemLine2:
+            print(f"Select line 2, pos {x} pos {y}")
+            print(f"Shift Pos x: {dx} Pos y: {dy}")
+            print(f"Origen Pos x: {x0} Pos y: {y0}")
+        else:
+            print("no es line")
+    
     #Defino la funcion para realizar zoom in
     def makeZoomIn(self, statusButton):
         print("Zoom In to the image", statusButton)
