@@ -1,4 +1,3 @@
-
 from functools import partial
 import gzip
 from threading import Thread, Barrier
@@ -996,6 +995,7 @@ class ItemClickableGraphicsScene(QGraphicsScene):
 class ClickableItemView(QGraphicsView):
     global posXRect1
     global posYRect1
+    itemSelected = pyqtSignal(QGraphicsItem)
     def mousePressEvent(self, event):        
         super(ClickableItemView,self).mousePressEvent(event)
         #print(event.pos())
@@ -1007,13 +1007,16 @@ class ClickableItemView(QGraphicsView):
             #identifico si algun item contiene el 
             #la posicion donde se realizo el click 
             item = self.itemAt(event.pos())
-            #verifico si el item que contiene la 
-            #posicion es instancia de RectItem
-            if isinstance(item, QGraphicsRectItem):
-                #print('item {} clicked'.format(item.rect()))
-                #print('item {} desplazado'.format(item.pos()))                
-                posXRect1 = item.rect().x() + item.pos().x()
-                posYRect1 = item.rect().y() + item.pos().y()
+            #emito el item seleccionado
+            if item is not None:
+                self.itemSelected.emit(item)
+                #verifico si el item que contiene la 
+                #posicion es instancia de RectItem
+                if isinstance(item, QGraphicsRectItem):
+                    #print('item {} clicked'.format(item.rect()))
+                    #print('item {} desplazado'.format(item.pos()))                
+                    posXRect1 = item.rect().x() + item.pos().x()
+                    posYRect1 = item.rect().y() + item.pos().y()
 #clase para herramientas de imagen
 class TestImage(QLabel):
     def __init__(self):
@@ -3758,9 +3761,12 @@ class MainWindow(QDialog):
         #hago una instancia a mi combox ==> roisComboBox
         self.roisComboHistoricoIzquierda = RoisComboBoxHistorico(self)
         self.roisComboHistoricoIzquierda.popupAboutToBeShown.connect(self.populateRoisComboHistoricosIzquierda)
+        self.populateRoisComboHistoricosIzquierda()
         #
         self.roisComboHistoricoDerecha = RoisComboBoxHistorico(self)
         self.roisComboHistoricoDerecha.popupAboutToBeShown.connect(self.populateRoisComboHistoricosDerecha)
+        self.populateRoisComboHistoricosDerecha()
+        #
         self.roiSelComboIzq = ROIComboBox(self)
         self.roiSelComboIzq.popupAboutToBeShown.connect(self.populateRoiCombo1)
         #
@@ -5038,84 +5044,86 @@ class MainWindow(QDialog):
          
         
         #agrego la grafica para la ventana de historicos de la izquierda el grafico de curvas
-        graficoHistoricoIzq = MplCanvas(self, width=300, height=2, dpi=100)
+        self.graficoHistoricoIzq = MplCanvas(self, width=300, height=2, dpi=100)
         #genero un dataframe de prueba para los historicos de la izquierda
         dfHistoricoIzq = pd.DataFrame([
-            [0,10,20],
-            [5,15,25],
-            [2,20,28],
-            [15,25,30],
-            [4,10,35]
-        ], columns=['A','B','C'])
-        dfHistoricoIzq.plot(ax=graficoHistoricoIzq.axes)
+            [0],
+            [5],
+            [2],
+            [15],
+            [4]
+        ], columns=['line',])
+        dfHistoricoIzq.plot(ax=self.graficoHistoricoIzq.axes)
+        self._plot_refHistoricoIzq = None
         #agrego la grafica para la ventana de historicos de la derecha
-        graficoHistoricoDer = MplCanvas(self, width=300, height=2, dpi=100)
+        self.graficoHistoricoDer = MplCanvas(self, width=300, height=2, dpi=100)
         #genero un dataframe de prueba para los historicos de la derecha
         dfHistoricoDer = pd.DataFrame([
-            [0,10,20],
-            [5,15,25],
-            [2,20,28],
-            [15,25,30],
-            [4,10,35]
-        ], columns=['A','B','C'])
-        dfHistoricoDer.plot(ax=graficoHistoricoDer.axes)
+            [0],
+            [5],
+            [2],
+            [15],
+            [4]
+        ], columns=['line',])
+        dfHistoricoDer.plot(ax=self.graficoHistoricoDer.axes)
+        self._plot_refHistoricoDer = None
         #agrego los indicadores de las mediciones 
         #vamos a tener dos para los historicos a la izquierda correspondientes a un par de ROIs
         #agregamos el label 1 de la izquierda 1
-        self.label1MessurementRoi = QLabel("Max ROI 1:")        
-        self.label1MessurementRoi.setToolTip("Messurement Max to region of interest 1")
+        self.label1MessurementRoiMax = QLabel("Max ROI:")        
+        self.label1MessurementRoiMax.setToolTip("Messurement Max to region of interest 1")
         #agregamos el indicador 1 de la izquierda 1
         self.valorMessurement1 = "10.52" #este valor va a ser el resultado de la roi 1
-        self.output1MessurementRoi = QLabel(self.valorMessurement1)        
-        self.output1MessurementRoi.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label1MessurementRoi.setBuddy(self.output1MessurementRoi)
-        self.output1MessurementRoi.setFixedSize(QSize(50,40))        
+        self.output1MessurementRoiMax = QLabel(self.valorMessurement1)        
+        self.output1MessurementRoiMax.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label1MessurementRoiMax.setBuddy(self.output1MessurementRoiMax)
+        self.output1MessurementRoiMax.setFixedSize(QSize(50,40))        
         #agregamos el label 2 de la izquierda 1
-        self.label2MessurementRoi = QLabel("Min ROI 1:")        
-        self.label2MessurementRoi.setToolTip("Messurement Min to region of interest 1")
+        self.label2MessurementRoiMin = QLabel("Min ROI:")        
+        self.label2MessurementRoiMin.setToolTip("Messurement Min to region of interest 1")
         #agregamos el indicador 2 de la izquierda 1
         self.valorMessurement2 = "105.2" #este valor va a ser el resultado de la roi 1 
-        self.output2MessurementRoi = QLabel(self.valorMessurement2)
-        self.output2MessurementRoi.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label2MessurementRoi.setBuddy(self.output2MessurementRoi)
-        self.output2MessurementRoi.setFixedSize(QSize(50,40))
+        self.output2MessurementRoiMin = QLabel(self.valorMessurement2)
+        self.output2MessurementRoiMin.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label2MessurementRoiMin.setBuddy(self.output2MessurementRoiMin)
+        self.output2MessurementRoiMin.setFixedSize(QSize(50,40))
         #agregamos el label 3 de la izquierda 1
-        self.label3MessurementRoi = QLabel("Avg ROI 1:")
-        self.label3MessurementRoi.setToolTip("Messurement Avg to region of interest 1")
+        self.label3MessurementRoiAvg = QLabel("Avg ROI:")
+        self.label3MessurementRoiAvg.setToolTip("Messurement Avg to region of interest 1")
         #agregamos el indicador 3 de la izquierda 1
         self.valorMessurement3 = "50.2" #este valor va a ser el resultado de la roi 1
-        self.output3MessurementRoi = QLabel(self.valorMessurement3)
-        self.output3MessurementRoi.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label3MessurementRoi.setBuddy(self.output3MessurementRoi)
-        self.output3MessurementRoi.setFixedSize(QSize(50,40))
+        self.output3MessurementRoiAvg = QLabel(self.valorMessurement3)
+        self.output3MessurementRoiAvg.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label3MessurementRoiAvg.setBuddy(self.output3MessurementRoiAvg)
+        self.output3MessurementRoiAvg.setFixedSize(QSize(50,40))
         #creo los elementos de la segunda roi para los elementos de la izquierda
         #agregamos el label 1 de la izquierda 2
-        self.label1MessurementRoi2 = QLabel("Max ROI 2:")        
-        self.label1MessurementRoi2.setToolTip("Messurement Max to region of interest 1")
+        self.label4MessurementRoi2Median = QLabel("Median ROI:")        
+        self.label4MessurementRoi2Median.setToolTip("Messurement Median to region of interest 1")
         #agregamos el indicador 1 de la izquierda 2
         self.valorMessurement1_2 = "10.52" #este valor va a ser el resultado de la roi 1
-        self.output1MessurementRoi2 = QLabel(self.valorMessurement1_2)        
-        self.output1MessurementRoi2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label1MessurementRoi2.setBuddy(self.output1MessurementRoi2)
-        self.output1MessurementRoi2.setFixedSize(QSize(50,40))
+        self.output4MessurementRoi2Median = QLabel(self.valorMessurement1_2)        
+        self.output4MessurementRoi2Median.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label4MessurementRoi2Median.setBuddy(self.output4MessurementRoi2Median)
+        self.output4MessurementRoi2Median.setFixedSize(QSize(50,40))
         #agregamos el label 2 de la izquierda 2
-        self.label2MessurementRoi2 = QLabel("Min ROI 2:")        
-        self.label2MessurementRoi2.setToolTip("Messurement Min to region of interest 1")
+        self.label5MessurementRoi2Std = QLabel("Std ROI:")        
+        self.label5MessurementRoi2Std.setToolTip("Messurement Std to region of interest 1")
         #agregamos el indicador 2 de la izquierda 1
         self.valorMessurement2_2 = "105.2" #este valor va a ser el resultado de la roi 1 
-        self.output2MessurementRoi2 = QLabel(self.valorMessurement2_2)
-        self.output2MessurementRoi2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label2MessurementRoi2.setBuddy(self.output2MessurementRoi)
-        self.output2MessurementRoi2.setFixedSize(QSize(50,40))
+        self.output5MessurementRoi2Std = QLabel(self.valorMessurement2_2)
+        self.output5MessurementRoi2Std.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label5MessurementRoi2Std.setBuddy(self.output2MessurementRoiMin)
+        self.output5MessurementRoi2Std.setFixedSize(QSize(50,40))
         #agregamos el label 3 de la izquierda 1
-        self.label3MessurementRoi2 = QLabel("Avg ROI 2:")
-        self.label3MessurementRoi2.setToolTip("Messurement Avg to region of interest 1")
+        self.label6MessurementRoi2Area = QLabel("Area ROI:")
+        self.label6MessurementRoi2Area.setToolTip("Messurement Avg to region of interest 1")
         #agregamos el indicador 3 de la izquierda 1
         self.valorMessurement3_2 = "50.2" #este valor va a ser el resultado de la roi 1
-        self.output3MessurementRoi2 = QLabel(self.valorMessurement3_2)
-        self.output3MessurementRoi2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label3MessurementRoi2.setBuddy(self.output3MessurementRoi2)
-        self.output3MessurementRoi2.setFixedSize(QSize(50,40))
+        self.output6MessurementRoi2Area = QLabel(self.valorMessurement3_2)
+        self.output6MessurementRoi2Area.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label6MessurementRoi2Area.setBuddy(self.output6MessurementRoi2Area)
+        self.output6MessurementRoi2Area.setFixedSize(QSize(50,40))
         #genero un widget para mostrar la curva  y en 
         #horizontal un widget vertical con los indicadores
         #de ROI de medicion
@@ -5127,82 +5135,82 @@ class MainWindow(QDialog):
         subWindowHistory1CamSubV2 = QWidget()
         #creo el layout vertical
         subWindowHistory1CamSubVLayout = QVBoxLayout()
-        subWindowHistory1CamSubVLayout.addWidget(self.label1MessurementRoi)
-        subWindowHistory1CamSubVLayout.addWidget(self.output1MessurementRoi)
-        subWindowHistory1CamSubVLayout.addWidget(self.label2MessurementRoi)
-        subWindowHistory1CamSubVLayout.addWidget(self.output2MessurementRoi)
-        subWindowHistory1CamSubVLayout.addWidget(self.label3MessurementRoi)
-        subWindowHistory1CamSubVLayout.addWidget(self.output3MessurementRoi)
+        subWindowHistory1CamSubVLayout.addWidget(self.label1MessurementRoiMax)
+        subWindowHistory1CamSubVLayout.addWidget(self.output1MessurementRoiMax)
+        subWindowHistory1CamSubVLayout.addWidget(self.label2MessurementRoiMin)
+        subWindowHistory1CamSubVLayout.addWidget(self.output2MessurementRoiMin)
+        subWindowHistory1CamSubVLayout.addWidget(self.label3MessurementRoiAvg)
+        subWindowHistory1CamSubVLayout.addWidget(self.output3MessurementRoiAvg)
         subWindowHistory1CamSubV1.setLayout(subWindowHistory1CamSubVLayout)
         subWindowHistory1CamSubVLayout2 = QVBoxLayout()
-        subWindowHistory1CamSubVLayout2.addWidget(self.label1MessurementRoi2)
-        subWindowHistory1CamSubVLayout2.addWidget(self.output1MessurementRoi2)
-        subWindowHistory1CamSubVLayout2.addWidget(self.label2MessurementRoi2)
-        subWindowHistory1CamSubVLayout2.addWidget(self.output2MessurementRoi2)
-        subWindowHistory1CamSubVLayout2.addWidget(self.label3MessurementRoi2)
-        subWindowHistory1CamSubVLayout2.addWidget(self.output3MessurementRoi2)
+        subWindowHistory1CamSubVLayout2.addWidget(self.label4MessurementRoi2Median)
+        subWindowHistory1CamSubVLayout2.addWidget(self.output4MessurementRoi2Median)
+        subWindowHistory1CamSubVLayout2.addWidget(self.label5MessurementRoi2Std)
+        subWindowHistory1CamSubVLayout2.addWidget(self.output5MessurementRoi2Std)
+        subWindowHistory1CamSubVLayout2.addWidget(self.label6MessurementRoi2Area)
+        subWindowHistory1CamSubVLayout2.addWidget(self.output6MessurementRoi2Area)
         subWindowHistory1CamSubV2.setLayout(subWindowHistory1CamSubVLayout2)
         #creo el layout horizontal
         subWindowHistory1CamSubHLayout = QHBoxLayout()
-        subWindowHistory1CamSubHLayout.addWidget(graficoHistoricoIzq)
+        subWindowHistory1CamSubHLayout.addWidget(self.graficoHistoricoIzq)
         subWindowHistory1CamSubHLayout.addWidget(subWindowHistory1CamSubV1)
         subWindowHistory1CamSubHLayout.addWidget(subWindowHistory1CamSubV2)
         subWindowHistory1CamSubH.setLayout(subWindowHistory1CamSubHLayout)
         #agrego en la ventana a la derecha el grafico y los indicadores
-        self.label1MessurementRoiDer = QLabel("Max ROI 1:")
-        self.label1MessurementRoiDer.setToolTip("Messurement Max to region of interest 1")
+        self.label1MessurementRoiMaxDer = QLabel("Max ROI:")
+        self.label1MessurementRoiMaxDer.setToolTip("Messurement Max to region of interest 1")
         #agregamos el indicador 1 de la derecha 1
         self.valorMessurement1Der = "10.52"
-        self.output1MessurementRoiDer = QLabel(self.valorMessurement1Der)
-        self.output1MessurementRoiDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label1MessurementRoiDer.setBuddy(self.output1MessurementRoiDer)   
-        self.output1MessurementRoiDer.setFixedSize(QSize(50,40))     
+        self.output1MessurementRoiMaxDer = QLabel(self.valorMessurement1Der)
+        self.output1MessurementRoiMaxDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label1MessurementRoiMaxDer.setBuddy(self.output1MessurementRoiMaxDer)   
+        self.output1MessurementRoiMaxDer.setFixedSize(QSize(50,40))     
         #agregamos el label 2 de la derecha 1
-        self.label2MessurementRoiDer = QLabel("Min ROI 2:")
-        self.label2MessurementRoiDer.setToolTip("Messurement Min to region of interest 2")
+        self.label2MessurementRoiMinDer = QLabel("Min ROI:")
+        self.label2MessurementRoiMinDer.setToolTip("Messurement Min to region of interest 2")
         #agregamos el indicador 2 de la derecha 1
         self.valorMessurement2Der = "105.2"
-        self.output2MessurementRoiDer = QLabel(self.valorMessurement2Der)
-        self.output2MessurementRoiDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label2MessurementRoiDer.setBuddy(self.output2MessurementRoiDer)
-        self.output2MessurementRoiDer.setFixedSize(QSize(50,40))
+        self.output2MessurementRoiMinDer = QLabel(self.valorMessurement2Der)
+        self.output2MessurementRoiMinDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label2MessurementRoiMinDer.setBuddy(self.output2MessurementRoiMinDer)
+        self.output2MessurementRoiMinDer.setFixedSize(QSize(50,40))
         #agregamos el label 3 de la derecha 1
-        self.label3MessurementRoiDer = QLabel("Avg Roi 1:")        
-        self.label3MessurementRoiDer.setToolTip("Messurement Avg to region of interest 1")
+        self.label3MessurementRoiAvgDer = QLabel("Avg Roi:")        
+        self.label3MessurementRoiAvgDer.setToolTip("Messurement Avg to region of interest 1")
         #agregamos el indicador 3 de la derecha 1
         self.valorMessurement3Der = "50.2"
-        self.output3MessurementRoiDer = QLabel(self.valorMessurement3Der)
-        self.output3MessurementRoiDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label3MessurementRoiDer.setBuddy(self.output3MessurementRoiDer)
-        self.output3MessurementRoiDer.setFixedSize(QSize(50,40))
+        self.output3MessurementRoiAvgDer = QLabel(self.valorMessurement3Der)
+        self.output3MessurementRoiAvgDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label3MessurementRoiAvgDer.setBuddy(self.output3MessurementRoiAvgDer)
+        self.output3MessurementRoiAvgDer.setFixedSize(QSize(50,40))
         #agregamos los indicadores de la Roi Der 2
         #agrego en la ventana a la derecha el grafico y los indicadores
-        self.label1MessurementRoiDer2 = QLabel("Max ROI 2:")
-        self.label1MessurementRoiDer2.setToolTip("Messurement Max to region of interest 2")
+        self.label4MessurementRoiMedianDer = QLabel("Median ROI:")
+        self.label4MessurementRoiMedianDer.setToolTip("Messurement Median to region of interest 2")
         #agregamos el indicador 1 de la derecha 1
         self.valorMessurement1Der2 = "10.52"
-        self.output1MessurementRoiDer2 = QLabel(self.valorMessurement1Der2)
-        self.output1MessurementRoiDer2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label1MessurementRoiDer2.setBuddy(self.output1MessurementRoiDer)   
-        self.output1MessurementRoiDer2.setFixedSize(QSize(50,40))     
+        self.output4MessurementRoiMedianDer = QLabel(self.valorMessurement1Der2)
+        self.output4MessurementRoiMedianDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label4MessurementRoiMedianDer.setBuddy(self.output1MessurementRoiMaxDer)   
+        self.output4MessurementRoiMedianDer.setFixedSize(QSize(50,40))     
         #agregamos el label 2 de la derecha 1
-        self.label2MessurementRoiDer2 = QLabel("Min ROI 2:")
-        self.label2MessurementRoiDer2.setToolTip("Messurement Min to region of interest 2")
+        self.label5MessurementRoiStdDer = QLabel("Std ROI:")
+        self.label5MessurementRoiStdDer.setToolTip("Messurement Std to region of interest 2")
         #agregamos el indicador 2 de la derecha 1
         self.valorMessurementDer2 = "105.2"
-        self.output2MessurementRoiDer2 = QLabel(self.valorMessurementDer2)
-        self.output2MessurementRoiDer2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label2MessurementRoiDer2.setBuddy(self.output2MessurementRoiDer2)
-        self.output2MessurementRoiDer2.setFixedSize(QSize(50,40))
+        self.output5MessurementRoiStdDer = QLabel(self.valorMessurementDer2)
+        self.output5MessurementRoiStdDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label5MessurementRoiStdDer.setBuddy(self.output5MessurementRoiStdDer)
+        self.output5MessurementRoiStdDer.setFixedSize(QSize(50,40))
         #agregamos el label 3 de la derecha 1
-        self.label3MessurementRoiDer2 = QLabel("Avg Roi 2:")        
-        self.label3MessurementRoiDer2.setToolTip("Messurement Avg to region of interest 2")
+        self.label6MessurementRoiAreaDer = QLabel("Area Roi:")        
+        self.label6MessurementRoiAreaDer.setToolTip("Messurement Area to region of interest 2")
         #agregamos el indicador 3 de la derecha 1
         self.valorMessurement3Der2 = "50.2"
-        self.output3MessurementRoiDer2 = QLabel(self.valorMessurement3Der2)
-        self.output3MessurementRoiDer2.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
-        self.label3MessurementRoiDer2.setBuddy(self.output3MessurementRoiDer2)
-        self.output3MessurementRoiDer2.setFixedSize(QSize(50,40))
+        self.output6MessurementRoiAreaDer = QLabel(self.valorMessurement3Der2)
+        self.output6MessurementRoiAreaDer.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
+        self.label6MessurementRoiAreaDer.setBuddy(self.output6MessurementRoiAreaDer)
+        self.output6MessurementRoiAreaDer.setFixedSize(QSize(50,40))
         #****
         #agregamos el widget para el contenedor de la der
         #agregamos el widget para el contenedor de los
@@ -5212,25 +5220,25 @@ class MainWindow(QDialog):
         subWindowHistory2CamSubV2 = QWidget()
         #creamos el layout vertical
         subWindowHistory2CamSubVlayout = QVBoxLayout()
-        subWindowHistory2CamSubVlayout.addWidget(self.label1MessurementRoiDer)
-        subWindowHistory2CamSubVlayout.addWidget(self.output1MessurementRoiDer)
-        subWindowHistory2CamSubVlayout.addWidget(self.label2MessurementRoiDer)
-        subWindowHistory2CamSubVlayout.addWidget(self.output2MessurementRoiDer)
-        subWindowHistory2CamSubVlayout.addWidget(self.label3MessurementRoiDer)
-        subWindowHistory2CamSubVlayout.addWidget(self.output3MessurementRoiDer)
+        subWindowHistory2CamSubVlayout.addWidget(self.label1MessurementRoiMaxDer)
+        subWindowHistory2CamSubVlayout.addWidget(self.output1MessurementRoiMaxDer)
+        subWindowHistory2CamSubVlayout.addWidget(self.label2MessurementRoiMinDer)
+        subWindowHistory2CamSubVlayout.addWidget(self.output2MessurementRoiMinDer)
+        subWindowHistory2CamSubVlayout.addWidget(self.label3MessurementRoiAvgDer)
+        subWindowHistory2CamSubVlayout.addWidget(self.output3MessurementRoiAvgDer)
         subWindowHistory2CamSubV1.setLayout(subWindowHistory2CamSubVlayout)
         subWindowHistory2CamSubVlayout2 = QVBoxLayout()
-        subWindowHistory2CamSubVlayout2.addWidget(self.label1MessurementRoiDer2)
-        subWindowHistory2CamSubVlayout2.addWidget(self.output1MessurementRoiDer2)
-        subWindowHistory2CamSubVlayout2.addWidget(self.label2MessurementRoiDer2)
-        subWindowHistory2CamSubVlayout2.addWidget(self.output2MessurementRoiDer2)
-        subWindowHistory2CamSubVlayout2.addWidget(self.label3MessurementRoiDer2)
-        subWindowHistory2CamSubVlayout2.addWidget(self.output3MessurementRoiDer2)
+        subWindowHistory2CamSubVlayout2.addWidget(self.label4MessurementRoiMedianDer)
+        subWindowHistory2CamSubVlayout2.addWidget(self.output4MessurementRoiMedianDer)
+        subWindowHistory2CamSubVlayout2.addWidget(self.label5MessurementRoiStdDer)
+        subWindowHistory2CamSubVlayout2.addWidget(self.output5MessurementRoiStdDer)
+        subWindowHistory2CamSubVlayout2.addWidget(self.label6MessurementRoiAreaDer)
+        subWindowHistory2CamSubVlayout2.addWidget(self.output6MessurementRoiAreaDer)
         subWindowHistory2CamSubV2.setLayout(subWindowHistory2CamSubVlayout2)
         
         #creamos el layout horizontal
         subWindowHistory2CamSubHLayout = QHBoxLayout()
-        subWindowHistory2CamSubHLayout.addWidget(graficoHistoricoDer)
+        subWindowHistory2CamSubHLayout.addWidget(self.graficoHistoricoDer)
         subWindowHistory2CamSubHLayout.addWidget(subWindowHistory2CamSubV1)
         subWindowHistory2CamSubHLayout.addWidget(subWindowHistory2CamSubV2)
         subWindowHistory2CamSubH.setLayout(subWindowHistory2CamSubHLayout)
@@ -5307,6 +5315,7 @@ class MainWindow(QDialog):
         #creo la escena
         self.imageHistory1ViewPixMapItem = ClickableItemView(self.imageHistory1CamScene)#QGraphicsView(self.imageHistory1CamScene)
         self.imageHistory1ViewPixMapItem.setRenderHint(QPainter.Antialiasing)        
+        self.imageHistory1ViewPixMapItem.itemSelected.connect(self.cachedItemSeleccionado)
         #self.imageHistory1ViewPixMapItem.fitInView(QRectF(95,119,385,288),Qt.IgnoreAspectRatio)
         #genero un toolbar para la imagen de la izquierda en la pantalla de historicos
         toolBarImageHistoryIzq = QToolBar("Toolbar Image History 1")
@@ -5406,6 +5415,7 @@ class MainWindow(QDialog):
         #creo la escena
         self.imageHistory2ViewPixMapItem = ClickableItemView(self.imageHistory2CamScene)#QGraphicsView(self.imageHistory2CamScene)
         self.imageHistory2ViewPixMapItem.setRenderHint(QPainter.Antialiasing)
+        self.imageHistory2ViewPixMapItem.itemSelected.connect(self.cachedItemSeleccionado)
         #genero un toolbar para la imagen de la derecha en la pantalla de historicos
         toolBarImageHistoryDer = QToolBar("Toolbar Image History 2")
         toolBarImageHistoryDer.setIconSize(QSize(16,16))
@@ -7297,7 +7307,512 @@ class MainWindow(QDialog):
             print(f"Origen Pos x: {x0} Pos y: {y0}")
         else:
             print("no es line")
-    
+    #defino la funcion que indica que item fue seleccionad
+    def cachedItemSeleccionado(self, item):
+        #print("el item seleccionado es: ", item)
+        #posicion es instancia de RectItem
+        if isinstance(item, QGraphicsRectItem):            
+            posXRect1 = item.rect().x() + item.pos().x()
+            posYRect1 = item.rect().y() + item.pos().y()
+            indice = 0
+            for itemRectLista in self.listaItemsRect:#es instancia de rectangulo y lo estamos usando como rectangulo
+                if item == itemRectLista:
+                    #print(f"Seleccionamos el Rectangulo {indice+1} en x:{posXRect1}, y:{posYRect1} en Historicos Izq")                                        
+                    if indice == 0:
+                        self.roisComboHistoricoIzquierda.setCurrentText('Rectangle-1')
+                        #leer imagen Termografica                        
+                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]        
+                        #print(sampleImagenTh.shape)
+                        anchoRect = item.rect().width()
+                        altoRect = item.rect().height()
+                        #print(f"start x:{posXRect1}-y:{posYRect1}, width:{anchoRect}-height:{altoRect}")
+                        roiRect1ThValues = sampleImagenTh[int(posYRect1):int(posYRect1+altoRect),int(posXRect1):int(posXRect1+anchoRect)]
+                        dimX = roiRect1ThValues.shape[0]
+                        dimY = roiRect1ThValues.shape[1]
+                        #print(f"dimensin x:{dimX}-y:{dimY}")
+                        if (dimX>1) and (dimY>1): #realizamos los calculos y mostramos los resultados en los indicadores
+                            minThRoi = np.amin(roiRect1ThValues)
+                            maxThRoi = np.amax(roiRect1ThValues)
+                            avgThRoi = np.mean(roiRect1ThValues)
+                            medianaThRoi = np.median(roiRect1ThValues)
+                            desvioThRoi = np.std(roiRect1ThValues)
+                            area = dimX * dimY
+                            self.output1MessurementRoiMax.setText(str(maxThRoi))
+                            self.output2MessurementRoiMin.setText(str(minThRoi))
+                            self.output3MessurementRoiAvg.setText(str(avgThRoi))
+                            self.output4MessurementRoi2Median.setText(str(medianaThRoi))
+                            self.output5MessurementRoi2Std.setText(str(desvioThRoi))
+                            self.output6MessurementRoi2Area.setText(str(area))
+                            #print(f"calculamos los valores min:{minThRoi}-max:{maxThRoi}-avg:{avgThRoi}")                            
+                    elif indice == 1:
+                        self.roisComboHistoricoIzquierda.setCurrentText('Rectangle-2')                        
+                        #leer imagen Termografica. Estamos repitiendo el procesamiento. Esto lo tenemos que mejorar llamando a una funcion                        
+                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]        
+                        #print(sampleImagenTh.shape)
+                        anchoRect = item.rect().width()
+                        altoRect = item.rect().height()
+                        #print(f"start x:{posXRect1}-y:{posYRect1}, width:{anchoRect}-height:{altoRect}")
+                        roiRect1ThValues = sampleImagenTh[int(posYRect1):int(posYRect1+altoRect),int(posXRect1):int(posXRect1+anchoRect)]
+                        dimX = roiRect1ThValues.shape[0]
+                        dimY = roiRect1ThValues.shape[1]
+                        #print(f"dimensin x:{dimX}-y:{dimY}")
+                        if (dimX>1) and (dimY>1): #realizamos los calculos y mostramos los resultados en los indicadores
+                            minThRoi = np.amin(roiRect1ThValues)
+                            maxThRoi = np.amax(roiRect1ThValues)
+                            avgThRoi = np.mean(roiRect1ThValues)
+                            medianaThRoi = np.median(roiRect1ThValues)
+                            desvioThRoi = np.std(roiRect1ThValues)
+                            area = dimX * dimY
+                            self.output1MessurementRoiMax.setText(str(maxThRoi))
+                            self.output2MessurementRoiMin.setText(str(minThRoi))
+                            self.output3MessurementRoiAvg.setText(str(avgThRoi))
+                            self.output4MessurementRoi2Median.setText(str(medianaThRoi))
+                            self.output5MessurementRoi2Std.setText(str(desvioThRoi))
+                            self.output6MessurementRoi2Area.setText(str(area))
+                            #print(f"calculamos los valores min:{minThRoi}-max:{maxThRoi}-avg:{avgThRoi}")                            
+                    break
+                indice += 1
+            indice = 0
+            for itemLineLista in self.listaItemsLine: #es instancia de rectangulos pero lo estamos usando como lineas
+                if item == itemLineLista:
+                    #print(f"Seleccionamos la Linea {indice+1} en x:{posXRect1}, y:{posYRect1} en Historicos Izq")                                      
+                    if indice == 0:
+                        self.roisComboHistoricoIzquierda.setCurrentText('Line-1')
+                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]
+                        #print(sampleImagenTh.shape)
+                        anchoRect = item.rect().width()
+                        altoRect = item.rect().height()
+                        #print(f"start x:{posXRect1}-y:{posYRect1}, width:{anchoRect}-height:{altoRect}")
+                        roiRect1ThValues = sampleImagenTh[int(posYRect1):int(posYRect1+altoRect),int(posXRect1):int(posXRect1+anchoRect)]
+                        dimX = roiRect1ThValues.shape[0]
+                        dimY = roiRect1ThValues.shape[1]
+                        #print(f"dimensin x:{dimX}-y:{dimY}")
+                        if (dimX>1) and (dimY>1):
+                            #tengo que extraer la recta del rectangulo 
+                            #la recta comienza en 
+                            #(posXRect1,posYRect1) hasta (posXRect1+ancho,posYRect1+alto)
+                            ejeX = np.arange(int(posXRect1), int(posXRect1+anchoRect),1)
+                            y0 = posYRect1
+                            pendiente = altoRect / anchoRect
+                            ejeY = pendiente * np.arange(0,anchoRect,1) + y0
+                            #print(ejeX)
+                            #print(ejeY)
+                            #print(ejeY.astype(int))
+                            ejeYRedondeado = ejeY.astype(int)
+                            listaValoresRecta = np.array([])
+                            #print(ejeX.shape[0])
+                            #print(ejeYRedondeado.shape[0])
+                            for indice in np.arange(ejeX.shape[0]): #recorro la lista
+                                #print(indice)
+                                indiceX = ejeX[indice]             
+                                indiceY = ejeYRedondeado[indice] 
+                                #print(f"indice x:{indiceX}, y:{indiceY}")                                                
+                                indexado = sampleImagenTh[indiceY, indiceX]
+                                listaValoresRecta=np.append(listaValoresRecta,indexado)
+                            #print(np.size(listaValoresRecta)) 
+                            minThRoi = np.amin(listaValoresRecta)
+                            maxThRoi = np.amax(listaValoresRecta)
+                            avgThRoi = np.mean(listaValoresRecta)
+                            medianaThRoi = np.median(listaValoresRecta)
+                            desvioThRoi = np.std(listaValoresRecta)
+                            longitud = np.size(listaValoresRecta)
+                            #print(f"min:{minThRoi} max:{maxThRoi} avg:{avgThRoi} mediana:{medianaThRoi} std:{desvioThRoi} long:{longitud}")
+                            self.output1MessurementRoiMax.setText(str(maxThRoi))
+                            self.output2MessurementRoiMin.setText(str(minThRoi))
+                            self.output3MessurementRoiAvg.setText(str(avgThRoi))
+                            self.output4MessurementRoi2Median.setText(str(medianaThRoi))
+                            self.output5MessurementRoi2Std.setText(str(desvioThRoi))
+                            self.output6MessurementRoi2Area.setText(str(longitud))
+                            xdataLine = np.array(list(range(longitud)))
+                            ydataLine = listaValoresRecta
+                            if self._plot_refHistoricoIzq is None:                                
+                                plot_refs = self.graficoHistoricoIzq.axes.plot(xdataLine,ydataLine, 'r')
+                                self._plot_refHistoricoIzq = plot_refs[0]                                
+                                self.graficoHistoricoIzq.axes.grid(True, linestyle='-.')
+                                self.graficoHistoricoIzq.axes.set_ylim([0,100])
+                                self.graficoHistoricoIzq.axes.set_ylabel("Line")
+                                self.graficoHistoricoIzq.axes.set_xlabel('pixel')
+                                self.graficoHistoricoIzq.axes.set_title("Profile Roi Line 1")
+                            else:
+                                self._plot_refHistoricoIzq.set_xdata(xdataLine)
+                                self._plot_refHistoricoIzq.set_ydata(ydataLine)
+                                self.graficoHistoricoIzq.axes.set_title("Profile Roi Line 1")
+                            self.graficoHistoricoIzq.draw()
+                    elif indice == 1:
+                        self.roisComboHistoricoIzquierda.setCurrentText('Line-2')
+                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]
+                        #print(sampleImagenTh.shape)
+                        anchoRect = item.rect().width()
+                        altoRect = item.rect().height()
+                        #print(f"start x:{posXRect1}-y:{posYRect1}, width:{anchoRect}-height:{altoRect}")
+                        roiRect1ThValues = sampleImagenTh[int(posYRect1):int(posYRect1+altoRect),int(posXRect1):int(posXRect1+anchoRect)]
+                        dimX = roiRect1ThValues.shape[0]
+                        dimY = roiRect1ThValues.shape[1]
+                        #print(f"dimensin x:{dimX}-y:{dimY}")
+                        if (dimX>1) and (dimY>1):
+                            #tengo que extraer la recta del rectangulo 
+                            #la recta comienza en 
+                            #(posXRect1,posYRect1) hasta (posXRect1+ancho,posYRect1+alto)
+                            ejeX = np.arange(int(posXRect1), int(posXRect1+anchoRect),1)
+                            y0 = posYRect1
+                            pendiente = altoRect / anchoRect
+                            ejeY = pendiente * np.arange(0,anchoRect,1) + y0
+                            #print(ejeX)
+                            #print(ejeY)
+                            #print(ejeY.astype(int))
+                            ejeYRedondeado = ejeY.astype(int)
+                            listaValoresRecta = np.array([])
+                            #print(ejeX.shape[0])
+                            #print(ejeYRedondeado.shape[0])
+                            for indice in np.arange(ejeX.shape[0]): #recorro la lista
+                                #print(indice)
+                                indiceX = ejeX[indice]             
+                                indiceY = ejeYRedondeado[indice] 
+                                #print(f"indice x:{indiceX}, y:{indiceY}")                                                
+                                indexado = sampleImagenTh[indiceY, indiceX]
+                                listaValoresRecta=np.append(listaValoresRecta,indexado)
+                            #print(np.size(listaValoresRecta)) 
+                            minThRoi = np.amin(listaValoresRecta)
+                            maxThRoi = np.amax(listaValoresRecta)
+                            avgThRoi = np.mean(listaValoresRecta)
+                            medianaThRoi = np.median(listaValoresRecta)
+                            desvioThRoi = np.std(listaValoresRecta)
+                            longitud = np.size(listaValoresRecta)
+                            #print(f"min:{minThRoi} max:{maxThRoi} avg:{avgThRoi} mediana:{medianaThRoi} std:{desvioThRoi} long:{longitud}")
+                            self.output1MessurementRoiMax.setText(str(maxThRoi))
+                            self.output2MessurementRoiMin.setText(str(minThRoi))
+                            self.output3MessurementRoiAvg.setText(str(avgThRoi))
+                            self.output4MessurementRoi2Median.setText(str(medianaThRoi))
+                            self.output5MessurementRoi2Std.setText(str(desvioThRoi))
+                            self.output6MessurementRoi2Area.setText(str(longitud))
+                            xdataLine = np.array(list(range(longitud)))
+                            ydataLine = listaValoresRecta
+                            if self._plot_refHistoricoIzq is None:                                
+                                plot_refs = self.graficoHistoricoIzq.axes.plot(xdataLine,ydataLine, 'r')
+                                self._plot_refHistoricoIzq = plot_refs[0]                                
+                                self.graficoHistoricoIzq.axes.grid(True, linestyle='-.')
+                                self.graficoHistoricoIzq.axes.set_ylim([0,100])
+                                self.graficoHistoricoIzq.axes.set_ylabel("Line")
+                                self.graficoHistoricoIzq.axes.set_xlabel('pixel')
+                                self.graficoHistoricoIzq.axes.set_title("Profile Roi Line 2")
+                            else:
+                                self._plot_refHistoricoIzq.set_xdata(xdataLine)
+                                self._plot_refHistoricoIzq.set_ydata(ydataLine)
+                                self.graficoHistoricoIzq.axes.set_title("Profile Roi Line 2")
+                            self.graficoHistoricoIzq.draw()
+                    break
+                indice += 1 
+            indice = 0
+            for itemRect2Lista in self.listaItemsRect2:
+                if item == itemRect2Lista:
+                    print(f"Seleccionamos el Rectangulo {indice+1} en x:{posXRect1}, y:{posYRect1} en Historicos Der")                                        
+                    if indice == 0:
+                        self.roisComboHistoricoDerecha.setCurrentText('Rectangle-1')
+                        #leer imagen Termografica                        
+                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]        
+                        #print(sampleImagenTh.shape)
+                        anchoRect = item.rect().width()
+                        altoRect = item.rect().height()
+                        #print(f"start x:{posXRect1}-y:{posYRect1}, width:{anchoRect}-height:{altoRect}")
+                        roiRect1ThValues = sampleImagenTh[int(posYRect1):int(posYRect1+altoRect),int(posXRect1):int(posXRect1+anchoRect)]
+                        dimX = roiRect1ThValues.shape[0]
+                        dimY = roiRect1ThValues.shape[1]
+                        #print(f"dimensin x:{dimX}-y:{dimY}")
+                        if (dimX>1) and (dimY>1): #realizamos los calculos y mostramos los resultados en los indicadores
+                            minThRoi = np.amin(roiRect1ThValues)
+                            maxThRoi = np.amax(roiRect1ThValues)
+                            avgThRoi = np.mean(roiRect1ThValues)
+                            medianaThRoi = np.median(roiRect1ThValues)
+                            desvioThRoi = np.std(roiRect1ThValues)
+                            area = dimX * dimY
+                            self.output1MessurementRoiMaxDer.setText(str(maxThRoi))
+                            self.output2MessurementRoiMinDer.setText(str(minThRoi))
+                            self.output3MessurementRoiAvgDer.setText(str(avgThRoi))
+                            self.output4MessurementRoiMedianDer.setText(str(medianaThRoi))
+                            self.output5MessurementRoiStdDer.setText(str(desvioThRoi))
+                            self.output6MessurementRoiAreaDer.setText(str(area))
+                            #print(f"calculamos los valores min:{minThRoi}-max:{maxThRoi}-avg:{avgThRoi}")                            
+                    elif indice == 1:
+                        self.roisComboHistoricoDerecha.setCurrentText('Rectangle-2')
+                        #leer imagen Termografica                        
+                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]        
+                        #print(sampleImagenTh.shape)
+                        anchoRect = item.rect().width()
+                        altoRect = item.rect().height()
+                        #print(f"start x:{posXRect1}-y:{posYRect1}, width:{anchoRect}-height:{altoRect}")
+                        roiRect1ThValues = sampleImagenTh[int(posYRect1):int(posYRect1+altoRect),int(posXRect1):int(posXRect1+anchoRect)]
+                        dimX = roiRect1ThValues.shape[0]
+                        dimY = roiRect1ThValues.shape[1]
+                        #print(f"dimensin x:{dimX}-y:{dimY}")
+                        if (dimX>1) and (dimY>1): #realizamos los calculos y mostramos los resultados en los indicadores
+                            minThRoi = np.amin(roiRect1ThValues)
+                            maxThRoi = np.amax(roiRect1ThValues)
+                            avgThRoi = np.mean(roiRect1ThValues)
+                            medianaThRoi = np.median(roiRect1ThValues)
+                            desvioThRoi = np.std(roiRect1ThValues)
+                            area = dimX * dimY
+                            self.output1MessurementRoiMaxDer.setText(str(maxThRoi))
+                            self.output2MessurementRoiMinDer.setText(str(minThRoi))
+                            self.output3MessurementRoiAvgDer.setText(str(avgThRoi))
+                            self.output4MessurementRoiMedianDer.setText(str(medianaThRoi))
+                            self.output5MessurementRoiStdDer.setText(str(desvioThRoi))
+                            self.output6MessurementRoiAreaDer.setText(str(area))
+                            #print(f"calculamos los valores min:{minThRoi}-max:{maxThRoi}-avg:{avgThRoi}")                            
+                    break
+                indice += 1
+            indice = 0
+            for itemLine2Lista in self.listaItemsLine2:
+                if item == itemLine2Lista:
+                    print(f"Seleccionamos la Linea {indice+1} en x:{posXRect1}, y:{posYRect1} en Historicos Der")                                      
+                    if indice == 0:
+                        self.roisComboHistoricoDerecha.setCurrentText('Line-1')
+                        sampleImagenTh = self.matrizImgThDer[:,:,self.indice]
+                        #print(sampleImagenTh.shape)
+                        anchoRect = item.rect().width()
+                        altoRect = item.rect().height()
+                        #print(f"start x:{posXRect1}-y:{posYRect1}, width:{anchoRect}-height:{altoRect}")
+                        roiRect1ThValues = sampleImagenTh[int(posYRect1):int(posYRect1+altoRect),int(posXRect1):int(posXRect1+anchoRect)]
+                        dimX = roiRect1ThValues.shape[0]
+                        dimY = roiRect1ThValues.shape[1]
+                        #print(f"dimensin x:{dimX}-y:{dimY}")
+                        if (dimX>1) and (dimY>1):
+                            #tengo que extraer la recta del rectangulo 
+                            #la recta comienza en 
+                            #(posXRect1,posYRect1) hasta (posXRect1+ancho,posYRect1+alto)
+                            ejeX = np.arange(int(posXRect1), int(posXRect1+anchoRect),1)
+                            y0 = posYRect1
+                            pendiente = altoRect / anchoRect
+                            ejeY = pendiente * np.arange(0,anchoRect,1) + y0
+                            #print(ejeX)
+                            #print(ejeY)
+                            #print(ejeY.astype(int))
+                            ejeYRedondeado = ejeY.astype(int)
+                            listaValoresRecta = np.array([])
+                            #print(ejeX.shape[0])
+                            #print(ejeYRedondeado.shape[0])
+                            for indice in np.arange(ejeX.shape[0]): #recorro la lista
+                                #print(indice)
+                                indiceX = ejeX[indice]             
+                                indiceY = ejeYRedondeado[indice] 
+                                #print(f"indice x:{indiceX}, y:{indiceY}")                                                
+                                indexado = sampleImagenTh[indiceY, indiceX]
+                                listaValoresRecta=np.append(listaValoresRecta,indexado)
+                            #print(np.size(listaValoresRecta)) 
+                            minThRoi = np.amin(listaValoresRecta)
+                            maxThRoi = np.amax(listaValoresRecta)
+                            avgThRoi = np.mean(listaValoresRecta)
+                            medianaThRoi = np.median(listaValoresRecta)
+                            desvioThRoi = np.std(listaValoresRecta)
+                            longitud = np.size(listaValoresRecta)
+                            #print(f"min:{minThRoi} max:{maxThRoi} avg:{avgThRoi} mediana:{medianaThRoi} std:{desvioThRoi} long:{longitud}")
+                            self.output1MessurementRoiMaxDer.setText(str(maxThRoi))
+                            self.output2MessurementRoiMinDer.setText(str(minThRoi))
+                            self.output3MessurementRoiAvgDer.setText(str(avgThRoi))
+                            self.output4MessurementRoiMedianDer.setText(str(medianaThRoi))
+                            self.output5MessurementRoiStdDer.setText(str(desvioThRoi))
+                            self.output6MessurementRoiAreaDer.setText(str(longitud))
+                            xdataLine = np.array(list(range(longitud)))
+                            ydataLine = listaValoresRecta
+                            if self._plot_refHistoricoDer is None:                                
+                                plot_refs = self.graficoHistoricoDer.axes.plot(xdataLine,ydataLine, 'r')
+                                self._plot_refHistoricoDer = plot_refs[0]                                
+                                self.graficoHistoricoDer.axes.grid(True, linestyle='-.')
+                                self.graficoHistoricoDer.axes.set_ylim([0,100])
+                                self.graficoHistoricoDer.axes.set_ylabel("Line")
+                                self.graficoHistoricoDer.axes.set_xlabel('pixel')
+                                self.graficoHistoricoDer.axes.set_title("Profile Roi Line 1")
+                            else:
+                                self._plot_refHistoricoDer.set_xdata(xdataLine)
+                                self._plot_refHistoricoDer.set_ydata(ydataLine)
+                                self.graficoHistoricoDer.axes.set_title("Profile Roi Line 1")
+                            self.graficoHistoricoDer.draw()
+                    elif indice == 1:
+                        self.roisComboHistoricoDerecha.setCurrentText('Line-2')
+                        sampleImagenTh = self.matrizImgThDer[:,:,self.indice]
+                        #print(sampleImagenTh.shape)
+                        anchoRect = item.rect().width()
+                        altoRect = item.rect().height()
+                        #print(f"start x:{posXRect1}-y:{posYRect1}, width:{anchoRect}-height:{altoRect}")
+                        roiRect1ThValues = sampleImagenTh[int(posYRect1):int(posYRect1+altoRect),int(posXRect1):int(posXRect1+anchoRect)]
+                        dimX = roiRect1ThValues.shape[0]
+                        dimY = roiRect1ThValues.shape[1]
+                        #print(f"dimensin x:{dimX}-y:{dimY}")
+                        if (dimX>1) and (dimY>1):
+                            #tengo que extraer la recta del rectangulo 
+                            #la recta comienza en 
+                            #(posXRect1,posYRect1) hasta (posXRect1+ancho,posYRect1+alto)
+                            ejeX = np.arange(int(posXRect1), int(posXRect1+anchoRect),1)
+                            y0 = posYRect1
+                            pendiente = altoRect / anchoRect
+                            ejeY = pendiente * np.arange(0,anchoRect,1) + y0
+                            #print(ejeX)
+                            #print(ejeY)
+                            #print(ejeY.astype(int))
+                            ejeYRedondeado = ejeY.astype(int)
+                            listaValoresRecta = np.array([])
+                            #print(ejeX.shape[0])
+                            #print(ejeYRedondeado.shape[0])
+                            for indice in np.arange(ejeX.shape[0]): #recorro la lista
+                                #print(indice)
+                                indiceX = ejeX[indice]             
+                                indiceY = ejeYRedondeado[indice] 
+                                #print(f"indice x:{indiceX}, y:{indiceY}")                                                
+                                indexado = sampleImagenTh[indiceY, indiceX]
+                                listaValoresRecta=np.append(listaValoresRecta,indexado)
+                            #print(np.size(listaValoresRecta)) 
+                            minThRoi = np.amin(listaValoresRecta)
+                            maxThRoi = np.amax(listaValoresRecta)
+                            avgThRoi = np.mean(listaValoresRecta)
+                            medianaThRoi = np.median(listaValoresRecta)
+                            desvioThRoi = np.std(listaValoresRecta)
+                            longitud = np.size(listaValoresRecta)
+                            #print(f"min:{minThRoi} max:{maxThRoi} avg:{avgThRoi} mediana:{medianaThRoi} std:{desvioThRoi} long:{longitud}")
+                            self.output1MessurementRoiMaxDer.setText(str(maxThRoi))
+                            self.output2MessurementRoiMinDer.setText(str(minThRoi))
+                            self.output3MessurementRoiAvgDer.setText(str(avgThRoi))
+                            self.output4MessurementRoiMedianDer.setText(str(medianaThRoi))
+                            self.output5MessurementRoiStdDer.setText(str(desvioThRoi))
+                            self.output6MessurementRoiAreaDer.setText(str(longitud))
+                            xdataLine = np.array(list(range(longitud)))
+                            ydataLine = listaValoresRecta
+                            if self._plot_refHistoricoDer is None:                                
+                                plot_refs = self.graficoHistoricoDer.axes.plot(xdataLine,ydataLine, 'r')
+                                self._plot_refHistoricoDer = plot_refs[0]                                
+                                self.graficoHistoricoDer.axes.grid(True, linestyle='-.')
+                                self.graficoHistoricoDer.axes.set_ylim([0,100])
+                                self.graficoHistoricoDer.axes.set_ylabel("Line")
+                                self.graficoHistoricoDer.axes.set_xlabel('pixel')
+                                self.graficoHistoricoDer.axes.set_title("Profile Roi Line 2")
+                            else:
+                                self._plot_refHistoricoDer.set_xdata(xdataLine)
+                                self._plot_refHistoricoDer.set_ydata(ydataLine)
+                                self.graficoHistoricoDer.axes.set_title("Profile Roi Line 2")
+                            self.graficoHistoricoDer.draw()
+                    break
+                indice += 1 
+        elif isinstance(item, QGraphicsEllipseItem):            
+            posXRect1 = item.rect().x() + item.pos().x()
+            posYRect1 = item.rect().y() + item.pos().y()
+            indice = 0
+            for itemEllipseLista in self.listaItemsEllipse:
+                if item == itemEllipseLista:
+                    #print(f"Seleccionamos la Elipse {indice+1} en x:{posXRect1}, y:{posYRect1} en Historicos Izq")                                      
+                    if indice == 0:
+                        self.roisComboHistoricoIzquierda.setCurrentText('Elipse-1')                        
+                        ancho = item.rect().width()
+                        alto = item.rect().height()
+                        centroEllipseX = (alto/2) + posXRect1
+                        centroEllipseY = (ancho/2) + posYRect1                       
+                        #print(f"centroX:{centroEllipseX}-centroY:{centroEllipseY}-ancho:{ancho}-alto:{alto}")
+                        x = np.linspace(0,382,382)
+                        y = np.linspace(0,288,288)[:,None]
+                        ellipse = ((x-centroEllipseX)/ancho)**2+((y-centroEllipseY)/alto)**2 <= 1
+                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]        
+                        valoresDentroElipse = sampleImagenTh[ellipse]
+                        if valoresDentroElipse.shape[0] > 0:
+                            minThRoi = np.amin(valoresDentroElipse)
+                            maxThRoi = np.amax(valoresDentroElipse)
+                            avgThRoi = np.mean(valoresDentroElipse)
+                            medianaThRoi = np.median(valoresDentroElipse)
+                            desvioThRoi = np.std(valoresDentroElipse)
+                            area = ancho * alto * 3.14 #ancho*alto*pi
+                            self.output1MessurementRoiMax.setText(str(maxThRoi))
+                            self.output2MessurementRoiMin.setText(str(minThRoi))
+                            self.output3MessurementRoiAvg.setText(str(avgThRoi))
+                            self.output4MessurementRoi2Median.setText(str(medianaThRoi))
+                            self.output5MessurementRoi2Std.setText(str(desvioThRoi))
+                            self.output6MessurementRoi2Area.setText(str(area))
+                            #print(f"calculamos los valores min:{minThRoi}-max:{maxThRoi}-avg:{avgThRoi}")                            
+                        #print(valoresDentroElipse)
+                    elif indice == 1:
+                        self.roisComboHistoricoIzquierda.setCurrentText('Elipse-2')
+                        ancho = item.rect().width()
+                        alto = item.rect().height()
+                        centroEllipseX = (alto/2) + posXRect1
+                        centroEllipseY = (ancho/2) + posYRect1                       
+                        #print(f"centroX:{centroEllipseX}-centroY:{centroEllipseY}-ancho:{ancho}-alto:{alto}")
+                        x = np.linspace(0,382,382)
+                        y = np.linspace(0,288,288)[:,None]
+                        ellipse = ((x-centroEllipseX)/ancho)**2+((y-centroEllipseY)/alto)**2 <= 1
+                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]        
+                        valoresDentroElipse = sampleImagenTh[ellipse]
+                        if valoresDentroElipse.shape[0] > 0:
+                            minThRoi = np.amin(valoresDentroElipse)
+                            maxThRoi = np.amax(valoresDentroElipse)
+                            avgThRoi = np.mean(valoresDentroElipse)
+                            medianaThRoi = np.median(valoresDentroElipse)
+                            desvioThRoi = np.std(valoresDentroElipse)
+                            area = ancho * alto * 3.14 #ancho*alto*pi
+                            self.output1MessurementRoiMax.setText(str(maxThRoi))
+                            self.output2MessurementRoiMin.setText(str(minThRoi))
+                            self.output3MessurementRoiAvg.setText(str(avgThRoi))
+                            self.output4MessurementRoi2Median.setText(str(medianaThRoi))
+                            self.output5MessurementRoi2Std.setText(str(desvioThRoi))
+                            self.output6MessurementRoi2Area.setText(str(area))
+                            #print(f"calculamos los valores min:{minThRoi}-max:{maxThRoi}-avg:{avgThRoi}")                            
+                        #print(valoresDentroElipse)
+                    break
+                indice += 1            
+            indice = 0
+            for itemEllipse2Lista in self.listaItemsEllipse2:
+                if item == itemEllipse2Lista:
+                    print(f"Seleccionamos la Elipse {indice+1} en x:{posXRect1}, y:{posYRect1} en Historicos Der")                                      
+                    if indice == 0:
+                        self.roisComboHistoricoDerecha.setCurrentText('Elipse-1')
+                        ancho = item.rect().width()
+                        alto = item.rect().height()
+                        centroEllipseX = (alto/2) + posXRect1
+                        centroEllipseY = (ancho/2) + posYRect1                       
+                        #print(f"centroX:{centroEllipseX}-centroY:{centroEllipseY}-ancho:{ancho}-alto:{alto}")
+                        x = np.linspace(0,382,382)
+                        y = np.linspace(0,288,288)[:,None]
+                        ellipse = ((x-centroEllipseX)/ancho)**2+((y-centroEllipseY)/alto)**2 <= 1
+                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]        
+                        valoresDentroElipse = sampleImagenTh[ellipse]
+                        if valoresDentroElipse.shape[0] > 0:
+                            minThRoi = np.amin(valoresDentroElipse)
+                            maxThRoi = np.amax(valoresDentroElipse)
+                            avgThRoi = np.mean(valoresDentroElipse)
+                            medianaThRoi = np.median(valoresDentroElipse)
+                            desvioThRoi = np.std(valoresDentroElipse)
+                            area = ancho * alto * 3.14 #ancho*alto*pi
+                            self.output1MessurementRoiMaxDer.setText(str(maxThRoi))
+                            self.output2MessurementRoiMinDer.setText(str(minThRoi))
+                            self.output3MessurementRoiAvgDer.setText(str(avgThRoi))
+                            self.output4MessurementRoiMedianDer.setText(str(medianaThRoi))
+                            self.output5MessurementRoiStdDer.setText(str(desvioThRoi))
+                            self.output6MessurementRoiAreaDer.setText(str(area))
+                            #print(f"calculamos los valores min:{minThRoi}-max:{maxThRoi}-avg:{avgThRoi}")                            
+                        #print(valoresDentroElipse)
+                    elif indice == 1:
+                        self.roisComboHistoricoDerecha.setCurrentText('Elipse-2')
+                        ancho = item.rect().width()
+                        alto = item.rect().height()
+                        centroEllipseX = (alto/2) + posXRect1
+                        centroEllipseY = (ancho/2) + posYRect1                       
+                        #print(f"centroX:{centroEllipseX}-centroY:{centroEllipseY}-ancho:{ancho}-alto:{alto}")
+                        x = np.linspace(0,382,382)
+                        y = np.linspace(0,288,288)[:,None]
+                        ellipse = ((x-centroEllipseX)/ancho)**2+((y-centroEllipseY)/alto)**2 <= 1
+                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]        
+                        valoresDentroElipse = sampleImagenTh[ellipse]
+                        if valoresDentroElipse.shape[0] > 0:
+                            minThRoi = np.amin(valoresDentroElipse)
+                            maxThRoi = np.amax(valoresDentroElipse)
+                            avgThRoi = np.mean(valoresDentroElipse)
+                            medianaThRoi = np.median(valoresDentroElipse)
+                            desvioThRoi = np.std(valoresDentroElipse)
+                            area = ancho * alto * 3.14 #ancho*alto*pi
+                            self.output1MessurementRoiMaxDer.setText(str(maxThRoi))
+                            self.output2MessurementRoiMinDer.setText(str(minThRoi))
+                            self.output3MessurementRoiAvgDer.setText(str(avgThRoi))
+                            self.output4MessurementRoiMedianDer.setText(str(medianaThRoi))
+                            self.output5MessurementRoiStdDer.setText(str(desvioThRoi))
+                            self.output6MessurementRoiAreaDer.setText(str(area))
+                            #print(f"calculamos los valores min:{minThRoi}-max:{maxThRoi}-avg:{avgThRoi}")                            
+                        #print(valoresDentroElipse)
+                    break
+                indice += 1            
     #Defino la funcion para realizar zoom in
     def makeZoomIn(self, statusButton):
         print("Zoom In to the image", statusButton)
@@ -7324,13 +7839,16 @@ class MainWindow(QDialog):
                 self.buttonEllipRoiActionImageTab3.setChecked(False)
                 self.buttonZoomOutActionImageTab3.setChecked(False)
             elif data == "zoomInTabHistoryIzq":
-                print("tengo que meter zoom en izq")
+                #print("tengo que meter zoom en izq")
+                #hago zoom sobre la imagen
+                self.imageHistory1ViewPixMapItem.scale(1.01,1.01)
                 #self.buttonRectRoiActionHistoryIzq.setChecked(False)
                 #self.buttonLineRoiActionHistoryIzq.setChecked(False)
                 #self.buttonEllipRoiActionHistoryIzq.setChecked(False)
                 self.buttonZoomOutActionHistoryIzq.setChecked(False)
             elif data == "zoomInTabHistoryDer":
-                print("tengo que meter zoom en der")
+                #print("tengo que meter zoom en der")
+                self.imageHistory2ViewPixMapItem.scale(1.01,1.01)
                 #self.buttonRectRoiActionHistoryDer.setChecked(False)
                 #self.buttonLineRoiActionHistoryDer.setChecked(False)
                 #self.buttonEllipRoiActionHistoryDer.setChecked(False)
@@ -7361,13 +7879,16 @@ class MainWindow(QDialog):
                 self.buttonEllipRoiActionImageTab3.setChecked(False)
                 self.buttonZoomInActionImageTab3.setChecked(False)
             elif data == "zoomOutTabHistoryIzq":
-                print("tengo que sacar zoom en izq")
+                #print("tengo que sacar zoom en izq")
+                #hago zoom out sobre la imagen
+                self.imageHistory1ViewPixMapItem.scale(0.99,0.99)
                 #self.buttonRectRoiActionHistoryIzq.setChecked(False)
                 #self.buttonLineRoiActionHistoryIzq.setChecked(False)
                 #self.buttonEllipRoiActionHistoryIzq.setChecked(False)
                 self.buttonZoomInActionHistoryIzq.setChecked(False)
             elif data == "zoomOutTabHistoryDer":
-                print("tengo que sacar zoom en der")
+                #print("tengo que sacar zoom en der")
+                self.imageHistory2ViewPixMapItem.scale(0.99,0.955)
                 #self.buttonRectRoiActionHistoryDer.setChecked(False)
                 #self.buttonLineRoiActionHistoryDer.setChecked(False)
                 #self.buttonEllipRoiActionHistoryDer.setChecked(False)
@@ -7648,19 +8169,25 @@ class MainWindow(QDialog):
     def populateRoisComboHistoricosIzquierda(self):
         #si la cantidad de Rois esta vacia la lleno
         if not self.roisComboHistoricoIzquierda.count():
-            self.roisComboHistoricoIzquierda.addItems(['Rectangle','Elipse','Line'])
+            self.roisComboHistoricoIzquierda.addItems(['Rectangle-1','Rectangle-2','Elipse-1','Elipse-2','Line-1','Line-2'])
         #agregamos los iconos
         self.roisComboHistoricoIzquierda.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roisComboHistoricoIzquierda.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roisComboHistoricoIzquierda.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roisComboHistoricoIzquierda.setItemIcon(3, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roisComboHistoricoIzquierda.setItemIcon(4, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roisComboHistoricoIzquierda.setItemIcon(5, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
     def populateRoisComboHistoricosDerecha(self):
         #si la cantidad de Rois esta vacia la lleno
         if not self.roisComboHistoricoDerecha.count():
-            self.roisComboHistoricoDerecha.addItems(['Rectangle','Elipse','Line'])
+            self.roisComboHistoricoDerecha.addItems(['Rectangle-1','Rectangle-2','Elipse-1','Elipse-2','Line-1','Line-2'])
         #agregamos los iconos
         self.roisComboHistoricoDerecha.setItemIcon(0, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roisComboHistoricoDerecha.setItemIcon(1, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
         self.roisComboHistoricoDerecha.setItemIcon(2, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))   
+        self.roisComboHistoricoDerecha.setItemIcon(3, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roisComboHistoricoDerecha.setItemIcon(4, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))
+        self.roisComboHistoricoDerecha.setItemIcon(5, QIcon(os.path.join(basedir, "appIcons","ruler-crop.png")))   
     #***
     #instancio a la clase que muestra la popup de busqueda en calendario
     def popUpSearchDateToHistory(self):
@@ -7685,7 +8212,8 @@ class MainWindow(QDialog):
         print("presiono boton retroceder una imagen en historicos izquierda")
         self.indice -= 1
         if self.indice <= 0:
-            self.indice = 28
+            self.indice = 28        
+        #leer imagne cv
         sampleImagenCv = np.array(self.matrizImgCvIzq[:,:,:,self.indice], dtype=np.uint8)
         qt_imgCv = self.convert_cv_qt(sampleImagenCv)
         self.imageHistory1CamScene.removeItem(self.imageHistory1PixmapItem)
