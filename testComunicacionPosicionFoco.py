@@ -575,25 +575,33 @@ class VideoThread(QThread):
                 #get the focus position
                 ret = libir.evo_irimager_get_focusmotor_pos(ct.byref(focusPosition)) #consultamos la posicion del foco actual
                 print('focus: ' + str(focusPosition.value))                             #mostamos la posicion actual
-                focusPositionNuevo = ct.c_float(self.focusPositionAnterior + 10)        #incrementamos la posicion anterior
-                focusPositionNuevoCrudo = self.focusPositionAnterior + 10               #seteamos la posicion actual
-                print("nuevo focus: {}".format(focusPositionNuevo.value) )              #mostramos la nueva posicion en formato c
-                ret = libir.evo_irimager_set_focusmotor_pos(focusPositionNuevo)#(pos=ct.c_float(55.5)) cargamos la posicion nueva en la camara en el formato c
-                self.focusPositionAnterior = focusPositionNuevoCrudo                    #actualizamos la posicion anterior
+                focusPositionNuevoTentativo = self.focusPositionAnterior + 10
+                if focusPositionNuevoTentativo <= 90:                    
+                    focusPositionNuevo = ct.c_float(self.focusPositionAnterior + 10)        #incrementamos la posicion anterior
+                    focusPositionNuevoCrudo = self.focusPositionAnterior + 10              #seteamos la posicion actual                
+                    print("nuevo focus: {}".format(focusPositionNuevo.value) )              #mostramos la nueva posicion en formato c
+                    ret = libir.evo_irimager_set_focusmotor_pos(focusPositionNuevo)#(pos=ct.c_float(55.5)) cargamos la posicion nueva en la camara en el formato c
+                    self.focusPositionAnterior = focusPositionNuevoCrudo                    #actualizamos la posicion anterior
+                else:
+                    print("limite superior alcanzado")
                 self._incFocusPosition = False                                          #deshabilitamos el flag para incrementar la posicion del foco
                 if ret != 0:                                                            #de haber algun error en el proceso de escritura salimos del loop de adquisicion
                     print('error on evo_irimager_get_thermal_palette_image ' + str(ret))#notificamos el error
-                    break
+                    break 
             if self._decFocusPosition: #consultamos si se solicito decrementar la posicion del foco
                 print("decrementar focus position 10%")
                 #get the focus position
                 ret = libir.evo_irimager_get_focusmotor_pos(ct.byref(focusPosition)) #consultamos la posicion del foco actual
                 print('focus: ' + str(focusPosition.value))                         #mostramos la posicion actual
-                focusPositionNuevo = ct.c_float(self.focusPositionAnterior - 10)    #generamos la nueva position del foco decrementando la anterior en el formato c
-                focusPositionNuevoCrudo = self.focusPositionAnterior - 10           #guardamos en el registro la nueva position
-                print("nuevo focus: {}".format(focusPositionNuevo.value) )          #mostramos la nueva posicion del foco accediendo a la posicion en formato c
-                ret = libir.evo_irimager_set_focusmotor_pos(focusPositionNuevo)#(pos=ct.c_float(55.5)) cargamos la posicion nueva en la camara en el formato c
-                self.focusPositionAnterior = focusPositionNuevoCrudo                #actualizamos la posicion anterior de foco
+                focusPositionNuevoTentativo = self.focusPositionAnterior - 10
+                if focusPositionNuevoTentativo >= 10:                    
+                    focusPositionNuevo = ct.c_float(self.focusPositionAnterior - 10)    #generamos la nueva position del foco decrementando la anterior en el formato c
+                    focusPositionNuevoCrudo = self.focusPositionAnterior - 10           #guardamos en el registro la nueva position
+                    print("nuevo focus: {}".format(focusPositionNuevo.value) )          #mostramos la nueva posicion del foco accediendo a la posicion en formato c
+                    ret = libir.evo_irimager_set_focusmotor_pos(focusPositionNuevo)#(pos=ct.c_float(55.5)) cargamos la posicion nueva en la camara en el formato c
+                    self.focusPositionAnterior = focusPositionNuevoCrudo                #actualizamos la posicion anterior de foco
+                else:
+                    print("limite inferior alcanzado")
                 self._decFocusPosition = False                                      #deshabilitamos el flag de decrementar posicion 
                 if ret != 0:                                                        #de haber algun error en el proceso de decrementar lo notificamos y salimos del loop
                     print('error on evo_irimager_get_thermal_palette_image ' + str(ret))
@@ -758,7 +766,7 @@ class App(QWidget):
         #defino un flag para habilitar la carga de la cola
         self.flagQueueReady = False
         self.incSelection = True
-        self.setWindowTitle("Qt live label demo")
+        self.setWindowTitle("Test Save Image Xi400")
         self.disply_width = 640
         self.display_height = 480
         # create the label that holds the image

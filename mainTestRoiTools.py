@@ -544,7 +544,7 @@ class ClickableReSizedGraphicsLineItem(QGraphicsRectItem):
         handleBottomRight: Qt.SizeFDiagCursor
     }
     #sobre escribimo la funcion init
-    def __init__(self, x, y, w, h, pen, brush):#*args):
+    def __init__(self, x, y, w, h, pen, brush, indice):#*args):
         super(ClickableReSizedGraphicsLineItem,self).__init__(x,y,w,h)#*args)
         self.handles = {} #creamos un diccionario para manejar los puntos de modificacion de forma
         self.handleSelected = None #un flag para indicar si seleccionamos o no un borde
@@ -558,6 +558,7 @@ class ClickableReSizedGraphicsLineItem(QGraphicsRectItem):
         self.updateHandlesPos() #llamamo a la funcion que maneja la posicion
         self.rectBrush = brush
         self.rectPen = pen
+        self.indiceLinea = indice
     def handleAt(self, point):
         #indicamos que indicador esta siendo seleccionado
         for k, v, in self.handles.items():
@@ -742,8 +743,12 @@ class ClickableReSizedGraphicsLineItem(QGraphicsRectItem):
 
         painter.setBrush(self.rectBrush)#QBrush(QColor(0,0,0,0)))
         painter.setPen(self.rectPen)#QPen(QColor(0,255,0,255),1.0,Qt.SolidLine,Qt.RoundCap, Qt.RoundJoin))
-        painter.drawLine(self.rect().topLeft(), self.rect().bottomRight())# drawRect(self.rect())
-  
+        print(self.indiceLinea)
+        if self.indiceLinea == 0:
+            painter.drawLine(self.rect().topLeft(), self.rect().bottomRight())# drawRect(self.rect())
+        else:
+            painter.drawLine(self.rect().bottomLeft(),self.rect().topRight())# drawRect(self.rect())
+
 #definimos una clase que vamos a utilizar como popup para seleccion de path
 class popUpListFolder(QDialog):
     def __init__(self):
@@ -4924,6 +4929,9 @@ class MainWindow(QDialog):
         #******************************************
         #creo el contenido de la cuarta pestaña
         #******************************************
+        #rotar Imagen historicos Derecha
+        self.rotarImagen180Der = False
+        self.rotarImagen180Izq = False
         tab4Boton = QWidget() #defino la pestaña de las imagenes de los historicos
         textEditTab4BotonSelCam1 = QLabel()
         textEditTab4BotonSelCam1.setText("Sel Cam: ")
@@ -4950,6 +4958,7 @@ class MainWindow(QDialog):
         #selector de camara online
         self.camComboOnline = CamComboBox(self)
         self.camComboOnline.popupAboutToBeShown.connect(self.populateCamComboOnline)
+        self.populateCamComboOnline() #completo el combo box
         #seteo el buddy
         textEditTab4BotonSelOnlineCam.setBuddy(self.camComboOnline)
         self.camComboOnline.setToolTip("selection of online camera")
@@ -5306,10 +5315,12 @@ class MainWindow(QDialog):
             self.imageHistory1CamScene.addItem(itemEllip)
         #agrego las rois lineas
         self.listaItemsLine = []
+        indiceLinea = 0
         for line in self.line_list:
-            line_item = ClickableReSizedGraphicsLineItem(line[0],line[1],line[2],line[3], pen,brush)
+            line_item = ClickableReSizedGraphicsLineItem(line[0],line[1],line[2],line[3], pen,brush, indice=indiceLinea)
             line_item.hide()
             self.listaItemsLine.append(line_item)
+            indiceLinea += 1
         for itemLine in self.listaItemsLine:
             self.imageHistory1CamScene.addItem(itemLine)
         #creo la escena
@@ -5351,13 +5362,19 @@ class MainWindow(QDialog):
         self.buttonLineRoiActionHistoryIzq.nombreBoton = "roiLineTabHistoryIzq"
         self.buttonLineRoiActionHistoryIzq.triggered.connect(self.drawROILine)
         self.buttonLineRoiActionHistoryIzq.setCheckable(True)
+        #girar 180 grados imagen
+        self.buttonRot180ActionHistoryIzq = QAction(QIcon(os.path.join(basedir,"appIcons","screwdriver--pencil.png")),"Rot 180", self)
+        self.buttonRot180ActionHistoryIzq.setStatusTip("Rotate 180 deg")
+        self.buttonRot180ActionHistoryIzq.nombreBoton = "rotate 180"
+        self.buttonRot180ActionHistoryIzq.triggered.connect(self.rotateimagenIzq)                          
+        self.buttonRot180ActionHistoryIzq.setCheckable(True)
         #agrego los botones al toolbar
         toolBarImageHistoryIzq.addAction(self.buttonZoomInActionHistoryIzq)
         toolBarImageHistoryIzq.addAction(self.buttonZoomOutActionHistoryIzq)
         toolBarImageHistoryIzq.addAction(self.buttonRectRoiActionHistoryIzq)
         toolBarImageHistoryIzq.addAction(self.buttonEllipRoiActionHistoryIzq)
         toolBarImageHistoryIzq.addAction(self.buttonLineRoiActionHistoryIzq)
-        
+        toolBarImageHistoryIzq.addAction(self.buttonRot180ActionHistoryIzq)
         self.imgHistIzqWidget = QWidget() #contenedor para el toolbar y la imagen
 
                 
@@ -5406,10 +5423,12 @@ class MainWindow(QDialog):
             self.imageHistory2CamScene.addItem(itemEllip2)
         #agrego las rois lineas
         self.listaItemsLine2 = []
+        indiceLinea = 0
         for line2 in self.line_list2:
-            line_item2 = ClickableReSizedGraphicsLineItem(line2[0],line2[1],line2[2],line2[3],pen,brush)
+            line_item2 = ClickableReSizedGraphicsLineItem(line2[0],line2[1],line2[2],line2[3],pen,brush,indiceLinea)
             line_item2.hide()
             self.listaItemsLine2.append(line_item2)
+            indiceLinea += 1
         for itemLine2 in self.listaItemsLine2:
             self.imageHistory2CamScene.addItem(itemLine2)
         #creo la escena
@@ -5450,12 +5469,20 @@ class MainWindow(QDialog):
         self.buttonLineRoiActionHistoryDer.nombreBoton = "roiLineTabHistoryDer"
         self.buttonLineRoiActionHistoryDer.triggered.connect(self.drawROILine)
         self.buttonLineRoiActionHistoryDer.setCheckable(True)
-        #agrego los botones al toolbar
+        #agrego el boton de rotar 180
+        self.buttonRot180ActionHistoryDer = QAction(QIcon(os.path.join(basedir,"appIcons","screwdriver--pencil.png")),"Roi Line",self)        #agrego los botones al toolbar
+        self.buttonRot180ActionHistoryDer.setStatusTip("Rotate 180 de")
+        self.buttonRot180ActionHistoryDer.nombreBoton = "rotate 180"
+        self.buttonRot180ActionHistoryDer.triggered.connect(self.rotateimagenDer)
+        self.buttonRot180ActionHistoryDer.setCheckable(True)
+        #amo los datos
         toolBarImageHistoryDer.addAction(self.buttonZoomInActionHistoryDer)
         toolBarImageHistoryDer.addAction(self.buttonZoomOutActionHistoryDer)
         toolBarImageHistoryDer.addAction(self.buttonRectRoiActionHistoryDer)
         toolBarImageHistoryDer.addAction(self.buttonEllipRoiActionHistoryDer)
         toolBarImageHistoryDer.addAction(self.buttonLineRoiActionHistoryDer)
+        toolBarImageHistoryDer.addAction(self.buttonRot180ActionHistoryDer)
+        
         
         self.imgHistDerWidget = QWidget() #contenedor para el toolbar y la imagen a la derecha del historico
 
@@ -7378,7 +7405,12 @@ class MainWindow(QDialog):
                     #print(f"Seleccionamos la Linea {indice+1} en x:{posXRect1}, y:{posYRect1} en Historicos Izq")                                      
                     if indice == 0:
                         self.roisComboHistoricoIzquierda.setCurrentText('Line-1')
-                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]
+                        if self.rotarImagen180Izq == True:
+                            rotada = np.rot90(self.matrizImgThIzq)
+                            rotada = np.rot90(rotada)
+                            sampleImagenTh = rotada[:,:,self.indice]
+                        else:                            
+                            sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]
                         #print(sampleImagenTh.shape)
                         anchoRect = item.rect().width()
                         altoRect = item.rect().height()
@@ -7440,7 +7472,12 @@ class MainWindow(QDialog):
                             self.graficoHistoricoIzq.draw()
                     elif indice == 1:
                         self.roisComboHistoricoIzquierda.setCurrentText('Line-2')
-                        sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]
+                        if self.rotarImagen180Izq == True:
+                            rotada = np.rot90(self.matrizImgThIzq)
+                            rotada = np.rot90(rotada)
+                            sampleImagenTh = rotada[:,:,self.indice]
+                        else:
+                            sampleImagenTh = self.matrizImgThIzq[:,:,self.indice]
                         #print(sampleImagenTh.shape)
                         anchoRect = item.rect().width()
                         altoRect = item.rect().height()
@@ -7456,7 +7493,7 @@ class MainWindow(QDialog):
                             ejeX = np.arange(int(posXRect1), int(posXRect1+anchoRect),1)
                             y0 = posYRect1
                             pendiente = altoRect / anchoRect
-                            ejeY = pendiente * np.arange(0,anchoRect,1) + y0
+                            ejeY = -pendiente * np.arange(0,anchoRect,1) + y0 + altoRect
                             #print(ejeX)
                             #print(ejeY)
                             #print(ejeY.astype(int))
@@ -7566,7 +7603,12 @@ class MainWindow(QDialog):
                     print(f"Seleccionamos la Linea {indice+1} en x:{posXRect1}, y:{posYRect1} en Historicos Der")                                      
                     if indice == 0:
                         self.roisComboHistoricoDerecha.setCurrentText('Line-1')
-                        sampleImagenTh = self.matrizImgThDer[:,:,self.indice]
+                        if self.rotarImagen180Der == True:
+                            rotada = np.rot90(self.matrizImgThDer)
+                            rotada = np.rot90(rotada)
+                            sampleImagenTh = rotada[:,:,self.indice]
+                        else:                                
+                            sampleImagenTh = self.matrizImgThDer[:,:,self.indice]
                         #print(sampleImagenTh.shape)
                         anchoRect = item.rect().width()
                         altoRect = item.rect().height()
@@ -7628,7 +7670,12 @@ class MainWindow(QDialog):
                             self.graficoHistoricoDer.draw()
                     elif indice == 1:
                         self.roisComboHistoricoDerecha.setCurrentText('Line-2')
-                        sampleImagenTh = self.matrizImgThDer[:,:,self.indice]
+                        if self.rotarImagen180Der == True:
+                            rotada = np.rot90(self.matrizImgThDer)
+                            rotada = np.rot90(rotada)
+                            sampleImagenTh = rotada[:,:,self.indice]
+                        else:                            
+                            sampleImagenTh = self.matrizImgThDer[:,:,self.indice]
                         #print(sampleImagenTh.shape)
                         anchoRect = item.rect().width()
                         altoRect = item.rect().height()
@@ -7644,7 +7691,7 @@ class MainWindow(QDialog):
                             ejeX = np.arange(int(posXRect1), int(posXRect1+anchoRect),1)
                             y0 = posYRect1
                             pendiente = altoRect / anchoRect
-                            ejeY = pendiente * np.arange(0,anchoRect,1) + y0
+                            ejeY = -pendiente * np.arange(0,anchoRect,1) + y0 + altoRect
                             #print(ejeX)
                             #print(ejeY)
                             #print(ejeY.astype(int))
@@ -8039,6 +8086,18 @@ class MainWindow(QDialog):
             elif data == "roiLineTabHistoryDer":
                 self.listaItemsLine2[0].hide()
                 self.listaItemsLine2[1].hide()
+    #roto imagen de la izquierda
+    def rotateimagenIzq(self, statusButton):
+        if statusButton == True:
+            self.rotarImagen180Izq = True
+        else:
+            self.rotarImagen180Izq = False
+    #rot imagen de la derecha
+    def rotateimagenDer(self, statusButton):
+        if statusButton == True:
+            self.rotarImagen180Der = True
+        else:
+            self.rotarImagen180Der = False
     #Defino la funcion asociada a la barra de progreso para la camara 1
     def handleTimer1(self):
         value = self.pbarTab1.value()
@@ -8219,6 +8278,10 @@ class MainWindow(QDialog):
         self.imageHistory1CamScene.removeItem(self.imageHistory1PixmapItem)
         self.imageHistory1PixmapItem=self.imageHistory1CamScene.addPixmap(qt_imgCv)                
         self.imageHistory1PixmapItem.setZValue(-1)
+        if self.rotarImagen180Izq == True:
+            puntoRotacion = self.imageHistory1PixmapItem.boundingRect().center()
+            self.imageHistory1PixmapItem.setTransformOriginPoint(puntoRotacion)
+            self.imageHistory1PixmapItem.setRotation(180)
         self.imageHistory1ViewPixMapItem.setScene(self.imageHistory1CamScene)        
     #aca tengo que dar la funcionalidad de avanzar en la imagenes cargadas
     def avanzarArchivoIzq(self):
@@ -8231,6 +8294,10 @@ class MainWindow(QDialog):
         self.imageHistory1CamScene.removeItem(self.imageHistory1PixmapItem)
         self.imageHistory1PixmapItem=self.imageHistory1CamScene.addPixmap(qt_imgCv)                
         self.imageHistory1PixmapItem.setZValue(-1)
+        if self.rotarImagen180Izq == True:
+            puntoRotacion = self.imageHistory1PixmapItem.boundingRect().center()
+            self.imageHistory1PixmapItem.setTransformOriginPoint(puntoRotacion)
+            self.imageHistory1PixmapItem.setRotation(180)            
         self.imageHistory1ViewPixMapItem.setScene(self.imageHistory1CamScene)        
     #aca tengo que instanciar a la clase que muestra la popup que muestra los archivos donde buscar la imagen 
     def leerArchivoDer(self):
@@ -8255,6 +8322,10 @@ class MainWindow(QDialog):
         self.imageHistory2CamScene.removeItem(self.imageHistory2PixmapItem)
         self.imageHistory2PixmapItem=self.imageHistory2CamScene.addPixmap(qt_imgCv)                
         self.imageHistory2PixmapItem.setZValue(-1)
+        if self.rotarImagen180Der == True:
+            puntoRotacion = self.imageHistory2PixmapItem.boundingRect().center()
+            self.imageHistory2PixmapItem.setTransformOriginPoint(puntoRotacion)
+            self.imageHistory2PixmapItem.setRotation(180)        
         self.imageHistory2ViewPixMapItem.setScene(self.imageHistory2CamScene)                
     #aca tengo que da la funionalidad de avanzar 
     def avanzarArchivoDer(self):
@@ -8267,6 +8338,10 @@ class MainWindow(QDialog):
         self.imageHistory2CamScene.removeItem(self.imageHistory2PixmapItem)
         self.imageHistory2PixmapItem=self.imageHistory2CamScene.addPixmap(qt_imgCv)                
         self.imageHistory2PixmapItem.setZValue(-1)
+        if self.rotarImagen180Der == True:
+            puntoRotacion = self.imageHistory2PixmapItem.boundingRect().center()
+            self.imageHistory2PixmapItem.setTransformOriginPoint(puntoRotacion)
+            self.imageHistory2PixmapItem.setRotation(180)            
         self.imageHistory2ViewPixMapItem.setScene(self.imageHistory2CamScene)                
     #*********
     #Defino la funcion asociada a cerrar la aplicación
