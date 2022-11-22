@@ -1,0 +1,9 @@
+presetFococam1 = 80
+presetRangocam1 = 1
+presetPaletacam1 = 2
+presetAjustePaletacam1 = 2
+presetAjusteMinEscalaManualPaletacam1 = 0
+presetAjusteMaxEscalaManualPaletacam1 = 40
+presetTempAmbientecam1 = 25
+presetTransmisividadcam1 = 1
+presetEmisividadcam1 = 0.8

@@ -1,10 +1,10 @@
 from functools import partial
 import gzip
 from threading import Thread, Barrier
-from time import sleep, time
+#from time import sleep, time
 from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette, QFont, QDoubleValidator, QPainterPath
-from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRect, QLine, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, pyqtProperty, QThread, QDir
+from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRect, QLine, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, QThread, QDir , pyqtProperty
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -49,7 +49,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QIcon, QPaintEvent
 import matplotlib
 from matplotlib.widgets import Widget
-
+import time
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -80,7 +80,7 @@ basedir = os.path.dirname(__file__)
 #detecto si se cargo la imagen
 try:
     from ctypes import winddl
-    myappid = "ar.com.tgs.cameraApp.00"
+    myappid = "ar.com.meditecna.cameraApp.00"
     winddl.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
     pass
@@ -908,14 +908,20 @@ async def renombrarArchivoAsincronico():
 #creamos un hilo para poder registrar cuando los dos hilos de guardado de
 #imagenes en archivo terminan
 class statusGuardadoThread(Thread):
-    def __init__(self, botonCrearFolder):
+    def __init__(self, botonLeerFolderIzq,botonLeerFolderDer,indicadorEstado):
         Thread.__init__(self)
-        self.botonCrearFolder = botonCrearFolder
+        self.botonLeerFolderIzq = botonLeerFolderIzq
+        self.botonLeerFolderDer = botonLeerFolderDer
+        self.estadoGuardado = indicadorEstado
     def run(self):
+        #indico que estoy guardando en disco
+        self.estadoGuardado.setText("Guardando en disco...")
         #espero a que los hilos de guardado liberen la barrera
         miBarrera.wait()
         #los hilos liberados
-        self.botonCrearFolder.setEnabled(True)
+        self.botonLeerFolderIzq.setEnabled(True)
+        self.botonLeerFolderDer.setEnabled(True)
+        self.estadoGuardado.setText("Imagenes guardadas en disco!")
     
 #defino funcion para el guardado de archivos
 def saveQueueImageInDisk(args1,args2,path):
@@ -1001,8 +1007,8 @@ class ClickableItemView(QGraphicsView):
     global posXRect1
     global posYRect1
     itemSelected = pyqtSignal(QGraphicsItem)
-    def mousePressEvent(self, event):        
-        super(ClickableItemView,self).mousePressEvent(event)
+    def mouseReleaseEvent(self, event): #mousePressEvent(self, event):        
+        super(ClickableItemView,self).mouseReleaseEvent(event)#mousePressEvent(event)
         #print(event.pos())
         #listo los items en la scene
         listaItems = self.items()
@@ -1853,11 +1859,13 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         super().__init__()
         self._run_flag = True #utilizamos este flag para indicar al hilo que termine la adquisicion
         self._decFocusPosition = False
-        self._incFocusPosition = True
-        self.focusPositionAnterior = 50
+        self._incFocusPosition = False
+        self._cancelFocusPosition = False
+        self.focusPositionAnterior = 50        
         self._selRango0 = False #flag para seleccionar rango 0 se activa por la funcion y se desactiva por el hilo de run
         self._selRango1 = False #flag para seleccionar rango 1 se actia por la funcion y se desactiva por el hilo de run
         self._selRango2 = False #flag para seleccionar rango 2 se activa por la funcion y se desactiva por el hilo de run        
+        self.indiceRangoSeleccionado = 0
         #flag change paleta iron medical etc
         self._changePaleta = False
         #flag change paleta tipo de ajuste manual automatico
@@ -1896,8 +1904,8 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                 libir = ct.cdll.LoadLibrary(ct.util.find_library("irdirectsdk"))
 
         #path to config xml file ---> ../config/generic.xml 
-        pathXml = ct.c_char_p(b'C:\Users\lupus\OneDrive\Documentos\ProcesamientoDeImagenes\config\generic.xml')
-
+        #pathXml = ct.c_char_p(b'C:\Users\lupus\OneDrive\Documentos\ProcesamientoDeImagenes\config\generic.xml')
+        pathXml = ct.c_char_p(b'generic.xml')
         # init vars
         pathFormat = ct.c_char_p()      #tipo de formato que usamos para el path a la libreria
         
@@ -1940,17 +1948,118 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         focusPositionNuevo =ct.c_float()
         
         # init EvoIRFrameMetadata structure
-        metadata = EvoIRFrameMetadata() #instanciamos a la clase de EVO cortex la estructura
+        metadata = EvoIRFrameMetadata() #instanciamos a la clase de EVO cortex la estructura        
+        #configuramos los valores iniciales de la camara
+        #consultamos si existe archivo de preset camara
+        #si existe los leemos 
+        # buscamos cada uno de los preset de configuracion
+        # 1 -> preset foco 60
+        # 2 -> rango 0
+        # 3 -> paleta 1
+        # 4 -> forma de escalar paleta 1
+        # 5 -> cambiar limite minimo y maximo de paleta (solo para forma de escalar manual)
+        # 6 -> temperatura ambiente, transmisividad y emisividad
+        # los leemos y cargamos las variables del archivo en las variables del programa
+        #si no existe el archivo de preset camara
+        #creamos el archivo de programa y guardamos en el archivo los valores por default
+        #al finalizar bajamos a la camara los valores leidos del archivo o los valores por default
+        palabraLeer="si imprimio esto esta mal!"
+        #declaro las variables de preset camara
+        #preset foco
+        presetAGuardar1 = 50
+        nombrePreset1 = "presetFococam1"        
+        #preset rango
+        presetAGuardar2 = 0
+        nombrePreset2 = "presetRangocam1"
+        #preset paleta
+        presetAGuardar3 = 2
+        nombrePreset3 = "presetPaletacam1"
+        #preset forma de escalar paleta -> 1 Automatico
+        presetAGuardar4 = 2
+        nombrePreset4 = "presetAjustePaletacam1"
+        #preset limite escala manual inferior paleta
+        presetAGuardar5 = 0
+        nombrePreset5 = "presetAjusteMinEscalaManualPaletacam1"
+        #preset limiste escala manual superior paleta
+        presetAGuardar6 = 40
+        nombrePreset6 = "presetAjusteMaxEscalaManualPaletacam1"
+        #preset temperatura ambiente
+        presetAGuardar7 = 25
+        nombrePreset7 = "presetTempAmbientecam1"
+        #preset transimisividad
+        presetAGuardar8 = 1 #100% transmisividad
+        nombrePreset8 = "presetTransmisividadcam1"
+        #preset emisividad
+        presetAGuardar9 = 0.8
+        nombrePreset9 = "presetEmisividadcam1"
+        #lista tuplas preset
+        listaPresetsAGuardar = [(nombrePreset1,presetAGuardar1),(nombrePreset2,presetAGuardar2),(nombrePreset3,presetAGuardar3)]
+        if os.path.isfile("presetCamera.txt"):
+            for nombrePreset,presetAGuardar in listaPresetsAGuardar:            
+                with open('presetCamera.txt', 'r') as f:                
+                    lines = f.readlines()
+                    indiceLines = 0
+                    flagEncontrePalabra = False
+                    for row in lines:
+                        if row.find(nombrePreset) != -1:
+                            listaPalabras = row.split()
+                            indicePalabraLeer = 0
+                            for palabra in listaPalabras:
+                                if palabra == '=':
+                                    break
+                                indicePalabraLeer += 1
+                            palabraLeer = listaPalabras[indicePalabraLeer+1]
+                            flagEncontrePalabra = True
+                if flagEncontrePalabra:
+                    #cargamos variable del archivo en variable del programa
+                    presetAGuardar = palabraLeer
+                    if nombrePreset == nombrePreset1: #foco
+                        presetAGuardar1 = int(presetAGuardar)
+                    elif nombrePreset == nombrePreset2: #rango
+                        presetAGuardar2 = int(presetAGuardar)
+                    elif nombrePreset == nombrePreset3: #paleta
+                        presetAGuardar3 = int(presetAGuardar)
+                    elif nombrePreset == nombrePreset4: #tipo ajuste de paleta
+                        presetAGuardar4 = int(presetAGuardar)
+                    elif nombrePreset == nombrePreset5: #valor minimo ajuste paleta manual
+                        presetAGuardar5 = int(presetAGuardar)
+                    elif nombrePreset == nombrePreset6: #valor maximo ajuste paleta manual
+                        presetAGuardar6 = int(presetAGuardar)
+                    elif nombrePreset == nombrePreset7: #valor temperatura ambiente
+                        presetAGuardar7 = int(presetAGuardar)
+                    elif nombrePreset == nombrePreset8: #valor transmisividad
+                        presetAGuardar8 = float(presetAGuardar)
+                    elif nombrePreset == nombrePreset9: #valor emisividad
+                        presetAGuardar9 = float(presetAGuardar)
+                    else:
+                        print("no tengo que estar aca")
+                else:
+                    #creamos variable del archivo y la cargamos con variable del programa
+                    with open('presetCamera.txt', 'a') as f:
+                        f.write(nombrePreset + " = " + str(presetAGuardar) + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                f.write(nombrePreset1 + " = " + str(presetAGuardar1) + "\n" + nombrePreset2 + " = " + str(presetAGuardar2) + "\n" + nombrePreset3 + " = " + str(presetAGuardar3) + "\n" + nombrePreset4 + " = " + str(presetAGuardar4) + "\n" + nombrePreset5 + " = " + str(presetAGuardar5) + "\n" + nombrePreset6 + " = " + str(presetAGuardar6) + "\n" + nombrePreset7 + " = " + str(presetAGuardar7) + "\n" + nombrePreset8 + " = " + str(presetAGuardar8) + "\n" + nombrePreset9 + " = " + str(presetAGuardar9) + "\n")
+                
 
-        # init lib 
-        ret = libir.evo_irimager_usb_init(pathXml, pathFormat, pathLog) #instancio a la libreria de evo para
+        print("valor preset foco", palabraLeer)
+
+        while self._run_flag == True:
+            # init lib 
+            print("iniciando conexion..")
+            ret = libir.evo_irimager_usb_init(pathXml, pathFormat, pathLog) #instancio a la libreria de evo para            
+            if ret != 0:                                                    #conectar con camara usb de optris
+                    statusCamera = [False, "conexion falla"]
+                    self.status_camera_signal.emit(np.array(statusCamera))
+                    print("fallo conexion!")
+                    libir.evo_irimager_terminate() 
+                    #exit(ret)                                               #de la camara       
+                    time.sleep(10)                    
+            else:
+                break
         statusCamera = [True, "conexion ok"] #notifico por defecto que la conexion con la camara esta ok si falla el ret cambio el estado
-        if ret != 0:                                                    #conectar con camara usb de optris
-                print("error at init")
-                statusCamera = [False, "conexion falla"]
-                self.status_camera_signal.emit(np.array(statusCamera))
-                exit(ret)                                               #de la camara
-
+        #notifico que conecto la cámara
+        self.status_camera_signal.emit(np.array(statusCamera))
         # get the serial number
         ret = libir.evo_irimager_get_serial(ct.byref(serial))           #si la conexxion salio bien retorno el 
         print('serial: ' + str(serial.value))                           #numero serie de la camara
@@ -1974,6 +2083,47 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         np_img = np.zeros([palette_width.value * palette_height.value * 3], dtype=np.uint8)
         npImagePointer = np_img.ctypes.data_as(ct.POINTER(ct.c_ubyte))
 
+        #escribimos en la camara los valores de preset
+        #escribimos foco
+        self.focusPositionAnterior = presetAGuardar1
+        focus = ct.c_float(presetAGuardar1)        
+        ret = libir.evo_irimager_set_focusmotor_pos(focus)        
+        #escribimos rango
+        rango = presetAGuardar2
+        if rango == 0:
+            ret = libir.evo_irimager_set_temperature_range(tRango0_minimoM20, tRango0_maximo100)
+            self.indiceRangoSeleccionado = 0
+        elif rango == 1:
+            ret = libir.evo_irimager_set_temperature_range(tRango1_minimo0, tRango1_maximo250)
+            self.indiceRangoSeleccionado = 1
+        elif rango == 2:
+            ret = libir.evo_irimager_set_temperature_range(tRango2_minimo150, tRango2_maximo900)
+            self.indiceRangoSeleccionado = 2
+        else:
+            print("no hay rango seleccionado correcto")
+        #escribimos paleta
+        self.indicePaleta = presetAGuardar3
+        paleta = presetAGuardar3
+        valorIndicePaleta = ct.c_int(paleta)
+        ret = libir.evo_irimager_set_palette(valorIndicePaleta)
+        #escribimos forma de escalar paleta
+        self.indiceEscalaPaleta = presetAGuardar4
+        formaEscalaPaleta = presetAGuardar4        
+        valorIndiceScalePalette = ct.c_int(formaEscalaPaleta)
+        ret = libir.evo_irimager_set_palette_scale(valorIndiceScalePalette)
+        #escribimos limite escala manual inferior y superior paleta
+        self.rangoMinMaxScalePaletteManual["min"] = presetAGuardar5
+        minimo = presetAGuardar5
+        self.rangoMinMaxScalePaletteManual["max"] = presetAGuardar6
+        maximo = presetAGuardar6
+        valorMinRangoScalePaletteManual = ct.c_float(minimo)
+        valorMaxRangoScalePaletteManual = ct.c_float(maximo)                
+        ret = libir.evo_irimager_set_palette_manual_temp_range(valorMinRangoScalePaletteManual, valorMaxRangoScalePaletteManual)
+        #escribimos emisividad transmisividad y temperatura ambiente
+        temperaturaAmbiente = ct.c_float(presetAGuardar7)
+        transmisividad = ct.c_float(presetAGuardar8)
+        emisividad = ct.c_float(presetAGuardar9)
+        ret = libir.evo_irimager_set_radiation_parameters(emisividad ,transmisividad ,temperaturaAmbiente)
         #a partir de aca comenzamos a obtener la imagen        
         while self._run_flag == True: #capturo la imagen mientras no este activa el flag de detener
                 #get thermal and palette image with metadat
@@ -1984,6 +2134,16 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                 if ret != 0:
                         print('error on evo_irimager_get_thermal_palette_image ' + str(ret))
                         statusCamera = [False, "fallo la conexion"] #fallo la conexion                        
+                        ##
+                        self.status_camera_signal.emit(np.array(statusCamera))
+                        libir.evo_irimager_terminate() 
+                        time.sleep(10) 
+                        print("iniciando conexion..")
+                        ret = libir.evo_irimager_usb_init(pathXml, pathFormat, pathLog) #instancio a la libreria de evo para            
+                        if ret == 0:
+                            statusCamera = [True, "conexion ok"] #notifico por defecto que la conexion con la camara esta ok si falla el ret cambio el estado
+                            #notifico que conecto la cámara
+                            self.status_camera_signal.emit(np.array(statusCamera))
                         continue
                 ##
                 if self._incFocusPosition: #consultamos si se solicito incrementar la posicion del foco
@@ -2014,10 +2174,15 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                     if ret != 0:                                                        #de haber algun error en el proceso de decrementar lo notificamos y salimos del loop
                         print('error on evo_irimager_get_thermal_palette_image ' + str(ret))
                         break
+                if self._cancelFocusPosition:
+                    focusPositionReset = ct.c_float(self.focusPositionAnterior)
+                    ret = libir.evo_irimager_set_focusmotor_pos(focusPositionReset)
+                    self._cancelFocusPosition = False
                 if self._selRango0: #consultamos si se solicito cambiar el rango de temperatura 0
                     print("Cambiamos a rango de temperatura 0")
                     self._selRango0 = False #bajamos el flag despues de realizar el cambio de rango
                     ret = libir.evo_irimager_set_temperature_range(tRango0_minimoM20, tRango0_maximo100)
+                    self.indiceRangoSeleccionado = 0
                     if ret != 0:
                         print("error on evo_irimager_set_temperature_range" + str(ret))
                         break
@@ -2025,6 +2190,7 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                     print("Cambiamos al rango de temperatura 1")
                     self._selRango1 = False #bajamos el flag despues de realizar el cambio de rango
                     ret = libir.evo_irimager_set_temperature_range(tRango1_minimo0, tRango1_maximo250)
+                    self.indiceRangoSeleccionado = 1
                     if ret != 0:
                         print("error on evo_irimager_set_temperature_range" + str(ret))
                         break                
@@ -2032,6 +2198,7 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                     print("Cambiamos al rango de temperatura 2")
                     self._selRango2 = False #bajamos el flag despues de realizar el cambio de rango
                     ret = libir.evo_irimager_set_temperature_range(tRango2_minimo150, tRango2_maximo900)
+                    self.indiceRangoSeleccionado = 2
                     if ret != 0:
                         print("error on evo_irimager_set_temperature_range" + str(ret))
                         break  
@@ -2086,8 +2253,7 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                     if ret != 0:
                         print("error on evo_irimager_set_radiation_parameters" + str(ret))
                         break
-                ##
-                self.status_camera_signal.emit(np.array(statusCamera))                                  #si hay error salgo y retorno el error
+                                                 #si hay error salgo y retorno el error
                 #si llega a responder con un error lo indicamos 
                 #calculate total mean value
                 mean_temp = np_thermal.mean() #sobre el contenido de la imagen que retorna calculo una media.
@@ -2161,6 +2327,32 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         print("nuevo valor para cargar de temperatura ambiente {}".format(valorTempAmbiente))        
         self.tempAmbiente = valorTempAmbiente
         self._changeTempAmbiente = True
+    
+    def getFocusPosition(self):
+        print("consulto posicion del foco")
+        currentFocusPosition = self.focusPositionAnterior
+        return currentFocusPosition
+    def cancelFocusPosition(self, posicionAnterior):
+        print("reseteo a la posicion de foco anterior a comenzar el ajuste")
+        self.focusPositionAnterior = int(posicionAnterior)
+        self._cancelFocusPosition = True
+
+    def getRange(self):
+        print("consulto rango actual")
+        return self.indiceRangoSeleccionado
+    
+    def getManAuto(self):
+        print("consulto manual automatico actual")
+        return self.indiceEscalaPaleta
+    
+    def getTipoPaleta(self):
+        print("consulto tipo de paleta")
+        return self.indicePaleta
+    
+    def getMinMaxPaletaManual(self):
+        print("consulto min max rango manual paleta")
+        rangoMinMaxPaletaManual=(self.rangoMinMaxScalePaletteManual["min"],self.rangoMinMaxScalePaletteManual["max"])
+        return rangoMinMaxPaletaManual
 #***************************************************
 
 #Clase para procesamiento de datos
@@ -2451,8 +2643,9 @@ class PopUpDateSelected(QWidget):
 #usamos esta clase para ajustar los valores de control para cada
 #funcionalidad que tenga la pantalla (tab) reset control tipo volumen
 class PopUpResetPresetTab(QWidget):
-    def __init__(self, valorPreset):
+    def __init__(self, nombrePreset, valorPreset):
         super().__init__()
+        self.valorNombreMedicion = nombrePreset
         self.valorPresetMedicion = valorPreset
         self.setWindowTitle("Reset Preset of Control")
         #aca va la funcionalidad del graficador con el control
@@ -2460,12 +2653,12 @@ class PopUpResetPresetTab(QWidget):
         #valor de preset actual
         self.labelCurrentPresetTab = QLabel("Current Control Tab")
         valorPresetActual = self.valorPresetMedicion.text()
-        self.valueCurrentPresetTab = QLineEdit(valorPresetActual)
+        self.valueCurrentPresetTab = QLineEdit(valorPresetActual) #este valor es el preset actual
         self.valueCurrentPresetTab.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPresetTab.setBuddy(self.valueCurrentPresetTab)
         #valor de preset a cambiar
         self.labelDefaultPresetTab = QLabel("Default Control Tab")
-        self.valueDefaultPresetTab = QLineEdit("24") #este valor lo tengo que leer del archivo de configuracion de presets.
+        self.valueDefaultPresetTab = QLineEdit("24") #este valor hardcodeado es el de default y se baja a disco si se de actualizar
         self.valueDefaultPresetTab.setStyleSheet("border: 2px solid black;background-color:lightgreen;") #el archivo lo tenemos que crear
         self.labelDefaultPresetTab.setBuddy(self.valueDefaultPresetTab) #cada vez que se cierre la aplicacion guarda el archivo con los preset actuales
         #agrego los dos widgets al layout                           
@@ -2491,21 +2684,60 @@ class PopUpResetPresetTab(QWidget):
         self.setLayout(layoutPresetCurrentResetTab)
         self.resize(400,20)
         self.labelDefaultPresetTab.setFocus(Qt.NoFocusReason)
-    def okUpDatePresetTab(self):
-        print("Bajando default value al control")
+    def okUpDatePresetTab(self):        
         #cargo en el preset el valor por default 
         #vamos a reemplazar esta parte por la lectura del 
         #archivo de configuracion
-        self.valorPresetMedicion.setText("24")
+        if os.path.isfile("preset.txt"):
+            with open("preset.txt", "r") as f:
+                presetAGuardar = self.valueDefaultPresetTab.text()#self.valorNombreMedicion.text()
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                #se encontro
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n",presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open("preset.txt","r") as f:
+                    textoCompleto = f.read()
+                with open("preset.txt", "w") as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open("preset.txt","a") as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open("preset.txt", "w") as f:
+                presetAGuardar = self.valueDefaultPresetTab.text()
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        #lo cargo en la variable que lleva el preset
+        self.valorPresetMedicion.setText("24") 
+        print("Update default value al disco")
+        self.close()
     def cancelUpDatePresetTab(self):
-        print("Cancelar default value al control")
+        print("Cancelar default value al disco")
         self.close()
 
 #Clase modelo generico de preset control del tipo volumen
 class PopUpWritePresetTab(QWidget):
-    def __init__(self, valorIndicador, valorPreset):
+    def __init__(self, valorLabelIndicador, valorPreset):
         super().__init__()
-        self.valorIndicadorMedicion = valorIndicador
+        self.valorNombreMedicion = valorLabelIndicador
         self.valorPresetMedicion = valorPreset        
         self.setWindowTitle("Write Preset of Control")
         layoutPresetCurrentNew = QVBoxLayout()
@@ -2513,6 +2745,28 @@ class PopUpWritePresetTab(QWidget):
         self.volumenCtrl = PowerBar(["#5e4fa2","#3288bd","#66c2a5","#abdda4","#e6f598"])
         #
         layoutPresetCurrentNew.addWidget(self.volumenCtrl)
+        #
+        presetCurrent="0"
+        if os.path.isfile("preset.txt"):
+            with open("preset.txt","r") as f:
+                nombrePresetCurrent=self.valorNombreMedicion
+                linesCurrent = f.readlines()
+                for row in linesCurrent:
+                    if row.find(nombrePresetCurrent) != -1:
+                        listaPalabrasCurrent = row.split()    
+                        indicePalabraPreset = 0
+                        for palabrasCurrent in listaPalabrasCurrent:
+                            if palabrasCurrent == "=":
+                                break
+                            indicePalabraPreset += 1
+                        presetCurrent = listaPalabrasCurrent[indicePalabraPreset+1]
+                        break
+        textoPreset = QLabel("current preset ")
+        valorCurrentPreset = QLabel()
+        valorCurrentPreset.setText(presetCurrent)
+        layoutPresetCurrent = QHBoxLayout()
+        layoutPresetCurrent.addWidget(textoPreset)
+        layoutPresetCurrent.addWidget(valorCurrentPreset)
         #agrego el layout horizontal
         layoutPresetCurrentNewBotones = QHBoxLayout()
         #agrego los botones de control aceptar
@@ -2527,7 +2781,9 @@ class PopUpWritePresetTab(QWidget):
         layoutPresetCurrentNewBotones.addWidget(self.okNewPreset)
         layoutPresetCurrentNewBotones.addWidget(self.cancelNewPreset)
         #agrego al layout vertical el horizontal
-        layoutPresetCurrentNew.addLayout(layoutPresetCurrentNewBotones)
+        layoutPresetCurrentNew.addLayout(layoutPresetCurrent)
+        layoutPresetCurrentNew.addLayout(layoutPresetCurrentNewBotones)      
+        #
         self.setLayout(layoutPresetCurrentNew)
         self.resize(400,20)
         self.okNewPreset.setFocus(Qt.NoFocusReason)
@@ -2537,12 +2793,58 @@ class PopUpWritePresetTab(QWidget):
         print(self.volumenCtrl.valorQDial.text())
         #cargo el valor en el preset de alarma de medicion
         self.valorPresetMedicion.setText(self.volumenCtrl.valorQDial.text())
+        if os.path.isfile("preset.txt"):
+            with open('preset.txt','r') as f:                
+                presetAGuardar = self.valorPresetMedicion.text()
+                nombrePreset = self.valorNombreMedicion
+                #f.write(nombrePreset + "=" +presetAGuardar+"\n")                
+                lines=f.readlines() #separo las lineas
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                print("las lineas son:\n",lines)
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras=row.split() #divido en palabras la fila
+                        indicePalabraReemplazar = 0 
+                        for palabras in listaPalabras: #buscamos la palabra "="                            
+                            if palabras == "=": 
+                                #indice encontrado salgo del for con el indice                               
+                                break
+                            indicePalabraReemplazar += 1 
+                        #encuentro la palabra a reemplazar, que es la que esta despues del =
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:] 
+                        print("palabra a reemplazar = ", palabraReemplazar[1]) 
+                        filaOriginal = row                      
+                        row = row.replace(palabraReemplazar[1]+"\n",presetAGuardar+"\n") #reemplazo en la fila el preset viejo por el nuevo
+                        print("fila a reemplazar = ", row)
+                        filaAReemplazar = row #texto completo a reemplazar
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('preset.txt', 'r') as f:
+                    textoCompleto = f.read() 
+                with open('preset.txt','w') as f:                     
+                    print("fila original = ", filaOriginal)              
+                    print("fila reeplazada = ", filaAReemplazar)
+                    textoCompleto = textoCompleto.replace(filaOriginal,filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('preset.txt', 'a') as f:                    
+                    f.write(nombrePreset + " = " +presetAGuardar+"\n") 
+        else:
+            with open('preset.txt','w') as f:
+                presetAGuardar = self.valorPresetMedicion.text()
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("Update preset a disco")
+        self.close()
         #if float(self.valorIndicadorMedicion.text()) > int(self.volumenCtrl.valorQDial.text()):
         #    self.valorIndicadorMedicion.setStyleSheet("border: 2px solid black;border-radius: 4px;padding: 2px; text-align:center; background-color: red;")            
         #else:
         #    self.valorIndicadorMedicion.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
     def cancelUpDatePresetCtrl(self):
-        print("Cancelar preset a camara")
+        print("Cancelar preset a disco")
         self.close()
 
 #Clase modelo generico de reset preset camara
@@ -2593,8 +2895,12 @@ class PopUpResetPresetCam(QWidget):
 
 #Clase modelo generico de cambio preset camara
 class PopUPWritePresetFocoCam(QWidget):
-    def __init__(self, miThreadAdqImagen, imageAdq):
+    def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
         super().__init__() 
+        #cargo nombre preset
+        self.valorNombreMedicion = "presetFoco" + nameCamera 
+        #cargo valor default preset
+        self.valorPresetMedicion = "0"
         #self cerrar ventana y dejar de pasar datos
         self.flagDetenerStriming = False       
         #instancia hilo
@@ -2624,7 +2930,8 @@ class PopUPWritePresetFocoCam(QWidget):
         layoutBotonesFoco.addWidget(self.radioButtonIncDecFocPos)
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        self.currentPositionFoco = str(self.threadAdqImg.getFocusPosition())
+        self.valueCurrentPreset = QLineEdit(self.currentPositionFoco)
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
@@ -2665,9 +2972,58 @@ class PopUPWritePresetFocoCam(QWidget):
 
     def okUpDatePresetCam(self):
         print("Bajando preset a camara")
+        self.valorPresetMedicion = str(self.threadAdqImg.getFocusPosition())
+        print("%s = %s" % (self.valorNombreMedicion,self.valorPresetMedicion))
+        #guardo en disco el nombre del preset y el valor del preset 
+        #verifico si existe el archivo si no existe lo creo y cargo los datos
+        #si existe el arvhico verifico si el dato existe si no existe lo agrego al archivo
+        #si existe los reemplazo por el dato nuevo
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("Update preset cam a disco")
+
+                                
+        #cierro la popup y detengo el streaming
+        self.flagDetenerStriming = True
+
     
     def cancelUpDatePresetCam(self):
         print("Cancelar preset a camara")
+        self.threadAdqImg.cancelFocusPosition(self.currentPositionFoco)
         self.flagDetenerStriming = True        
 
     def cerrarPopup(self):
@@ -2681,9 +3037,16 @@ class PopUPWritePresetFocoCam(QWidget):
         if self.incSelection:
             print("Llamo a funcion incrementar focus position el hilo de adq")
             self.threadAdqImg.incFocusPosition()
+            time.sleep(2)
+            posicionFocoActual = str(self.threadAdqImg.getFocusPosition())
+            self.valueNewPreset.setText(posicionFocoActual)
         else:
             print("Llamo a funcion decrementar focus position al hilo de adq")
             self.threadAdqImg.decFocusPosition()
+            time.sleep(2) #demo el proceso 2 segundos esperando que cambie el foco
+            #leemos la posicion del foco
+            posicionFocoActual = str(self.threadAdqImg.getFocusPosition())
+            self.valueNewPreset.setText(posicionFocoActual)
 
     def checkRadioButton(self):
         if self.radioButtonIncDecFocPos.isChecked():
@@ -2695,9 +3058,13 @@ class PopUPWritePresetFocoCam(QWidget):
 
 #clase cambio de rango de temperatura
 class PopUpWritePresetTempRangeCam(QWidget):
-    def __init__(self, miThreadAdqImagen, imageAdq):
+    def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
         super().__init__()
-        #realizamos configuracion de pantalla
+        #cargo nombre preset
+        self.valorNombreMedicion = "presetRango" + nameCamera
+        #cargo valor default preset
+        self.valorPresetMedicion = 0
+        #realizamos configuracion de pantalla        
         print("aca realizamos la configuracion de pantalla")
         #flag ára cerrar ventana y dejar de pasar datos
         self.flagDetenerStriming = False
@@ -2730,7 +3097,16 @@ class PopUpWritePresetTempRangeCam(QWidget):
         layoutBotonesRango.addWidget(self.btnRango2Cam)
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        #solicito el valor actual
+        self.rango = self.threadAdqImg.getRange()
+        rangoSeleccionado = "..."
+        if self.rango == 0:
+            rangoSeleccionado = "-20 a 100"
+        elif self.rango == 1:
+            rangoSeleccionado = "0 a 250"
+        elif self.rango == 2:
+            rangoSeleccionado = "150 a 900"
+        self.valueCurrentPreset = QLineEdit(rangoSeleccionado)        
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
@@ -2766,7 +3142,7 @@ class PopUpWritePresetTempRangeCam(QWidget):
 
     def upDateImage(self, imageAdq):
         #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
-        print("aca realizmaos la configuracion de rango de temperatura")
+        #print("aca realizmaos la configuracion de rango de temperatura")
         imagenCamaraUpDate = imageAdq.pixmap()
         self.image_label_changeRange.setPixmap(imagenCamaraUpDate)        
         return self.flagDetenerStriming
@@ -2774,10 +3150,56 @@ class PopUpWritePresetTempRangeCam(QWidget):
     def okUpDatePresetCam(self):
         #realizamos la aceptación de los cambios
         print("aca realizamos la aceptacion de los cambios en los rangos de temperatura")
-    
+        rangoActualGuardar = self.threadAdqImg.getRange()
+        print("rango a actualizar: ", rangoActualGuardar)
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = str(rangoActualGuardar)
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == '=':
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = rangoActualGuardar
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("update preset cam a disco")
+        self.flagDetenerStriming = True
+
     def cancelUpDatePresetCam(self):
         #realizamos la cancelacion de los cambio solicitados
-        print("Cancelar preset a camara")
+        print("Cancelar preset a camara bajo valor anterior")
+        if self.rango == 0:            
+            self.threadAdqImg.changeRange0()
+        elif self.rango == 1:
+            self.threadAdqImg.changeRange1()
+        elif self.rango == 2:
+            self.threadAdqImg.changeRange2()
         self.flagDetenerStriming = True 
 
     def cerrarPopup(self):
@@ -2786,22 +3208,29 @@ class PopUpWritePresetTempRangeCam(QWidget):
     def btnRango0Camara(self):
         #seleccionamos el rango 0
         print("aca realizamos la seleccion del rnago 0")
+        self.valueNewPreset.setText("-20 a 100")
         self.threadAdqImg.changeRange0()
 
     def btnRango1Camara(self):
         #seleccionamos el rango 1
         print("aca realizamos la seleccion del rango 1")
+        self.valueNewPreset.setText("0 a 250")
         self.threadAdqImg.changeRange1()
 
     def btnRango2Camara(self):
         #seleccionamos el rango 2
         print("aca realizamos la seleccion del rango 2")
+        self.valueNewPreset.setText("150 a 900")
         self.threadAdqImg.changeRange2()
 
 #clase cambio de tipo de paleta utilizada en camara
 class PopUpWritePresetPalleteCam(QWidget):
-    def __init__(self, miThreadAdqImagen, imageAdq):
+    def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
         super().__init__()
+        #cargo nombre preset
+        self.valorNombreMedicion = "presetPaleta" + nameCamera
+        #cargo valor default preset
+        self.valorPresetMedicion = 2
         #realizamos la configuracion de pantalla
         print("aca realizamos la configuracion de pantalla para paleta de la camara")
         #flag para cerrar vetanta y dejar de stremear imagen
@@ -2869,7 +3298,32 @@ class PopUpWritePresetPalleteCam(QWidget):
         #agregamos lo botones de preset actual y cambiado
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        #solicito el valor actual
+        self.rango = self.threadAdqImg.getTipoPaleta()
+        rangoSeleccionado = "..."
+        if self.rango == 1:
+            rangoSeleccionado = "AlarmBlue"
+        elif self.rango == 2:
+            rangoSeleccionado = "AlarmBlueHi"
+        elif self.rango == 3:
+            rangoSeleccionado = "GrayBW"
+        elif self.rango == 4:
+            rangoSeleccionado = "GrayWB"
+        elif self.rango == 5:
+            rangoSeleccionado = "AlarmGreen"
+        elif self.rango == 6:
+            rangoSeleccionado = "Iron"
+        elif self.rango == 7:
+            rangoSeleccionado = "IronHi"
+        elif self.rango == 8:
+            rangoSeleccionado = "Medical"
+        elif self.rango == 9:
+            rangoSeleccionado = "Rainbow"
+        elif self.rango == 10:
+            rangoSeleccionado = "RainbowHi"
+        elif self.rango == 11:
+            rangoSeleccionado = "AlarmRed"
+        self.valueCurrentPreset = QLineEdit(rangoSeleccionado)
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
@@ -2905,7 +3359,7 @@ class PopUpWritePresetPalleteCam(QWidget):
 
     def upDateImage(self, imageAdq):
         #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
-        print("aca realizmaos la configuracion de rango de temperatura")
+        #print("aca realizmaos la configuracion de rango de temperatura")
         imagenCamaraUpDate = imageAdq.pixmap()
         self.image_label_changePallete.setPixmap(imagenCamaraUpDate)        
         return self.flagDetenerStriming
@@ -2913,10 +3367,73 @@ class PopUpWritePresetPalleteCam(QWidget):
     def okUpDatePresetCam(self):
         #realizamos la aceptación de los cambios
         print("aca realizamos la aceptacion de los cambios en los rangos de temperatura")
+        rangoActualGuardar = self.threadAdqImg.getTipoPaleta()
+        print("rango a actualizar: ", rangoActualGuardar)
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt','r') as f:
+                presetAGuardar = str(rangoActualGuardar)
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == '=':
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row =  row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt','w') as f:
+                presetAGuardar = rangoActualGuardar
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("update preset cam a disco")
+        self.flagDetenerStriming = True
+
     
     def cancelUpDatePresetCam(self):
         #realizamos la cancelacion de los cambio solicitados
         print("Cancelar preset a camara")
+        if self.rango == 1:            
+            self.threadAdqImg.selPaleta(1) #indiceAlarmBlue
+        elif self.rango == 2:            
+            self.threadAdqImg.selPaleta(2) #indiceAlarmBlueHi
+        elif self.rango == 3:            
+            self.threadAdqImg.selPaleta(3) #indiceAlarmGrayBW
+        elif self.rango == 4:            
+            self.threadAdqImg.selPaleta(4) #indiceAlarmGrayWB
+        elif self.rango == 5:            
+            self.threadAdqImg.selPaleta(5) #indiceAlarmGreen
+        elif self.rango == 6:            
+            self.threadAdqImg.selPaleta(6) #indiceIron
+        elif self.rango == 7:            
+            self.threadAdqImg.selPaleta(7) #indiceIronHi
+        elif self.rango == 8:            
+            self.threadAdqImg.selPaleta(8) #indiceMedical
+        elif self.rango == 9:            
+            self.threadAdqImg.selPaleta(9) #indiceRainbow
+        elif self.rango == 10:            
+            self.threadAdqImg.selPaleta(10) #indiceRainbowHi
+        elif self.rango == 11:            
+            self.threadAdqImg.selPaleta(11) #indiceAlarmRed
         self.flagDetenerStriming = True 
     
     def cerrarPopup(self):
@@ -2924,63 +3441,78 @@ class PopUpWritePresetPalleteCam(QWidget):
     
     def selPaletaAlarmBlue(self):
         print("seleccion paleta AlarmBlue")
+        self.valueNewPreset.setText("AlarmBlue")
         indiceAlarmBlue = 1
         self.threadAdqImg.selPaleta(indiceAlarmBlue)
     
     def selPaletaAlarmBlueHi(self):
         print("seleccion paleta AlarmBlueHi")
+        self.valueNewPreset.setText("AlarmBlueHi")
         indiceAlarmBlueHi = 2
         self.threadAdqImg.selPaleta(indiceAlarmBlueHi)
     
     def selPaletaGrayBW(self):
         print("seleccion paleta GrayBW")
+        self.valueNewPreset.setText("GrayBW")
         indiceAlarmGrayBW = 3
         self.threadAdqImg.selPaleta(indiceAlarmGrayBW)
     
     def selPaletaGrayWB(self):
         print("seleccion paleta GrayWB")
+        self.valueNewPreset.setText("GrayWB")
         indiceAlarmGrayWB = 4
         self.threadAdqImg.selPaleta(indiceAlarmGrayWB)        
     
     def selPaletaAlarmGreen(self):
         print("seleccion paleta AlarmGreen")
+        self.valueNewPreset.setText("AlarmGreen")
         indiceAlarmGreen = 5
         self.threadAdqImg.selPaleta(indiceAlarmGreen)
     
     def selPaletaIron(self):
         print("seleccion paleta Iron")
+        self.valueNewPreset.setText("Iron")
         indiceIron = 6
         self.threadAdqImg.selPaleta(indiceIron)
     
     def selPaletaIronHi(self):
         print("seleccion paleta IronHi")
+        self.valueNewPreset.setText("IronHi")
         indiceIronHi = 7
         self.threadAdqImg.selPaleta(indiceIronHi)
     
     def selPaletaMedical(self):
         print("seleccion paleta Medical")
+        self.valueNewPreset.setText("Medical")
         indiceMedical = 8
         self.threadAdqImg.selPaleta(indiceMedical)
     
     def selPaletaRainbow(self):
         print("seleccion paleta Rainbow")
+        self.valueNewPreset.setText("Rainbow")
         indiceRainbow = 9
         self.threadAdqImg.selPaleta(indiceRainbow)
     
     def selPaletaRainbowHi(self):
         print("seleccion paleta RainbowHi")
+        self.valueNewPreset.setText("RainbowHi")
         indiceRainbowHi = 10
         self.threadAdqImg.selPaleta(indiceRainbowHi)
     
     def selPaletaAlarmRed(self):    
         print("seleccion paleta AlarmRed")
+        self.valueNewPreset.setText("AlarmRed")
         indiceAlarmRed = 11
         self.threadAdqImg.selPaleta(indiceAlarmRed)
 
 #clase cambio el tipo de ajuste de limites para la paleta seleccionada
 class PopUpWritePresetAutoManPalleteCam(QWidget):
-    def __init__(self, miThreadAdqImagen, imageAdq):
+    def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
         super().__init__()
+        #cargo nombre preset
+        self.valorNombreMedicion = "presetAjustePaleta" + nameCamera
+        #cargo valor defaul preset automatico
+        self.valorPresetMedicion = 2
         #realizamos la configuracion de pantalla
         print("aca realizamos la configuracion de pantalla para paleta de la camara")
         #flag para cerrar ventana y dejar de stremear
@@ -3020,7 +3552,17 @@ class PopUpWritePresetAutoManPalleteCam(QWidget):
         #agregamos los botones de preset acual y cambiado
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        self.indiceTipoEscalado=self.threadAdqImg.getManAuto()
+        escaladoSeleccionado = "..."
+        if self.indiceTipoEscalado == 1:
+            escaladoSeleccionado = "Manual"
+        elif self.indiceTipoEscalado == 2:
+            escaladoSeleccionado = "Automatico"
+        elif self.indiceTipoEscalado == 3:
+            escaladoSeleccionado = "1SigmaDesv"            
+        elif self.indiceTipoEscalado == 4:
+            escaladoSeleccionado = "3SigmaDesv"
+        self.valueCurrentPreset = QLineEdit(escaladoSeleccionado)
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
@@ -3056,7 +3598,7 @@ class PopUpWritePresetAutoManPalleteCam(QWidget):
 
     def upDateImage(self, imageAdq):
         #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
-        print("aca realizmaos la configuracion de rango de temperatura")
+        #print("aca realizmaos la configuracion de rango de temperatura")
         imagenCamaraUpDate = imageAdq.pixmap()
         self.image_label_manAutoPallete.setPixmap(imagenCamaraUpDate)        
         return self.flagDetenerStriming
@@ -3064,10 +3606,63 @@ class PopUpWritePresetAutoManPalleteCam(QWidget):
     def okUpDatePresetCam(self):
         #realizamos la aceptación de los cambios
         print("aca realizamos la aceptacion de los cambios en tipo de ajuste paleta")
+        rangoActualGuardar = self.threadAdqImg.getManAuto()
+        print("rango a actualizar: ", rangoActualGuardar)
+        if os.path.isfile("presetCamera.txt"):
+            with open("presetCamera.txt", 'r') as f:
+                presetAGuardar = str(rangoActualGuardar)
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == '=':
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = rangoActualGuardar
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("update preset cam a disco")
+        self.flagDetenerStriming = True        
+
     
     def cancelUpDatePresetCam(self):
         #realizamos la cancelacion de los cambio solicitados
         print("Cancelar preset a camara")
+        if self.indiceTipoEscalado == 1:
+            scaleManual = 1
+            self.threadAdqImg.selScalePaleta(scaleManual)
+        elif self.indiceTipoEscalado == 2:
+            scaleMinMax = 2
+            self.threadAdqImg.selScalePaleta(scaleMinMax)
+        elif self.indiceTipoEscalado == 3:
+            scaleSigma1 = 3
+            self.threadAdqImg.selScalePaleta(scaleSigma1)
+        elif self.indiceTipoEscalado == 4:
+            scaleSigma3 = 4
+            self.threadAdqImg.selScalePaleta(scaleSigma3)
         self.flagDetenerStriming = True 
     
     def cerrarPopup(self):
@@ -3075,29 +3670,33 @@ class PopUpWritePresetAutoManPalleteCam(QWidget):
     
     def selManualEscalamiento(self):
         print("seleccion escalamiento Manual")
+        self.valueNewPreset.setText("Manual")
         scaleManual = 1
         self.threadAdqImg.selScalePaleta(scaleManual)
     
     def selMinMaxEscalamiento(self):
         print("seleccion escalamiento MinMax")
+        self.valueNewPreset.setText("Auto")
         scaleMinMax = 2
         self.threadAdqImg.selScalePaleta(scaleMinMax)
     
     def selSigma1Escalamiento(self):
         print("seleccion escalamiento Sigma1")
+        self.valueNewPreset.setText("Sigma1")
         scaleSigma1 = 3
         self.threadAdqImg.selScalePaleta(scaleSigma1)    
     
     def selSigma3Escalamiento(self):
         print("seleccion escalamiento Sigma3")
+        self.valueNewPreset.setText("Sigma3")
         scaleSigma3 = 4
         self.threadAdqImg.selScalePaleta(scaleSigma3)
 
 #clase cambio los limites de ajuste en manual
 class PopUpWritePresetLimManualPalleteCam(QWidget):
-    def __init__(self, miThreadAdqImagen, imageAdq):
+    def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
         #inicializo        
-        super().__init__()
+        super().__init__()        
         #realizamos la configuracion de pantalla
         print("aca realizamos la configuracion")
         #flag para cerrar ventana y dejar de stremear
@@ -3676,7 +4275,7 @@ class ProfileComboBox(QComboBox):
         self.popupAboutToBeShown.emit()
         super(ProfileComboBox, self).showPopup()        
 #Clase principal
-class MainWindow(QDialog):
+class MainWindow(QWidget):#(QDialog):
    
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -3787,7 +4386,7 @@ class MainWindow(QDialog):
         #
         self.camCombo1 = CamComboBox(self) #combo box de camaras para los historicos de la izquierda
         self.camCombo1.popupAboutToBeShown.connect(self.populateCamCombo1)
-
+        self.populateCamCombo1()
         self.dateCam1Image = QPushButton("Date Select") #apertura de popup para la seleccion con fecha inicial y final 
                                                         #para los historicos de la izquierda 
         self.dateCam1Image.setToolTip("Select the dates range of images to show")
@@ -3824,7 +4423,7 @@ class MainWindow(QDialog):
         #Defino los elementos del banner historicos de la derecha
         self.camCombo2 = CamComboBox(self) #combo box de camaras para los historicos de la derecha
         self.camCombo2.popupAboutToBeShown.connect(self.populateCamCombo2)
-
+        self.populateCamCombo2()
         self.dateCam2Image = QPushButton("Date Select") #apertura de popup para la seleccion con fecha incial y final
         self.dateCam2Image.setToolTip("Select the dates range of images to show")
         self.dateCam2Image.clicked.connect(self.popUpSearchDateToHistory)                                                #para los historicos de la derecha
@@ -3900,17 +4499,14 @@ class MainWindow(QDialog):
         #***********************************************
         #***********************************************
         self.bodyTabWidget = QTabWidget() #defino la tabla donde mostrar las ventanas asociadas a cada botón
-        self.bodyTabWidget.setSizePolicy(
-            QSizePolicy.Preferred,
-            QSizePolicy.Ignored
-        )
-        self.bodyTabWidget.setFixedSize(1900,920)#700,500)
+        #self.bodyTabWidget.setSizePolicy(QSizePolicy.Preferred,QSizePolicy.Ignored)
+        #self.bodyTabWidget.setFixedSize(1900,920)#700,500)
         #***************************************
         #Creo el contenido de la primer pestaña
         #***************************************
         #creo el contenido de la imagen
         #agrego las dimensiones
-        self.disply_width = 390
+        self.display_width = 390
         self.display_height = 290
         # create the label that holds the image
         #self.image_label = QLabel(self)
@@ -3925,7 +4521,7 @@ class MainWindow(QDialog):
         self.endRect = QPoint()
         #configuro los objetos para visualizar la imagen
         self.image_label = TestImage()
-        self.image_label.resize(self.disply_width, self.display_height)
+        self.image_label.resize(self.display_width, self.display_height)
         #configuro una imagen
         #escala
         self.zoomInEscala = 1.25
@@ -4962,6 +5558,8 @@ class MainWindow(QDialog):
         #seteo el buddy
         textEditTab4BotonSelOnlineCam.setBuddy(self.camComboOnline)
         self.camComboOnline.setToolTip("selection of online camera")
+        #creo el widget para contener el banner 
+        self.elementosIzquierdaBanner = QWidget()
         #armo el layout horizontal del banner
         layoutHorBannerCamOnline = QHBoxLayout()
         layoutHorBannerCamOnline.addWidget(textEditTab4BotonSelOnlineCam)
@@ -4976,17 +5574,21 @@ class MainWindow(QDialog):
         #definirlo de esa forma. Por ahora sacamos el widget contenedor y agregamos el layout 
         #directamente al widget general de camara online historico
         #self.selCamaraOnlineHistoricos.setLayout(layoutHorBannerCamOnline)
+        #agreamos un texto debajo de la imagen para indicar el estado
+        self.labelEstadoGuardadoImagen = QLabel(self)
+        self.labelEstadoGuardadoImagen.setText("Listo para guardar")
         #creamos el label para contener la imagen
         self.labelImagenOnlineRecorder = QLabel(self)
         self.labelImagenOnlineRecorder.resize(self.labelImagenOnlineRecorder_width, self.labelImagenOnlinerecorder_height)
         #agregamos al baner vertical la imagen y el boton de seleccion
         layoutVerBanerCamOnline.addLayout(layoutHorBannerCamOnline)
         layoutVerBanerCamOnline.addWidget(self.labelImagenOnlineRecorder)
+        layoutVerBanerCamOnline.addWidget(self.labelEstadoGuardadoImagen)
         #agregamos los botones
         self.playImageOnline = QPushButton("Play")
         self.playImageOnline.clicked.connect(self.playMostrarImageOnline)
         self.playImageOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","control.png")))
-        self.playImageOnline.setEnabled(True)
+        self.playImageOnline.setEnabled(False)
         self.stopImagenOnline = QPushButton("Stop")
         self.stopImagenOnline.clicked.connect(self.stopMostrarImagenOnline)
         self.stopImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","control-stop-square.png")))
@@ -4999,10 +5601,10 @@ class MainWindow(QDialog):
         self.newFolderImagenOnline.clicked.connect(self.createNewFolderImagenOnline)
         self.newFolderImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","newspaper--plus.png")))
         self.newFolderImagenOnline.setEnabled(True)
-        self.moveFileImagenOnline = QPushButton("Move File")
-        self.moveFileImagenOnline.clicked.connect(self.makeMoveFileImagenOnline)
-        self.moveFileImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","document-move.png")))
-        self.moveFileImagenOnline.setEnabled(True)
+        #self.moveFileImagenOnline = QPushButton("Move File")
+        #self.moveFileImagenOnline.clicked.connect(self.makeMoveFileImagenOnline)
+        #self.moveFileImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","document-move.png")))
+        #self.moveFileImagenOnline.setEnabled(True)
         self.noRecordImagenOnline = QPushButton("Record Stop")
         self.noRecordImagenOnline.clicked.connect(self.stopRecordImagenOnline)
         self.noRecordImagenOnline.setIcon(QIcon(os.path.join(basedir,"appIcons","control-pause-record.png")))
@@ -5019,34 +5621,34 @@ class MainWindow(QDialog):
         self.deleteFileImagenOnline.clicked.connect(self.makeDeleteFileImagenOnline)
         self.deleteFileImagenOnline.setIcon(QIcon(os.path.join(basedir, "appIcons", "node-delete-previous.png") ))
         self.deleteFileImagenOnline.setEnabled(True)
-        self.snapshotImagenOnline = QPushButton("Snapshot Image")
-        self.snapshotImagenOnline.clicked.connect(self.makeSnapshotImagenOnline)
-        self.snapshotImagenOnline.setIcon(QIcon(os.path.join(basedir, "appIcons", "camera--plus.png")))
-        self.snapshotImagenOnline.setEnabled(False)
-        self.botonLibre1ImagenOnline = QPushButton("Libre")
-        self.botonLibre1ImagenOnline.setEnabled(False)
-        self.botonLibre2ImagenOnline = QPushButton("Libre")
-        self.botonLibre2ImagenOnline.setEnabled(False)
-        self.botonLibre3ImagenOnline = QPushButton("Libre")
-        self.botonLibre3ImagenOnline.setEnabled(False)
-        self.botonLibre4ImagenOnline = QPushButton("Libre")
-        self.botonLibre4ImagenOnline.setEnabled(False)
+        #self.snapshotImagenOnline = QPushButton("Snapshot Image")
+        #self.snapshotImagenOnline.clicked.connect(self.makeSnapshotImagenOnline)
+        #self.snapshotImagenOnline.setIcon(QIcon(os.path.join(basedir, "appIcons", "camera--plus.png")))
+        #self.snapshotImagenOnline.setEnabled(False)
+        #self.botonLibre1ImagenOnline = QPushButton("Libre")
+        #self.botonLibre1ImagenOnline.setEnabled(False)
+        #self.botonLibre2ImagenOnline = QPushButton("Libre")
+        #self.botonLibre2ImagenOnline.setEnabled(False)
+        #self.botonLibre3ImagenOnline = QPushButton("Libre")
+        #self.botonLibre3ImagenOnline.setEnabled(False)
+        #self.botonLibre4ImagenOnline = QPushButton("Libre")
+        #self.botonLibre4ImagenOnline.setEnabled(False)
         #creamos el grid layout
         layoutGridBotonesImagenOnline = QGridLayout()
         layoutGridBotonesImagenOnline.addWidget( self.playImageOnline, 0, 0)
         layoutGridBotonesImagenOnline.addWidget( self.stopImagenOnline, 0, 1)
         layoutGridBotonesImagenOnline.addWidget( self.recordImagenOnline, 0, 2)
         layoutGridBotonesImagenOnline.addWidget( self.newFolderImagenOnline, 0, 3)
-        layoutGridBotonesImagenOnline.addWidget( self.moveFileImagenOnline, 0, 4)
-        layoutGridBotonesImagenOnline.addWidget( self.botonLibre1ImagenOnline, 0, 5)
-        layoutGridBotonesImagenOnline.addWidget( self.botonLibre3ImagenOnline, 0, 6)
+        #layoutGridBotonesImagenOnline.addWidget( self.moveFileImagenOnline, 0, 4)
+        #layoutGridBotonesImagenOnline.addWidget( self.botonLibre1ImagenOnline, 0, 5)
+        #layoutGridBotonesImagenOnline.addWidget( self.botonLibre3ImagenOnline, 0, 6)
         layoutGridBotonesImagenOnline.addWidget( self.noRecordImagenOnline, 1, 0)
         layoutGridBotonesImagenOnline.addWidget( self.renameFileImagenOnline, 1, 1)
         layoutGridBotonesImagenOnline.addWidget( self.editFileImagenOnline, 1, 2)
         layoutGridBotonesImagenOnline.addWidget( self.deleteFileImagenOnline, 1, 3)
-        layoutGridBotonesImagenOnline.addWidget(self.snapshotImagenOnline, 1, 4)
-        layoutGridBotonesImagenOnline.addWidget(self.botonLibre2ImagenOnline, 1, 5)
-        layoutGridBotonesImagenOnline.addWidget(self.botonLibre4ImagenOnline, 1, 6)
+        #layoutGridBotonesImagenOnline.addWidget(self.snapshotImagenOnline, 1, 4)
+        #layoutGridBotonesImagenOnline.addWidget(self.botonLibre2ImagenOnline, 1, 5)
+        #layoutGridBotonesImagenOnline.addWidget(self.botonLibre4ImagenOnline, 1, 6)
         #agregamos el grid layout al layout vertical
         layoutVerBanerCamOnline.addLayout(layoutGridBotonesImagenOnline)
         elementosIzqImagenOnlineRecord.setLayout(layoutVerBanerCamOnline)
@@ -6159,34 +6761,39 @@ class MainWindow(QDialog):
         #***********************************************
         #***********************************************
         self.pushButton1Cam1 = QPushButton("Camera 1")
-        self.pushButton1Cam1.setDefault(True)
+        self.pushButton1Cam1.setDefault(False)
         self.pushButton1Cam1.clicked.connect(self.mostraPantallaCam1)
         self.pushButton1Cam1.setIcon(QIcon(os.path.join(basedir,"appIcons","camera-lens.png")))
         self.pushButton1Cam1.setToolTip("Show Image and Trending of Camera 1")
+        self.pushButton1Cam1.setCheckable(True)
 
         self.pushButton2Cam2 = QPushButton("Camera 2")
         self.pushButton2Cam2.setDefault(False)
         self.pushButton2Cam2.clicked.connect(self.mostraPantallaCam2)
         self.pushButton2Cam2.setIcon(QIcon(os.path.join(basedir,"appIcons","camera-lens.png")))
         self.pushButton2Cam2.setToolTip("Show Image and Trending of Camera 2")
+        self.pushButton2Cam2.setCheckable(True)
 
         self.pushButton3Cam3 = QPushButton("Camera 3")
         self.pushButton3Cam3.setDefault(False)
         self.pushButton3Cam3.clicked.connect(self.mostraPantallaCam3)
         self.pushButton3Cam3.setIcon(QIcon(os.path.join(basedir,"appIcons","camera-lens.png")))
         self.pushButton3Cam3.setToolTip("Show Image and Trending of Camera 3")
+        self.pushButton3Cam3.setCheckable(True)
 
         self.pushButton4Recorder = QPushButton("Recorded")
         self.pushButton4Recorder.setDefault(False)
         self.pushButton4Recorder.clicked.connect(self.mostraPantallaRecorder)
         self.pushButton4Recorder.setIcon(QIcon(os.path.join(basedir,"appIcons","disk-return.png")))
         self.pushButton4Recorder.setToolTip("Show Image and Trending Recorded")
+        self.pushButton4Recorder.setCheckable(True)
 
         self.pushButton5Config = QPushButton("ConfCam")
         self.pushButton5Config.setDefault(False)
         self.pushButton5Config.clicked.connect(self.mostraPantallaConfig)
         self.pushButton5Config.setIcon(QIcon(os.path.join(basedir,"appIcons","toolbox.png")))
         self.pushButton5Config.setToolTip("Show Configuration Parameters of Cameras")
+        self.pushButton5Config.setCheckable(True)
 
         self.pushButtonExit = QPushButton("Exit")
         self.pushButtonExit.setIcon(QIcon(os.path.join(basedir,"appIcons", "cross-button.png")))
@@ -6221,12 +6828,12 @@ class MainWindow(QDialog):
         self.stopImagenOnline.setEnabled(True)
         self.recordImagenOnline.setEnabled(True)
         self.newFolderImagenOnline.setEnabled(False)
-        self.moveFileImagenOnline.setEnabled(False)
+        #self.moveFileImagenOnline.setEnabled(False)
         self.noRecordImagenOnline.setEnabled(False)
         self.renameFileImagenOnline.setEnabled(False)
         self.editFileImagenOnline.setEnabled(False)
         self.deleteFileImagenOnline.setEnabled(False)
-        self.snapshotImagenOnline.setEnabled(True)        
+        #self.snapshotImagenOnline.setEnabled(True)        
     def stopMostrarImagenOnline(self):
         print("stop")
         self.mostrarImagenPantallaRecorded = False
@@ -6235,16 +6842,19 @@ class MainWindow(QDialog):
         self.stopImagenOnline.setEnabled(False)
         self.recordImagenOnline.setEnabled(False)
         self.newFolderImagenOnline.setEnabled(True)
-        self.moveFileImagenOnline.setEnabled(True)
+        #self.moveFileImagenOnline.setEnabled(True)
         self.noRecordImagenOnline.setEnabled(False)
         self.renameFileImagenOnline.setEnabled(True)
         self.editFileImagenOnline.setEnabled(True)
         self.deleteFileImagenOnline.setEnabled(True)
-        self.snapshotImagenOnline.setEnabled(False)
+        #self.snapshotImagenOnline.setEnabled(False)
     def startRecordImagenOnline(self):
         print("start record")
         self.recordImagenOnline.setEnabled(False)
         self.noRecordImagenOnline.setEnabled(True)
+        self.botonLeerArchivoIzq.setEnabled(False)
+        self.botonLeerArchivoDer.setEnabled(False)
+        self.labelEstadoGuardadoImagen.setText("Guardando en memoria !")
         #cargamos la funcion que guarda en el  hilo de guardado de imagen
         threads = []
         for n in range(2):
@@ -6262,7 +6872,8 @@ class MainWindow(QDialog):
         self.recordImagenOnline.setEnabled(True) #habilito guardar imagen
         self.newFolderImagenOnline.setEnabled(False) #deshabilito el crear nuevo archivo
         self.botonLeerArchivoIzq.setEnabled(True) #habilito los botones de busqueda de archivo Izq
-        self.botonLeerArchivoDer.setEnabled(True) #habilito los botones de busqueda de archivo Der     
+        self.botonLeerArchivoDer.setEnabled(True) #habilito los botones de busqueda de archivo Der
+        self.playImageOnline.setEnabled(True)
         #no vamos a poner la habilitacion de leer porque asumimos que lo
         #vamosa buscar con las herramientas en el centro y extremo derecho 
         #de la pantalla
@@ -6283,7 +6894,7 @@ class MainWindow(QDialog):
         #aca tiene que dar la habilitacion creando el hilo que termina
         #los dos hilos tomando el ultimo lugar de la barrera
         #self.botonNuevoFolder
-        miStatusGuardadoThread = statusGuardadoThread(self.newFolderImagenOnline)
+        miStatusGuardadoThread = statusGuardadoThread(self.botonLeerArchivoIzq, self.botonLeerArchivoDer, self.labelEstadoGuardadoImagen)
         miStatusGuardadoThread.start()
 
     def makeRenameFileImagenOnline(self):
@@ -6571,7 +7182,7 @@ class MainWindow(QDialog):
         h, w, ch = rgb_image.shape
         bytes_per_line = ch * w
         convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
-        p = convert_to_Qt_format.scaled(self.disply_width, self.display_height, Qt.KeepAspectRatio)
+        p = convert_to_Qt_format.scaled(self.display_width, self.display_height, Qt.KeepAspectRatio)
         return QPixmap.fromImage(p)
     #***************************************************
     @pyqtSlot(np.ndarray)
@@ -6957,43 +7568,43 @@ class MainWindow(QDialog):
         print("ajustamos preset 1 tab1 = ", checkbox.toolTip() ) 
         print("cambiar el color de fondo = ", self.valor1IndTab1MinRoi1Rect.text())      
         if checkbox.isChecked() == True: #determinamos si se activo el checkbox que control lo esta disparando y editamos ese control
-            self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor1IndTab1MinRoi1Rect, valorPreset=self.valorNuevoPresetRoiMinRect1)
+            #self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador=self.valor1IndTab1MinRoi1Rect, valorPreset=self.valorNuevoPresetRoiMinRect1)
             if checkbox.toolTip() == "MinRoiRect1":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor1IndTab1MinRoi1Rect, valorPreset=self.valorNuevoPresetRoiMinRect1)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MinRoiRect1", valorPreset=self.valorNuevoPresetRoiMinRect1)#self.valor1IndTab1MinRoi1Rect
             elif checkbox.toolTip() == "MinRoiLine1":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor11IndTab1MinRoi1Line, valorPreset=self.valorNuevoPresetRoiMinLine1)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MinRoiLine1", valorPreset=self.valorNuevoPresetRoiMinLine1)#self.valor11IndTab1MinRoi1Line
             elif checkbox.toolTip() == "MinRoiEllipse1":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor12IndTab1MinRoi1Ellipse, valorPreset=self.valorNuevoPresetRoiMinEllipse1)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MinRoiEllipse1", valorPreset=self.valorNuevoPresetRoiMinEllipse1)#self.valor12IndTab1MinRoi1Ellipse
             elif checkbox.toolTip() == "AvgRoiRect1":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor2IndTab1AvgRoi1Rect, valorPreset=self.valorNuevoPresetRoiAvgRect1)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="AvgRoiRect1", valorPreset=self.valorNuevoPresetRoiAvgRect1)#self.valor2IndTab1AvgRoi1Rect
             elif checkbox.toolTip() == "AvgRoiLine1":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor21IndTab1AvgRoi1Line, valorPreset=self.valorNuevoPresetRoiAvgLine1)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="AvgRoiLine1", valorPreset=self.valorNuevoPresetRoiAvgLine1)#self.valor21IndTab1AvgRoi1Line
             elif checkbox.toolTip() == "AvgRoiEllipse1":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor22IndTab1AvgRoi1Ellipse, valorPreset=self.valorNuevoPresetRoiAvgEllipse1)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="AvgRoiEllipse1", valorPreset=self.valorNuevoPresetRoiAvgEllipse1)#self.valor22IndTab1AvgRoi1Ellipse
             elif checkbox.toolTip() == "MaxRoiRect1":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor3IndTab1MaxRoi1Rect, valorPreset=self.valorNuevoPresetRoiMaxRect1)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MaxRoiRect1", valorPreset=self.valorNuevoPresetRoiMaxRect1)#self.valor3IndTab1MaxRoi1Rect
             elif checkbox.toolTip() == "MaxRoiLine1":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor31IndTab1MaxRoi1Line, valorPreset=self.valorNuevoPresetRoiMaxLine1)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MaxRoiLine1", valorPreset=self.valorNuevoPresetRoiMaxLine1)#self.valor31IndTab1MaxRoi1Line
             elif checkbox.toolTip() == "MaxRoiEllipse1":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor32IndTab1MaxRoi1Ellipse, valorPreset=self.valorNuevoPresetRoiMaxEllipse1)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MaxRoiEllipse1", valorPreset=self.valorNuevoPresetRoiMaxEllipse1)#self.valor32IndTab1MaxRoi1Ellipse
             elif checkbox.toolTip() == "MinRoiRect2":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor4IndTab1MinRoi2Rect, valorPreset=self.valorNuevoPresetRoiMinRect2)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MinRoiRect2", valorPreset=self.valorNuevoPresetRoiMinRect2)#self.valor4IndTab1MinRoi2Rect
             elif checkbox.toolTip() == "MinRoiLine2":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor41IndTab1MinRoi2Line, valorPreset=self.valorNuevoPresetRoiMinLine2)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MinRoiLine2", valorPreset=self.valorNuevoPresetRoiMinLine2)#self.valor41IndTab1MinRoi2Line
             elif checkbox.toolTip() == "MinRoiEllipse2":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor42IndTab1MinRoi2Ellipse, valorPreset=self.valorNuevoPresetRoiMinEllipse2)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MinRoiEllipse2", valorPreset=self.valorNuevoPresetRoiMinEllipse2)#self.valor42IndTab1MinRoi2Ellipse
             elif checkbox.toolTip() == "AvgRoiRect2":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor5IndTab1AvgRoi2Rect, valorPreset=self.valorNuevoPresetRoiAvgRect2)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="AvgRoiRect2", valorPreset=self.valorNuevoPresetRoiAvgRect2)#self.valor5IndTab1AvgRoi2Rect
             elif checkbox.toolTip() == "AvgRoiLine2":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor51IndTab1AvgRoi2Line, valorPreset=self.valorNuevoPresetRoiAvgLine2)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="AvgRoiLine2", valorPreset=self.valorNuevoPresetRoiAvgLine2)#self.valor51IndTab1AvgRoi2Line
             elif checkbox.toolTip() == "AvgRoiEllipse2":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor52IndTab1AvgRoi2Ellipse, valorPreset=self.valorNuevoPresetRoiAvgEllipse2)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="AvgRoiEllipse2", valorPreset=self.valorNuevoPresetRoiAvgEllipse2)#self.valor52IndTab1AvgRoi2Ellipse
             elif checkbox.toolTip() == "MaxRoiRect2":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor6IndTab1MaxRoi2Rect, valorPreset=self.valorNuevoPresetRoiMaxRect2)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MaxRoiRect2", valorPreset=self.valorNuevoPresetRoiMaxRect2)#self.valor6IndTab1MaxRoi2Rect
             elif checkbox.toolTip() == "MaxRoiLine2":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor61IndTab1MaxRoi2Line, valorPreset=self.valorNuevoPresetRoiMaxLine2)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MaxRoiLine2", valorPreset=self.valorNuevoPresetRoiMaxLine2)#self.valor61IndTab1MaxRoi2Line
             elif checkbox.toolTip() == "MaxRoiEllipse2":
-                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorIndicador=self.valor62IndTab1MaxRoi2Ellipse, valorPreset=self.valorNuevoPresetRoiMaxEllipse2)
+                self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MaxRoiEllipse2", valorPreset=self.valorNuevoPresetRoiMaxEllipse2)#self.valor62IndTab1MaxRoi2Ellipse
             #mostramos la popup
             self.dlgChangePresetTab1.show()
     def popUpResetBotonTab1(self, checkbox):
@@ -7002,58 +7613,58 @@ class MainWindow(QDialog):
             #determinamos que checkbox esta disparando el popup
             #utilizando el tooltip
             if checkbox.toolTip() == "MinRoiRect1":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMinRect1)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MinRoiRect1",valorPreset=self.valorNuevoPresetRoiMinRect1)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "MinRoiLine1":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMinLine1)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MinRoiLine1",valorPreset=self.valorNuevoPresetRoiMinLine1)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "MinroiEllipse1":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMinEllipse1)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MinroiEllipse1",valorPreset=self.valorNuevoPresetRoiMinEllipse1)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "AvgRoiRect1":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiAvgRect1)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="AvgRoiRect1",valorPreset=self.valorNuevoPresetRoiAvgRect1)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "AvgRoiLine1":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiAvgLine1)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="AvgRoiLine1",valorPreset=self.valorNuevoPresetRoiAvgLine1)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "AvgRoiEllipse1":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiAvgEllipse1)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="AvgRoiEllipse1",valorPreset=self.valorNuevoPresetRoiAvgEllipse1)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "MaxRoiRect1":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMaxRect1)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MaxRoiRect1",valorPreset=self.valorNuevoPresetRoiMaxRect1)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "MaxRoiLine1":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMaxLine1)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MaxRoiLine1",valorPreset=self.valorNuevoPresetRoiMaxLine1)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "MaxRoiEllipse1":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMaxEllipse1)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MaxRoiEllipse1",valorPreset=self.valorNuevoPresetRoiMaxEllipse1)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "MinRoiRect2":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMinRect2)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MinRoiRect2",valorPreset=self.valorNuevoPresetRoiMinRect2)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "MinRoiLine2":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMinLine2)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MinRoiLine2",valorPreset=self.valorNuevoPresetRoiMinLine2)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "MinRoiEllipse2":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMinEllipse2)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MinRoiEllipse2",valorPreset=self.valorNuevoPresetRoiMinEllipse2)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "AvgRoiRect2":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiAvgRect2)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="AvgRoiRect2",valorPreset=self.valorNuevoPresetRoiAvgRect2)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "AvgRoiLine2":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiAvgLine2)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="AvgRoiLine2",valorPreset=self.valorNuevoPresetRoiAvgLine2)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "AvgRoiEllipse2":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiAvgEllipse2)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="AvgRoiEllipse2",valorPreset=self.valorNuevoPresetRoiAvgEllipse2)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "MaxRoiRect2":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMaxRect2)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MaxRoiRect2",valorPreset=self.valorNuevoPresetRoiMaxRect2)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "MaxRoiLine2":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMaxLine2)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MaxRoiLine2",valorPreset=self.valorNuevoPresetRoiMaxLine2)
                 self.dlgDefaultPresetTab1.show()
             elif checkbox.toolTip() == "MaxRoiEllipse2":
-                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(valorPreset=self.valorNuevoPresetRoiMaxEllipse2)
+                self.dlgDefaultPresetTab1 = PopUpResetPresetTab(nombrePreset="MaxRoiEllipse2",valorPreset=self.valorNuevoPresetRoiMaxEllipse2)
                 self.dlgDefaultPresetTab1.show()
 
     #defino la funcion asociada con el cambio de preset de la camara 1
@@ -7064,7 +7675,7 @@ class MainWindow(QDialog):
         #Tenemos que agregar la popup W
         if checkbox.isChecked() == True:
             #creo un hilo para mostrar la imagen y permitir ajustar los parametros de la camara
-            self.configuracionFoco = PopUPWritePresetFocoCam(self.thread, self.image_label)
+            self.configuracionFoco = PopUPWritePresetFocoCam(self.thread, self.image_label, nameCamera="cam1")
             self.configuracionFoco.show()
             print("mostramos popup ajuste de foco")
             self.mostrarImagenPopUpCambioFoco = True
@@ -7072,7 +7683,7 @@ class MainWindow(QDialog):
     def popUpConfiguracionPreset2Cam1(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionRango = PopUpWritePresetTempRangeCam(self.thread, self.image_label)
+            self.configuracionRango = PopUpWritePresetTempRangeCam(self.thread, self.image_label, nameCamera="cam1")
             self.configuracionRango.show()
             print("mostramos popup ajuste de rango")
             self.mostrarImagenPopUpCambioRango = True
@@ -7080,7 +7691,7 @@ class MainWindow(QDialog):
     def popUpConfiguracionPreset3Cam1(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionLimManPaleta = PopUpWritePresetLimManualPalleteCam(self.thread, self.image_label)
+            self.configuracionLimManPaleta = PopUpWritePresetLimManualPalleteCam(self.thread, self.image_label, nameCamera="cam1")
             self.configuracionLimManPaleta.show()
             print("mostramos popup ajuste de rango")
             self.mostrarImagenPopUpLimManPaleta = True
@@ -7088,7 +7699,7 @@ class MainWindow(QDialog):
     def popUpConfiguracionPreset4Cam1(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionManAutPaleta = PopUpWritePresetAutoManPalleteCam(self.thread, self.image_label)
+            self.configuracionManAutPaleta = PopUpWritePresetAutoManPalleteCam(self.thread, self.image_label, nameCamera="cam1")
             self.configuracionManAutPaleta.show()
             print("mostramos popup cambio de paleta")
             self.mostrarImagenPopUpManAutPaleta = True
@@ -7096,7 +7707,7 @@ class MainWindow(QDialog):
     def popUpConfiguracionPreset5Cam1(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionPaleta = PopUpWritePresetPalleteCam(self.thread, self.image_label)
+            self.configuracionPaleta = PopUpWritePresetPalleteCam(self.thread, self.image_label, nameCamera="cam1")
             self.configuracionPaleta.show()
             print("mostramos popup cambio de paleta")
             self.mostrarImagenPopUpCambioPaleta = True
@@ -7136,7 +7747,7 @@ class MainWindow(QDialog):
         ##
         #Tenemos que agregar la popup
         if checkbox.isChecked() == True:
-            self.dlgChangePresetCam2 = PopUPWritePresetFocoCam(self.thread,self.image_label)
+            self.dlgChangePresetCam2 = PopUPWritePresetFocoCam(self.thread,self.image_label, nameCamera="cam2")
             self.dlgChangePresetCam2.show()
     #defino la funcion para restaurar la configuracion de la camara 2
     def popUpRestartConfiguracionPresetCam2(self, checkbox):
@@ -7150,7 +7761,7 @@ class MainWindow(QDialog):
         ##
         #Tenemos que agregar la popup
         if checkbox.isChecked() == True:
-            self.dlgChangePresetCam3 = PopUPWritePresetFocoCam(self.thread,self.image_label)
+            self.dlgChangePresetCam3 = PopUPWritePresetFocoCam(self.thread,self.image_label, nameCamera="cam3")
             self.dlgChangePresetCam3.show()
     #defino la funcion asociada la cargar el defaul de preset
     def popUpRestartConfiguracionPresetCam3(self, checkbox):
@@ -8354,7 +8965,20 @@ class MainWindow(QDialog):
         index = self.bodyTabWidget.indexOf(page)
         #print(index)
         self.bodyTabWidget.setCurrentWidget(self.bodyTabWidget.findChild(QWidget,'tab1'))
-        self.labelFunctionalWindowSelected.setText("Functional Window Cam 1")        
+        self.labelFunctionalWindowSelected.setText("Functional Window Cam 1")
+        self.pushButton1Cam1.setEnabled(False)
+        if self.pushButton2Cam2.isChecked():                        
+            self.pushButton2Cam2.toggle()
+            self.pushButton2Cam2.setEnabled(True)
+        if self.pushButton3Cam3.isChecked():
+            self.pushButton3Cam3.toggle()
+            self.pushButton3Cam3.setEnabled(True)
+        if self.pushButton4Recorder.isChecked():
+            self.pushButton4Recorder.toggle()
+            self.pushButton4Recorder.setEnabled(True)
+        if self.pushButton5Config.isChecked():
+            self.pushButton5Config.toggle()
+            self.pushButton5Config.setEnabled(True)
     #Defino la función asociado al botón para cambiar de pantalla Cam2
     def mostraPantallaCam2(self):
         page=self.bodyTabWidget.findChild(QWidget, 'tab2')
@@ -8362,6 +8986,19 @@ class MainWindow(QDialog):
         #print(index)
         self.bodyTabWidget.setCurrentWidget(self.bodyTabWidget.findChild(QWidget,'tab2'))
         self.labelFunctionalWindowSelected.setText("Functional Window Cam 2")
+        self.pushButton2Cam2.setEnabled(False)
+        if self.pushButton1Cam1.isChecked():            
+            self.pushButton1Cam1.toggle()
+            self.pushButton1Cam1.setEnabled(True)
+        if self.pushButton3Cam3.isChecked():
+            self.pushButton3Cam3.toggle()
+            self.pushButton3Cam3.setEnabled(True)
+        if self.pushButton4Recorder.isChecked():
+            self.pushButton4Recorder.toggle()
+            self.pushButton4Recorder.setEnabled(True)
+        if self.pushButton5Config.isChecked():
+            self.pushButton5Config.toggle()
+            self.pushButton5Config.setEnabled(True)
     #Defino la función asociado al botón para cambiar de pantalla Cam3
     def mostraPantallaCam3(self):
         page=self.bodyTabWidget.findChild(QWidget, 'tab3')
@@ -8369,6 +9006,19 @@ class MainWindow(QDialog):
         #print(index)
         self.bodyTabWidget.setCurrentWidget(self.bodyTabWidget.findChild(QWidget,'tab3'))
         self.labelFunctionalWindowSelected.setText("Functional Window Cam 3")
+        self.pushButton3Cam3.setEnabled(False)        
+        if self.pushButton1Cam1.isChecked():            
+            self.pushButton1Cam1.toggle()
+            self.pushButton1Cam1.setEnabled(True)
+        if self.pushButton2Cam2.isChecked():
+            self.pushButton2Cam2.toggle()
+            self.pushButton2Cam2.setEnabled(True)
+        if self.pushButton4Recorder.isChecked():
+            self.pushButton4Recorder.toggle()
+            self.pushButton4Recorder.setEnabled(True)
+        if self.pushButton5Config.isChecked():
+            self.pushButton5Config.toggle()
+            self.pushButton5Config.setEnabled(True)
     #Defino la función asociado al botón para cambiar a pantalla Recorder
     def mostraPantallaRecorder(self):
         page=self.bodyTabWidget.findChild(QWidget, 'tab4')
@@ -8376,6 +9026,19 @@ class MainWindow(QDialog):
         #print(index)
         self.bodyTabWidget.setCurrentWidget(self.bodyTabWidget.findChild(QWidget,'tab4'))
         self.labelFunctionalWindowSelected.setText("Functional Window Recorded")
+        self.pushButton4Recorder.setEnabled(False)
+        if self.pushButton1Cam1.isChecked():            
+            self.pushButton1Cam1.toggle()
+            self.pushButton1Cam1.setEnabled(True)
+        if self.pushButton2Cam2.isChecked():
+            self.pushButton2Cam2.toggle()
+            self.pushButton2Cam2.setEnabled(True)
+        if self.pushButton3Cam3.isChecked():
+            self.pushButton3Cam3.toggle()
+            self.pushButton3Cam3.setEnabled(True)
+        if self.pushButton5Config.isChecked():
+            self.pushButton5Config.toggle()
+            self.pushButton5Config.setEnabled(True)
     #Defino la función asociada al botón para cambiar a pantalla Configuración
     def mostraPantallaConfig(self):
         page=self.bodyTabWidget.findChild(QWidget, 'tab5')
@@ -8383,11 +9046,24 @@ class MainWindow(QDialog):
         #print(index)
         self.bodyTabWidget.setCurrentWidget(self.bodyTabWidget.findChild(QWidget,'tab5'))
         self.labelFunctionalWindowSelected.setText("Functional Window Config Cameras")
+        self.pushButton5Config.setEnabled(False)
+        if self.pushButton1Cam1.isChecked():            
+            self.pushButton1Cam1.toggle()
+            self.pushButton1Cam1.setEnabled(True)
+        if self.pushButton2Cam2.isChecked():
+            self.pushButton2Cam2.toggle()
+            self.pushButton2Cam2.setEnabled(True)
+        if self.pushButton3Cam3.isChecked():
+            self.pushButton3Cam3.toggle()
+            self.pushButton3Cam3.setEnabled(True)
+        if self.pushButton4Recorder.isChecked():
+            self.pushButton4Recorder.toggle()
+            self.pushButton4Recorder.setEnabled(True)
     #***************************************************
     #***************************************************
 if __name__ == '__main__':      
     app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon(os.path.join(basedir,"appIcons","tgsLogo3.ico")))
+    app.setWindowIcon(QIcon(os.path.join(basedir,"appIcons","logo.ico"))) #tgsLogo3.ico
     main = MainWindow()
     main.show()
     app.exec()

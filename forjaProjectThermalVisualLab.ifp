@@ -1,0 +1,786 @@
+﻿
+[Header]
+ProjectFileVersion = 1.1
+[General]
+Program name = Instalador Thermal Vision Lab
+Program version = 0.8
+Windows 2000 = 0
+Windows XP = 0
+Windows Server 2003 = 0
+Windows Vista = 0
+Windows Server 2008 = 0
+Windows 7 = 0
+Windows 8 = 0
+Windows 10 = 1
+Windows Server 2016 = 0
+DoNotCheckOS = 0
+Company name = meditecna
+Website = https://www.meditecna.com
+SFA = 0
+DFA = 0
+Comp = 1
+[Graphics]
+Wizard image = <main>
+Header image = <main>
+Show Label = 1
+VisualStylesEnabled = 1
+[Files]
+Installation path = <ProgramFiles>\<Company>\<AppName>\
+Autcip = 1
+[Uninstall]
+Vwau = 0
+Website = https://
+Include uninstaller = 1
+Uninstaller filename = Uninstall
+UseCustomDisplayIcon = 0
+CustomDisplayIcon = <InstallPath>\
+[Licence]
+Licence dialog = 0
+[Finish]
+Sart program = 0
+Reboot computer = 0
+Program = <InstallPath>\
+ProgramArguments = 
+[Shortcuts]
+Allowtc = 0
+Shortcut path = <Company>\<AppName>\
+[Serialoptions]
+Allows = 0
+Number = 1000
+Mask = #####-#####-#####-#####
+[SplashScreen]
+Image = 
+Sound = 
+Time = 2
+PlaySound = 0
+Allow = 0
+[Build]
+File = C:\Users\lupus\OneDrive\Documentos\GUIPython\instalador\instaladorThermalVisualLabv08.exe
+SetupIconPath = ..\icons\ancient.ico
+UninstallIconPath = ..\icons\ancient.ico
+CompressionMethod = 0
+CompressionLevel = 2
+[Updater]
+Allow = 0
+1 = <AppName>
+2 = <AppVersion>
+3 = http://
+4 = http://
+5 = http://
+6 = Update
+Language = 0
+RunProg = 
+RunProgs = 0
+Execdlls = 0
+[Languages]
+1
+[Files/Dirs]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\msvcp140.dll
+618.3 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libEGL.dll
+24.5 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\thermalVisionLab.exe
+27.2 MB
+exe
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\base_library.zip
+781.2 KB
+zip
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\MSVCP140_1.dll
+24.9 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\d3dcompiler_47.dll
+4.3 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libGLESv2.dll
+3.2 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\opengl32sw.dll
+20 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\generic.xml
+2 KB
+xml
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\vcruntime140_1.dll
+37.4 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\zlib.dll
+84 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\arrow_dataset.dll
+1.1 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_pywrap_tensorflow_internal.pyd
+841.2 MB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\hdf5.dll
+3.2 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\hdf5_hl.dll
+114 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\winpty.dll
+2.4 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\MSVCP140_2.dll
+182.9 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\arrow_flight.dll
+6.8 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\arrow_python.dll
+880.5 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\parquet.dll
+1.8 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\arrow.dll
+19.9 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libd_odr.55PVP6CS22RRDQITMCA3VOMCRKXEDK4U.gfortran-win_amd64.dll
+1.2 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libdqag.3G7J62LSENLDBQSO67YHUS52MMNE4VNI.gfortran-win_amd64.dll
+905.8 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libbanded5x.2OH54T7PXCLH7KMZFQXI6WES7W3O7LED.gfortran-win_amd64.dll
+781.4 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\liblsoda-f2.SZMBZ5QLAJRFSXG5K2ZEUPKJE7PLPMHP.gfortran-win_amd64.dll
+772.6 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libvode-f2p.5S5OT43YAB3RWB4DIZE6APB5L264W6M7.gfortran-win_amd64.dll
+994.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libwrap_dum.JPBLOQR3B5CQPVSMGPNO7DONCQDBALXS.gfortran-win_amd64.dll
+65.8 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libwrap_dum.OFSKFOUYYO563J6M6E5RWKHMPNW3HB2V.gfortran-win_amd64.dll
+169.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libbispeu.7AH3PCQ2E2NGLC3AQD7FFAH73KGJTZCJ.gfortran-win_amd64.dll
+1.9 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libansari.R6EA3HQP5KZ6TAXU4Y4ZVTRPT7UVA53Z.gfortran-win_amd64.dll
+135.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libblkdta00.U3WFDJYB5WYSGKORFSSHUNTRX7V2Z2VV.gfortran-win_amd64.dll
+771.6 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libchkder.G7WSOGIYYQO3UWFVEZ3PPXCXR53ADVPA.gfortran-win_amd64.dll
+287.1 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libdcsrch.I2AOPDCXAPDRFNPWY55H5UE7XZSU5CVN.gfortran-win_amd64.dll
+68.6 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libgetbreak.CC22I3PMZL7Q2SY6UXVEZCXW2SOZ5UIR.gfortran-win_amd64.dll
+364.8 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\lib_blas_su.YRKGGVTYTJAYNBJNOGROZCFCCMKD2AB4.gfortran-win_amd64.dll
+146.9 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libdet.EKUAXLYVHZQOA5G4E5KIRYYJQNYR2J4N.gfortran-win_amd64.dll
+86.5 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\liblbfgsb.67WJ5M3SE4XLKEW3E5O74DBLXYX6JOGE.gfortran-win_amd64.dll
+797.8 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libspecfun.LQCTHMCYNULEOOGKIO6AGREE6D6V37RU.gfortran-win_amd64.dll
+1.3 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libmvndst.RDHNECQ4LTGAG44TTDYZZ5ZBHXLFUU6E.gfortran-win_amd64.dll
+162.9 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libdfitpack.VPRJUWUEP6U577QBCGTTCCFXB3222T4I.gfortran-win_amd64.dll
+1.9 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\lib_arpack-.OUTLRC34XR23CPDVNJC4LNEGP6P7X7RZ.gfortran-win_amd64.dll
+1.7 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libdgamln.CZTINISBCDTLGBMBTRNYIIWHW2OV7UR6.gfortran-win_amd64.dll
+2.6 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libnnls.4HUTGAJQTI623WTX372VAIIWXRLC62YU.gfortran-win_amd64.dll
+623.4 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libslsqp_op.RGGN6ZOFD2K47X7YRNDYCM7JFP4AGLER.gfortran-win_amd64.dll
+250.5 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libdfft.XZOWIJVVJZK32K7HPCGZE6Q5VRRIIWJB.gfortran-win_amd64.dll
+1.7 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libopenblas.3HBPCJB5BPQGKWVZAVEBXNNJ2Q2G3TUP.gfortran-win_amd64.dll
+31.3 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\lib_dop-f2p.3HWIZKD75YUXVW7GYVDBE4FCDUO4NUKG.gfortran-win_amd64.dll
+726 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\lib_test_fo.JF5HTWMUPBXWGAYEBVEJU3OZAHTSVKCT.gfortran-win_amd64.dll
+601.8 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libcobyla2.25EVUSEBAW7VKISARB7LO3UGZPN2HXE3.gfortran-win_amd64.dll
+750.4 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-multibyte-l1-1-0.dll
+26.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt6OpenGL.dll
+1.8 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt6QmlModels.dll
+640.9 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt6Quick.dll
+4.7 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\shiboken6.abi3.dll
+282.4 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\sqlite3.dll
+1.5 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\mfc140u.dll
+5.8 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pyside2.abi3.dll
+158.3 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pyside6.abi3.dll
+197.9 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5Pdf.dll
+4.3 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt6PrintSupport.dll
+386.4 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\shiboken2.abi3.dll
+249.8 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\tcl86t.dll
+1.6 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\tk86t.dll
+1.4 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5PrintSupport.dll
+310 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5VirtualKeyboard.dll
+2 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt6Widgets.dll
+5.7 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt6Core.dll
+5.4 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt6Network.dll
+1.4 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt6Qml.dll
+4.1 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt6Svg.dll
+352.4 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt6VirtualKeyboard.dll
+921.4 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt6Gui.dll
+7.1 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\kiwisolver.cp39-win_amd64.pyd
+115 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pvectorc.cp39-win_amd64.pyd
+33 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_sqlite3.pyd
+88.2 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\win32clipboard.pyd
+25.5 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\win32security.pyd
+139 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_cffi_backend.cp39-win_amd64.pyd
+179 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_tkinter.pyd
+64.2 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\win32evtlog.pyd
+73 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_uuid.pyd
+23.2 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_win32sysloader.pyd
+12 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libopenblas.WCDJNK7YVMPZQ2ME2ZZHJJRJ3JIKNDB7.gfortran-win_amd64.dll
+32.8 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\win32api.pyd
+131.5 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\win32pdh.pyd
+33.5 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\win32trace.pyd
+22 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\win32ui.pyd
+1.4 MB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libzmq-v142-mt-4_3_4-4e355e3e.dll
+484.5 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libsodium-138090d4.dll
+296.5 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pythoncom39.dll
+543.5 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pywintypes39.dll
+139 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_elementtree.pyd
+184.7 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5Qml.dll
+3.4 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5QmlModels.dll
+428.5 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libcrypto-1_1.dll
+3.3 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libffi-7.dll
+32 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libssl-1_1.dll
+678.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\python3.dll
+58.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5Network.dll
+1.3 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5Quick.dll
+4 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5WebSockets.dll
+146 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5Widgets.dll
+5.2 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_asyncio.pyd
+63.7 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_bz2.pyd
+84.7 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_ctypes.pyd
+123.7 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_decimal.pyd
+267.2 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_hashlib.pyd
+64.7 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_lzma.pyd
+159.2 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_multiprocessing.pyd
+29.7 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_overlapped.pyd
+45.2 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_queue.pyd
+28.7 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_socket.pyd
+78.7 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\_ssl.pyd
+151.7 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-utility-l1-1-0.dll
+18.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pyexpat.pyd
+199.2 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5Core.dll
+5.7 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5DBus.dll
+426.5 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5Gui.dll
+6.7 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Qt5Svg.dll
+323 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\select.pyd
+28.2 KB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\unicodedata.pyd
+1.1 MB
+pyd
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-console-l1-1-0.dll
+18.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-datetime-l1-1-0.dll
+18.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-debug-l1-1-0.dll
+18.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-file-l1-1-0.dll
+21.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-file-l1-2-0.dll
+18.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-file-l2-1-0.dll
+18.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-heap-l1-1-0.dll
+18.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-libraryloader-l1-1-0.dll
+18.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-processenvironment-l1-1-0.dll
+19.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-processthreads-l1-1-0.dll
+20.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-profile-l1-1-0.dll
+17.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-string-l1-1-0.dll
+18.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-synch-l1-1-0.dll
+20.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-sysinfo-l1-1-0.dll
+19.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-timezone-l1-1-0.dll
+18.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-errorhandling-l1-1-0.dll
+18.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-handle-l1-1-0.dll
+18.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-interlocked-l1-1-0.dll
+18.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-localization-l1-2-0.dll
+20.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-memory-l1-1-0.dll
+18.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-namedpipe-l1-1-0.dll
+18.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-processthreads-l1-1-1.dll
+18.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-rtlsupport-l1-1-0.dll
+18.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-synch-l1-2-0.dll
+18.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-core-util-l1-1-0.dll
+18.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-conio-l1-1-0.dll
+19.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-convert-l1-1-0.dll
+22.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-environment-l1-1-0.dll
+18.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-filesystem-l1-1-0.dll
+20.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-heap-l1-1-0.dll
+19.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-locale-l1-1-0.dll
+18.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-math-l1-1-0.dll
+27.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-process-l1-1-0.dll
+19.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-runtime-l1-1-0.dll
+22.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-stdio-l1-1-0.dll
+24.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-string-l1-1-0.dll
+24.2 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\api-ms-win-crt-time-l1-1-0.dll
+20.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\python39.dll
+4.3 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\ucrtbase.dll
+969.7 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\VCRUNTIME140.dll
+94.9 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirextras.dll
+289 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirextras.exp
+12.4 KB
+exp
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirextras.lib
+21.2 KB
+lib
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirextrasd.dll
+657 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirextrasd.exp
+12.4 KB
+exp
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirextrasd.lib
+21.3 KB
+lib
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirimager.dll
+837.5 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirimager.exp
+219 KB
+exp
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirimager.lib
+364.9 KB
+lib
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirimagerd.dll
+3 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirimagerd.exp
+220.9 KB
+exp
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libirimagerd.lib
+369 KB
+lib
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\Formats.def
+16.1 KB
+def
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\altgraph-0.17.2.dist-info\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\appIcons\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\argon2\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\certifi\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\cv2\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\etc\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\google\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\google_api_core-2.10.2.dist-info\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\google_api_python_client-2.39.0-py3.9.egg\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\google_cloud_core-2.3.2.dist-info\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\googleapiclient\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\grpc\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\h5py\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\httplib2\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\importlib_metadata-4.10.0.dist-info\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\IPython\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\jedi\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\jsonschema\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\jsonschema-4.2.1.dist-info\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\lxml\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\markupsafe\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\matplotlib\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\nbconvert\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\nbconvert-6.3.0.dist-info\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\nbformat\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\notebook\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\numpy\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pandas\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\parso\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\PIL\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\psutil\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pyarrow\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pycocotools\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pyinstaller-5.0.1.dist-info\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\PyQt5\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\PySide2\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\PySide6\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pytz\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\pyzmq.libs\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\scipy\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\setuptools-57.4.0.dist-info\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\share\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\shiboken2\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\shiboken6\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\tcl\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\tcl8\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\tensorflow\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\tk\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\torch\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\torchvision\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\tornado\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\wcwidth\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\wheel-0.37.0.dist-info\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\win32com\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\winpty\
+N/A
+[Folder]
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\zmq\
+N/A
+[Folder]
+[Licence_Begin]
+115
+{\rtf1\ansi\ansicpg1252\deff0\deflang11274{\fonttbl{\f0\fnil\fcharset0 Arial;}}
+\viewkind4\uc1\pard\fs20\par
+}
+ [Licence_End]
+[Registry]
+[Variables]
+[SCs]
+Desktop
+testComunicacionPosicionFoco
+<InstallPath>\
+
+
+0
+[IFP_End]
+[Serials]
+[Serials_End]
+[Commands]

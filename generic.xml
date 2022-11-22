@@ -3,7 +3,7 @@
   <serial>0</serial>                     <!-- Provide serial number, if you attach more than one camera -->
   <videoformatindex>0</videoformatindex> <!-- index of the used video format (USB enpoint) -->
   <formatspath>.\</formatspath>
-  <!-- <calipath></calipath> -->
+  <calipath>C:\Users\lupus\AppData\Roaming\Imager\Cali</calipath>
   <!-- Uncomment the following lines to specify user-defined parameters for the desired optic
        and temperature range. Be aware to specify meaningful parameters.
        See documentation for further information: http://evocortex.com/libirimager2/html/index.html
