@@ -1,6 +1,6 @@
-MinRoiRect1 = 24
-AvgRoiRect1 = 24
-MaxRoiRect1 = 24
+MinRoiRect1 = 29
+AvgRoiRect1 = 28
+MaxRoiRect1 = 31
 MinRoiLine1 = 24
 AvgRoiLine1 = 66
 MaxRoiLine1 = 24

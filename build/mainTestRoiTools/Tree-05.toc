@@ -1,5 +1,0 @@
-('c:\\users\\lupus\\appdata\\local\\programs\\python\\python39\\lib\\site-packages\\pydot-1.4.2-py3.9.egg',
- None,
- {'*.pyd', 'EGG-INFO', '*.cp39-win_amd64.pyd', '*.pyw', '*.pyc', '*.py'},
- 'DATA',
- [])

@@ -1860,8 +1860,10 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         self._run_flag = True #utilizamos este flag para indicar al hilo que termine la adquisicion
         self._decFocusPosition = False
         self._incFocusPosition = False
+        self._setFocusPosition = False
         self._cancelFocusPosition = False
-        self.focusPositionAnterior = 50        
+        self.focusPositionAnterior = 50      
+        self.setDefaultFocusPosition = 80  
         self._selRango0 = False #flag para seleccionar rango 0 se activa por la funcion y se desactiva por el hilo de run
         self._selRango1 = False #flag para seleccionar rango 1 se actia por la funcion y se desactiva por el hilo de run
         self._selRango2 = False #flag para seleccionar rango 2 se activa por la funcion y se desactiva por el hilo de run        
@@ -1987,13 +1989,13 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         presetAGuardar7 = 25
         nombrePreset7 = "presetTempAmbientecam1"
         #preset transimisividad
-        presetAGuardar8 = 1 #100% transmisividad
+        presetAGuardar8 = 1 #100% transmisividad  
         nombrePreset8 = "presetTransmisividadcam1"
         #preset emisividad
-        presetAGuardar9 = 0.8
+        presetAGuardar9 = 0.80
         nombrePreset9 = "presetEmisividadcam1"
         #lista tuplas preset
-        listaPresetsAGuardar = [(nombrePreset1,presetAGuardar1),(nombrePreset2,presetAGuardar2),(nombrePreset3,presetAGuardar3)]
+        listaPresetsAGuardar = [(nombrePreset1,presetAGuardar1),(nombrePreset2,presetAGuardar2),(nombrePreset3,presetAGuardar3), (nombrePreset4,presetAGuardar4), (nombrePreset5,presetAGuardar5), (nombrePreset6,presetAGuardar6), (nombrePreset7,presetAGuardar7), (nombrePreset8,presetAGuardar8), (nombrePreset9,presetAGuardar9)]
         if os.path.isfile("presetCamera.txt"):
             for nombrePreset,presetAGuardar in listaPresetsAGuardar:            
                 with open('presetCamera.txt', 'r') as f:                
@@ -2014,7 +2016,7 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                     #cargamos variable del archivo en variable del programa
                     presetAGuardar = palabraLeer
                     if nombrePreset == nombrePreset1: #foco
-                        presetAGuardar1 = int(presetAGuardar)
+                        presetAGuardar1 = float(presetAGuardar)
                     elif nombrePreset == nombrePreset2: #rango
                         presetAGuardar2 = int(presetAGuardar)
                     elif nombrePreset == nombrePreset3: #paleta
@@ -2026,7 +2028,7 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                     elif nombrePreset == nombrePreset6: #valor maximo ajuste paleta manual
                         presetAGuardar6 = int(presetAGuardar)
                     elif nombrePreset == nombrePreset7: #valor temperatura ambiente
-                        presetAGuardar7 = int(presetAGuardar)
+                        presetAGuardar7 = float(presetAGuardar)
                     elif nombrePreset == nombrePreset8: #valor transmisividad
                         presetAGuardar8 = float(presetAGuardar)
                     elif nombrePreset == nombrePreset9: #valor emisividad
@@ -2120,10 +2122,10 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         valorMaxRangoScalePaletteManual = ct.c_float(maximo)                
         ret = libir.evo_irimager_set_palette_manual_temp_range(valorMinRangoScalePaletteManual, valorMaxRangoScalePaletteManual)
         #escribimos emisividad transmisividad y temperatura ambiente
-        temperaturaAmbiente = ct.c_float(presetAGuardar7)
-        transmisividad = ct.c_float(presetAGuardar8)
-        emisividad = ct.c_float(presetAGuardar9)
-        ret = libir.evo_irimager_set_radiation_parameters(emisividad ,transmisividad ,temperaturaAmbiente)
+        self.tempAmbiente = presetAGuardar7       
+        self.transmisividad = presetAGuardar8
+        self.emisividad = presetAGuardar9
+        ret = libir.evo_irimager_set_radiation_parameters(ct.c_float(self.emisividad) ,ct.c_float(self.transmisividad) ,ct.c_float(self.tempAmbiente))
         #a partir de aca comenzamos a obtener la imagen        
         while self._run_flag == True: #capturo la imagen mientras no este activa el flag de detener
                 #get thermal and palette image with metadat
@@ -2174,10 +2176,21 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
                     if ret != 0:                                                        #de haber algun error en el proceso de decrementar lo notificamos y salimos del loop
                         print('error on evo_irimager_get_thermal_palette_image ' + str(ret))
                         break
+                if self._setFocusPosition:
+                    print("seteo la posicion del foco")
+                    ret = libir.evo_irimager_get_focusmotor_pos(ct.byref(focusPosition))
+                    self.focusPositionAnterior = round(focusPosition.value, 2)
+                    print(self.focusPositionAnterior)
+                    newFocusPosition = self.setDefaultFocusPosition
+                    setfocusPosition = ct.c_float(newFocusPosition)#newFocusPosition)                    
+                    ret = libir.evo_irimager_set_focusmotor_pos(setfocusPosition)
+                    self._setFocusPosition = False
+
                 if self._cancelFocusPosition:
                     focusPositionReset = ct.c_float(self.focusPositionAnterior)
                     ret = libir.evo_irimager_set_focusmotor_pos(focusPositionReset)
                     self._cancelFocusPosition = False
+
                 if self._selRango0: #consultamos si se solicito cambiar el rango de temperatura 0
                     print("Cambiamos a rango de temperatura 0")
                     self._selRango0 = False #bajamos el flag despues de realizar el cambio de rango
@@ -2282,6 +2295,11 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
     def decFocusPosition(self):
         self._decFocusPosition = True
     
+    def setFocusPosition(self, valuePositionFoco):
+        self.setDefaultFocusPosition = valuePositionFoco
+        print("valor a bajar a la camara", self.setDefaultFocusPosition)
+        self._setFocusPosition = True
+
     def changeRange0(self):
         #seleccionamos cambiar al rango 0
         print("selccionar cambiar al rango 0")
@@ -2332,9 +2350,10 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
         print("consulto posicion del foco")
         currentFocusPosition = self.focusPositionAnterior
         return currentFocusPosition
+
     def cancelFocusPosition(self, posicionAnterior):
         print("reseteo a la posicion de foco anterior a comenzar el ajuste")
-        self.focusPositionAnterior = int(posicionAnterior)
+        self.focusPositionAnterior = float(posicionAnterior)
         self._cancelFocusPosition = True
 
     def getRange(self):
@@ -2352,7 +2371,22 @@ class VideoThread(QThread): #creo el hilo para manejar la adquisicion de imagen
     def getMinMaxPaletaManual(self):
         print("consulto min max rango manual paleta")
         rangoMinMaxPaletaManual=(self.rangoMinMaxScalePaletteManual["min"],self.rangoMinMaxScalePaletteManual["max"])
-        return rangoMinMaxPaletaManual
+        return rangoMinMaxPaletaManual[0], rangoMinMaxPaletaManual[1]
+    
+    def getTemperaturaAmbiente(self):
+        print("consultamos la temperatura ambiente: ", self.tempAmbiente)
+        tempAmbiente = str(self.tempAmbiente)
+        return tempAmbiente
+    
+    def getTransmisividad(self):
+        print("consultamos la transmisividad ambiente: ", self.transmisividad)
+        transmisividad = str(self.transmisividad)
+        return transmisividad
+
+    def getEmisividad(self):
+        print("consultamos la emisividad del objetivo: ", self.emisividad)
+        emisividadEnCam = f'{self.emisividad:.2f}'
+        return emisividadEnCam
 #***************************************************
 
 #Clase para procesamiento de datos
@@ -3056,6 +3090,95 @@ class PopUPWritePresetFocoCam(QWidget):
             print("seleccion decrementar")
             self.incSelection = False
 
+class PopUpResetPresetFocoCam(QWidget):
+    def __init__(self, miThreadAdqImagen, nameCamera):
+        super().__init__()
+        self.setWindowTitle("Reset Preset Foco Of Camera " + nameCamera)
+        self.valorNombreMedicion = "presetFoco" + nameCamera 
+        layoutPresetCurrentReset = QVBoxLayout()
+        #asigno el hilo
+        self.threadAdqImg = miThreadAdqImagen
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.currentPositionFoco = str(self.threadAdqImg.getFocusPosition())
+        self.valueCurrentPreset = QLineEdit(self.currentPositionFoco)        
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelDefaultPreset = QLabel("Default Preset")
+        self.valuePositionFocoDefaultPreset = 80
+        self.valueDefaultPreset = QLineEdit(str(self.valuePositionFocoDefaultPreset))
+        self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
+        self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentReset.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.labelDefaultPreset)
+        layoutPresetCurrentReset.addWidget(self.valueDefaultPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentDefaultBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okDefaultPreset = QPushButton("Reset")
+        self.okDefaultPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelDefaultPreset = QPushButton("Cancel")
+        self.cancelDefaultPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentDefaultBotones.addWidget(self.okDefaultPreset)
+        layoutPresetCurrentDefaultBotones.addWidget(self.cancelDefaultPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentReset.addLayout(layoutPresetCurrentDefaultBotones)
+        self.setLayout(layoutPresetCurrentReset)
+        self.resize(400,20)
+        self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetCam(self):
+        print("Bajando default value a camara")
+        print(self.valuePositionFocoDefaultPreset)
+        self.threadAdqImg.setFocusPosition(self.valuePositionFocoDefaultPreset)
+        self.valorPresetMedicion = str(self.valuePositionFocoDefaultPreset)
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("Update preset cam a disco")
+        self.close()
+    def cancelUpDatePresetCam(self):
+        print("Cancelar default value a camara")
+        self.close()
 #clase cambio de rango de temperatura
 class PopUpWritePresetTempRangeCam(QWidget):
     def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
@@ -3223,6 +3346,116 @@ class PopUpWritePresetTempRangeCam(QWidget):
         self.valueNewPreset.setText("150 a 900")
         self.threadAdqImg.changeRange2()
 
+class PopUpResetPresetTempRangeCam(QWidget):
+    def __init__(self, miThreadAdqImagen,nameCamera):
+        super().__init__()
+        self.setWindowTitle("Reset Preset Temp Range Of Camera " + nameCamera)
+        self.valorNombreMedicion = "presetRango"+nameCamera
+        layoutPresetCurrentReset = QVBoxLayout()
+        #asigno el hilo
+        self.threadAdqImg = miThreadAdqImagen        
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")        
+        self.currentTempRange = self.threadAdqImg.getRange()
+        self.textCurrentTempRange = "..."
+        if self.currentTempRange==0:
+            self.textCurrentTempRange = "-20 a 120"
+        elif self.currentTempRange==1:
+            self.textCurrentTempRange = "0 a 250"
+        elif self.currentTempRange == 2:
+            self.textCurrentTempRange = "150 a 900"
+
+        self.valueCurrentPreset = QLineEdit(self.textCurrentTempRange)
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelDefaultPreset = QLabel("Default Preset")
+        self.valueTempRangeDefaultPreset = 0
+        self.textDefaultTempRange = "..."
+        if self.valueTempRangeDefaultPreset==0:
+            self.textDefaultTempRange = "-20 a 120"
+        elif self.valueTempRangeDefaultPreset==1:
+            self.textDefaultTempRange = "0 a 250"
+        elif self.valueTempRangeDefaultPreset == 2:
+            self.textDefaultTempRange = "150 a 900"
+        self.valueDefaultPreset = QLineEdit(self.textDefaultTempRange)
+        self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
+        self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentReset.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.labelDefaultPreset)
+        layoutPresetCurrentReset.addWidget(self.valueDefaultPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentDefaultBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okDefaultPreset = QPushButton("Reset")
+        self.okDefaultPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelDefaultPreset = QPushButton("Cancel")
+        self.cancelDefaultPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentDefaultBotones.addWidget(self.okDefaultPreset)
+        layoutPresetCurrentDefaultBotones.addWidget(self.cancelDefaultPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentReset.addLayout(layoutPresetCurrentDefaultBotones)
+        self.setLayout(layoutPresetCurrentReset)
+        self.resize(400,20)
+        self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetCam(self):
+        print("Bajando default value a camara")
+        print(self.valueTempRangeDefaultPreset)
+        if self.valueTempRangeDefaultPreset==0:
+            self.threadAdqImg.changeRange0()
+        elif self.valueTempRangeDefaultPreset==1:
+            self.threadAdqImg.changeRange1()
+        elif self.valueTempRangeDefaultPreset==2:
+            self.threadAdqImg.changeRange2()
+        self.valorPresetMedicion = str(self.valueTempRangeDefaultPreset)
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("Update preset cam a disco")
+        self.close()
+
+    def cancelUpDatePresetCam(self):
+        print("Cancelar default value a camara")
+        self.close()
 #clase cambio de tipo de paleta utilizada en camara
 class PopUpWritePresetPalleteCam(QWidget):
     def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
@@ -3505,6 +3738,50 @@ class PopUpWritePresetPalleteCam(QWidget):
         indiceAlarmRed = 11
         self.threadAdqImg.selPaleta(indiceAlarmRed)
 
+class PopUpResetPresetPalleteCam(QWidget):
+    def __init__(self, miThreadAdqImagen,nameCamera):
+        super().__init__()
+        self.setWindowTitle("Reset Preset Pallete Of Camera "+nameCamera)
+        layoutPresetCurrentReset = QVBoxLayout()
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelDefaultPreset = QLabel("Default Preset")
+        self.valueDefaultPreset = QLineEdit("124.15")
+        self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
+        self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentReset.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.labelDefaultPreset)
+        layoutPresetCurrentReset.addWidget(self.valueDefaultPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentDefaultBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okDefaultPreset = QPushButton("Reset")
+        self.okDefaultPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelDefaultPreset = QPushButton("Cancel")
+        self.cancelDefaultPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentDefaultBotones.addWidget(self.okDefaultPreset)
+        layoutPresetCurrentDefaultBotones.addWidget(self.cancelDefaultPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentReset.addLayout(layoutPresetCurrentDefaultBotones)
+        self.setLayout(layoutPresetCurrentReset)
+        self.resize(400,20)
+        self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetCam(self):
+        print("Bajando default value a camara")
+    
+    def cancelUpDatePresetCam(self):
+        print("Cancelar default value a camara")
+        self.close()
 #clase cambio el tipo de ajuste de limites para la paleta seleccionada
 class PopUpWritePresetAutoManPalleteCam(QWidget):
     def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
@@ -3692,11 +3969,63 @@ class PopUpWritePresetAutoManPalleteCam(QWidget):
         scaleSigma3 = 4
         self.threadAdqImg.selScalePaleta(scaleSigma3)
 
+class PopUpResetPresetAutoManCam(QWidget):
+    def __init__(self, miThreadAdqImagen,nameCamera):
+        super().__init__()
+        self.setWindowTitle("Reset Preset Auto Man Of Camera "+nameCamera)
+        layoutPresetCurrentReset = QVBoxLayout()
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelDefaultPreset = QLabel("Default Preset")
+        self.valueDefaultPreset = QLineEdit("124.15")
+        self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
+        self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentReset.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.labelDefaultPreset)
+        layoutPresetCurrentReset.addWidget(self.valueDefaultPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentDefaultBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okDefaultPreset = QPushButton("Reset")
+        self.okDefaultPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelDefaultPreset = QPushButton("Cancel")
+        self.cancelDefaultPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentDefaultBotones.addWidget(self.okDefaultPreset)
+        layoutPresetCurrentDefaultBotones.addWidget(self.cancelDefaultPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentReset.addLayout(layoutPresetCurrentDefaultBotones)
+        self.setLayout(layoutPresetCurrentReset)
+        self.resize(400,20)
+        self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetCam(self):
+        print("Bajando default value a camara")
+    
+    def cancelUpDatePresetCam(self):
+        print("Cancelar default value a camara")
+        self.close()
 #clase cambio los limites de ajuste en manual
 class PopUpWritePresetLimManualPalleteCam(QWidget):
     def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
         #inicializo        
         super().__init__()        
+        #creo los nombres preset minimo 
+        self.valorNombreMedicion1 = "presetAjusteMinEscalaManualPaleta" + nameCamera
+        #creo los nombres preset maximo
+        self.valorNombreMedicion2 = "presetAjusteMaxEscalaManualPaleta" + nameCamera
+        #cargo valor default preset minimo
+        self.valorPresetMedicion1 = 0
+        #cargo valor default preset maximo
+        self.valorPresetMedicion2 = 40              
         #realizamos la configuracion de pantalla
         print("aca realizamos la configuracion")
         #flag para cerrar ventana y dejar de stremear
@@ -3738,7 +4067,15 @@ class PopUpWritePresetLimManualPalleteCam(QWidget):
         #agregamos los botones de preset acual y cambiado
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        #solicito valores actuales
+        self.valorPresetMedicion1,self.valorPresetMedicion2 = self.threadAdqImg.getMinMaxPaletaManual()
+        #cargo los valores
+        print("valor1 current: ",self.valorPresetMedicion1)
+        print("valor2 current: ",self.valorPresetMedicion2)
+        self.valorPresetMedicionOriginal1 = self.valorPresetMedicion1
+        self.valorPresetMedicionOriginal2 = self.valorPresetMedicion2
+        contenidoActualLimites = "rango manual " + str(self.valorPresetMedicion1) + " hasta " + str(self.valorPresetMedicion2)
+        self.valueCurrentPreset = QLineEdit(contenidoActualLimites)
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
@@ -3776,17 +4113,87 @@ class PopUpWritePresetLimManualPalleteCam(QWidget):
         #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
         #print("aca realizmaos la configuracion de rango de temperatura")
         imagenCamaraUpDate = imageAdq.pixmap()
-        self.image_label_limManualPallete.setPixmap(imagenCamaraUpDate)        
-        
+        self.image_label_limManualPallete.setPixmap(imagenCamaraUpDate)                
         return self.flagdetenerStriming
         
     def okUpDatePresetCam(self):
         #actualico los preset
         print("ok update")
-    
+        self.valorPresetMedicion1,self.valorPresetMedicion2 = self.threadAdqImg.getMinMaxPaletaManual()
+        if os.path.isfile("presetCamera.txt"):
+            presetAGuardar1 = str(self.valorPresetMedicion1)
+            nombrePreset1 = self.valorNombreMedicion1 
+            with open('presetCamera.txt', 'r') as f:                               
+                #realizo logica para buscar datos.
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset1) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == '=':
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar1+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset1 + " = " + presetAGuardar1 + "\n")
+            #preset 2
+            presetAGuardar2 = str(self.valorPresetMedicion2)
+            nombrePreset2 = str(self.valorNombreMedicion2)
+            with open('presetCamera.txt', 'r') as f: 
+                #realizo logica para buscar datos.
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset2) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == '=':
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar2+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset2 + " = " + presetAGuardar2 + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:               
+                presetAguardar2 = self.valorPresetMedicion2
+                nombrePreset2 = self.valorNombreMedicion2                
+                f.write(nombrePreset2 + " = " + presetAguardar2 + "\n")
+        self.flagdetenerStriming = True
     def cancelUpDatePresetCam(self):
         #realizamos la cancelacion de los cambio solicitados
-        print("Cancelar preset a camara")
+        print("Cancelar preset a camara")  
+        self.threadAdqImg.selRangeTempManual(self.valorPresetMedicionOriginal1, self.valorPresetMedicionOriginal2)
         self.flagdetenerStriming = True
     
     def cerrarPopup(self):
@@ -3810,14 +4217,64 @@ class PopUpWritePresetLimManualPalleteCam(QWidget):
         #cambiar los limites del rango manual
         minimoRango = self.limInferiorRangoTempPaletaManual.value()
         maximoRango = self.limSuperiorRangoTempPaletaManual.value()
+        valorAMostrar = "rango manual desde "+str(minimoRango) + " hasta "  + str(maximoRango)
+        self.valueNewPreset.setText(valorAMostrar)
         print("seleccion actualizar limite inferior: {} superior: {}".format(minimoRango, maximoRango))        
         self.threadAdqImg.selRangeTempManual(minimoRango, maximoRango)
 
+class PopUpResetPresetLimManPalleteCam(QWidget):
+    def __init__(self, miThreadAdqImagen,nameCamera):
+        super().__init__()
+        self.setWindowTitle("Reset Preset Lim Man Pallete Of Camera "+nameCamera)
+        layoutPresetCurrentReset = QVBoxLayout()
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelDefaultPreset = QLabel("Default Preset")
+        self.valueDefaultPreset = QLineEdit("124.15")
+        self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
+        self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentReset.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.labelDefaultPreset)
+        layoutPresetCurrentReset.addWidget(self.valueDefaultPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentDefaultBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okDefaultPreset = QPushButton("Reset")
+        self.okDefaultPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelDefaultPreset = QPushButton("Cancel")
+        self.cancelDefaultPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentDefaultBotones.addWidget(self.okDefaultPreset)
+        layoutPresetCurrentDefaultBotones.addWidget(self.cancelDefaultPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentReset.addLayout(layoutPresetCurrentDefaultBotones)
+        self.setLayout(layoutPresetCurrentReset)
+        self.resize(400,20)
+        self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetCam(self):
+        print("Bajando default value a camara")
+    
+    def cancelUpDatePresetCam(self):
+        print("Cancelar default value a camara")
+        self.close()
 #clase cambio los valores de temperatura ambiente
 class PopUpWritePresetTempAmbienteCam(QWidget):
-    def __init__(self, miThreadAdqImagen, imageAdq):
+    def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
         #inicializacion
         super().__init__()
+        #cargo el nombre preset
+        self.valorNombreMedicion = "presetTempAmbiente" + nameCamera
+        #cargamos el valor por defaul
+        self.valorPresetMedicion = "25"
         #realizamos la configuracion pantalla
         print("aca realizamos la configuracion")
         #flag para cerrar ventana y dejar de stremear
@@ -3869,8 +4326,11 @@ class PopUpWritePresetTempAmbienteCam(QWidget):
         layoutEmiTranTemp.addWidget(self.valorInEmisividad)
         #agregamos los botones de preset acual y cambiado
         #valor de preset actual
-        self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        self.labelCurrentPreset = QLabel("Current Preset") 
+        self.tempAmbiente = self.threadAdqImg.getTemperaturaAmbiente()
+        self.tempAmbienteOriginale = self.tempAmbiente
+        self.valueCurrentPreset = QLineEdit(self.tempAmbiente)
+        self.valorInTemperatura.setText(self.tempAmbiente)
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
@@ -3908,17 +4368,58 @@ class PopUpWritePresetTempAmbienteCam(QWidget):
         #realizamos la actualizacion de la imagen con los parametros de rango de temperatura cambiados
         #print("aca realizmaos la configuracion de rango de temperatura")
         imagenCamaraUpDate = imageAdq.pixmap()
-        self.image_label_emTmTrCam.setPixmap(imagenCamaraUpDate)        
-        
+        self.image_label_emTmTrCam.setPixmap(imagenCamaraUpDate)
         return self.flagdetenerStriming
 
     def okUpDatePresetCam(self):
         #actualico los preset
         print("ok update")
+        self.valorPresetMedicion = self.threadAdqImg.getTemperaturaAmbiente()
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("Update preset cam a disco")
+        self.flagdetenerStriming = True
 
     def cancelUpDatePresetCam(self):
         #realizamos la cancelacion de los cambio solicitados
         print("Cancelar preset a camara")
+        valorTemp = float(self.tempAmbienteOriginale) #leemos del Qlineedit el valor de temperatura
+        print("seleccionamos cambiar temperatura ingresada: {}".format(valorTemp)) #tomamos el valor de temperatura y lo mostramos 
+        self.threadAdqImg.incDecTempAmbiente(valorTemp)
         self.flagdetenerStriming = True
 
     def cerrarPopup(self):
@@ -3940,16 +4441,66 @@ class PopUpWritePresetTempAmbienteCam(QWidget):
         textoIngresado = self.valorInTemperatura.text().replace(",",".")
         if textoIngresado.isnumeric(): #verificamos que sea un numero
             valorTemp = float(textoIngresado) #leemos del Qlineedit el valor de temperatura
+            #actualizamos el indicador en la popup
+            self.valueNewPreset.setText(str(valorTemp))
             print("seleccionamos cambiar temperatura ingresada: {}".format(valorTemp)) #tomamos el valor de temperatura y lo mostramos 
             self.threadAdqImg.incDecTempAmbiente(valorTemp) #cargamos en el metodo del hilo para cambiar temperatura
         else:
             print("el valor ingresado no es un numero") 
 
+class PopUpResetPresetTempAmbienteCam(QWidget):
+    def __init__(self, miThreadAdqImagen,nameCamera):
+        super().__init__()
+        self.setWindowTitle("Reset Preset Temp Ambiente Of Camera "+nameCamera)
+        layoutPresetCurrentReset = QVBoxLayout()
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelDefaultPreset = QLabel("Default Preset")
+        self.valueDefaultPreset = QLineEdit("124.15")
+        self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
+        self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentReset.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.labelDefaultPreset)
+        layoutPresetCurrentReset.addWidget(self.valueDefaultPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentDefaultBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okDefaultPreset = QPushButton("Reset")
+        self.okDefaultPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelDefaultPreset = QPushButton("Cancel")
+        self.cancelDefaultPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentDefaultBotones.addWidget(self.okDefaultPreset)
+        layoutPresetCurrentDefaultBotones.addWidget(self.cancelDefaultPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentReset.addLayout(layoutPresetCurrentDefaultBotones)
+        self.setLayout(layoutPresetCurrentReset)
+        self.resize(400,20)
+        self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetCam(self):
+        print("Bajando default value a camara")
+    
+    def cancelUpDatePresetCam(self):
+        print("Cancelar default value a camara")
+        self.close()
 #clase cambio los valores de transmisividad
 class PopUpWritePresetTransmisividadCam(QWidget):
-    def __init__(self, miThreadAdqImagen, imageAdq):
+    def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
         #inicializacion
         super().__init__()
+        #cargo el nombre preset
+        self.valorNombreMedicion = "presetTransmisividad" + nameCamera
+        #cargamos el valor por default
+        self.valorPresetmedicion = "100"
         #realizamos la configuracion pantalla
         print("aca realizamos la configuracion")
         #flag para cerrar ventana y dejar de stremear
@@ -4002,7 +4553,9 @@ class PopUpWritePresetTransmisividadCam(QWidget):
         #agregamos los botones de preset acual y cambiado
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        self.transAmbiente = self.threadAdqImg.getTransmisividad()
+        self.transAmbienteOriginal = self.transAmbiente
+        self.valueCurrentPreset = QLineEdit(self.transAmbiente)
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
@@ -4047,10 +4600,52 @@ class PopUpWritePresetTransmisividadCam(QWidget):
     def okUpDatePresetCam(self):
         #actualico los preset
         print("ok update")
+        self.valorPresetMedicion = self.threadAdqImg.getTransmisividad()
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("Update preset cam a disco")
+        self.flagdetenerStriming = True
+        
 
     def cancelUpDatePresetCam(self):
         #realizamos la cancelacion de los cambio solicitados
         print("Cancelar preset a camara")
+        valorTransmisividad=float(self.transAmbienteOriginal)
+        self.threadAdqImg.incDecTransmisividad(valorTransmisividad)
         self.flagdetenerStriming = True
 
     def cerrarPopup(self):
@@ -4067,6 +4662,8 @@ class PopUpWritePresetTransmisividadCam(QWidget):
         valorTransmisividad = self.valorInTransmisividad.value() / 100
         print("el valor de transmisividad seleccionado: {}".format(valorTransmisividad))
         self.threadAdqImg.incDecTransmisividad(valorTransmisividad)
+        #actualizamos el valor de transmisividad
+        self.valueNewPreset.setText(str(valorTransmisividad))
 
     def cambiarTemperatura(self): #funcion para cambiar la temperatura ambiente
         textoIngresado = self.valorInTemperatura.text().replace(",",".")
@@ -4077,11 +4674,60 @@ class PopUpWritePresetTransmisividadCam(QWidget):
         else:
             print("el valor ingresado no es un numero") 
 
+class PopUpResetPresetTransmisividadCam(QWidget):
+    def __init__(self, miThreadAdqImagen,nameCamera):
+        super().__init__()
+        self.setWindowTitle("Reset Preset Transmisividad Of Camera "+nameCamera)
+        layoutPresetCurrentReset = QVBoxLayout()
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelDefaultPreset = QLabel("Default Preset")
+        self.valueDefaultPreset = QLineEdit("124.15")
+        self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
+        self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentReset.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.labelDefaultPreset)
+        layoutPresetCurrentReset.addWidget(self.valueDefaultPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentDefaultBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okDefaultPreset = QPushButton("Reset")
+        self.okDefaultPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelDefaultPreset = QPushButton("Cancel")
+        self.cancelDefaultPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentDefaultBotones.addWidget(self.okDefaultPreset)
+        layoutPresetCurrentDefaultBotones.addWidget(self.cancelDefaultPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentReset.addLayout(layoutPresetCurrentDefaultBotones)
+        self.setLayout(layoutPresetCurrentReset)
+        self.resize(400,20)
+        self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetCam(self):
+        print("Bajando default value a camara")
+    
+    def cancelUpDatePresetCam(self):
+        print("Cancelar default value a camara")
+        self.close()
+
 #clase cambio los valores de emisividad
 class PopUpWritePresetEmisividadCam(QWidget):
-    def __init__(self, miThreadAdqImagen, imageAdq):
+    def __init__(self, miThreadAdqImagen, imageAdq, nameCamera):
         #inicializacion
         super().__init__()
+        #cargamos el nombre preset
+        self.valorNombreMedicion = "presetEmisividad" + nameCamera
+        #cargamos el valor por default
+        self.valorPresetMedicion = "0.8"
         #realizamos la configuracion pantalla
         print("aca realizamos la configuracion")
         #flag para cerrar ventana y dejar de stremear
@@ -4134,7 +4780,9 @@ class PopUpWritePresetEmisividadCam(QWidget):
         #agregamos los botones de preset acual y cambiado
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        self.emisividad = self.threadAdqImg.getEmisividad()        
+        self.emisividadOriginal = self.emisividad
+        self.valueCurrentPreset = QLineEdit(self.emisividad)
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
@@ -4179,10 +4827,55 @@ class PopUpWritePresetEmisividadCam(QWidget):
     def okUpDatePresetCam(self):
         #actualico los preset
         print("ok update")
+        self.valorPresetMedicion = self.threadAdqImg.getEmisividad()
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        print(filaOriginal)
+                        print(palabraReemplazar)
+                        print(presetAGuardar)
+                        row = row.replace(palabraReemplazar[1], presetAGuardar)
+                        filaAReemplazar = row
+                        print(filaAReemplazar)
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("Update preset cam a disco")
+        self.flagdetenerStriming = True
 
     def cancelUpDatePresetCam(self):
         #realizamos la cancelacion de los cambio solicitados
         print("Cancelar preset a camara")
+        valorEmisividad = float(self.emisividadOriginal)
+        self.threadAdqImg.incDecEmisividad(valorEmisividad)
         self.flagdetenerStriming = True
 
     def cerrarPopup(self):
@@ -4193,6 +4886,7 @@ class PopUpWritePresetEmisividadCam(QWidget):
     def cambiarEmisividad(self):
         valorEmisividad = self.valorInEmisividad.value()
         print("el valor de emisividad seleccionado: {}".format(valorEmisividad))
+        self.valueNewPreset.setText(f'{valorEmisividad:.2f}')#str(valorEmisividad))
         self.threadAdqImg.incDecEmisividad(valorEmisividad)
 
     def cambiarTransmisividad(self): #funcion para cambiar la transmisividad del ambiente
@@ -4209,6 +4903,50 @@ class PopUpWritePresetEmisividadCam(QWidget):
         else:
             print("el valor ingresado no es un numero") 
 
+class PopUpResetPresetEmisividadCam(QWidget):
+    def __init__(self, miThreadAdqImagen,nameCamera):
+        super().__init__()
+        self.setWindowTitle("Reset Preset Emisividad Of Camera " + nameCamera)
+        layoutPresetCurrentReset = QVBoxLayout()
+        #valor de preset actual
+        self.labelCurrentPreset = QLabel("Current Preset")
+        self.valueCurrentPreset = QLineEdit("124.15")
+        self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
+        self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
+        #valor de preset a cambiar
+        self.labelDefaultPreset = QLabel("Default Preset")
+        self.valueDefaultPreset = QLineEdit("124.15")
+        self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
+        self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
+        #agrego los dos widgets al layout
+        layoutPresetCurrentReset.addWidget(self.labelCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.valueCurrentPreset)
+        layoutPresetCurrentReset.addWidget(self.labelDefaultPreset)
+        layoutPresetCurrentReset.addWidget(self.valueDefaultPreset)
+        #layout horizontal para los botones de aceptar rechazar
+        layoutPresetCurrentDefaultBotones = QHBoxLayout()
+        #agrego los botones de control aceptar
+        self.okDefaultPreset = QPushButton("Reset")
+        self.okDefaultPreset.clicked.connect(self.okUpDatePresetCam)
+        self.okDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-curve-270.png")))
+        #agrego el boton de control cancel
+        self.cancelDefaultPreset = QPushButton("Cancel")
+        self.cancelDefaultPreset.clicked.connect(self.cancelUpDatePresetCam)
+        self.cancelDefaultPreset.setIcon(QIcon(os.path.join(basedir,"appIcons","cross-circle-frame.png")))
+        #agrego al layout horizontal
+        layoutPresetCurrentDefaultBotones.addWidget(self.okDefaultPreset)
+        layoutPresetCurrentDefaultBotones.addWidget(self.cancelDefaultPreset)
+        #agrego al layout vertical el horizontal
+        layoutPresetCurrentReset.addLayout(layoutPresetCurrentDefaultBotones)
+        self.setLayout(layoutPresetCurrentReset)
+        self.resize(400,20)
+        self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
+    def okUpDatePresetCam(self):
+        print("Bajando default value a camara")
+    
+    def cancelUpDatePresetCam(self):
+        print("Cancelar default value a camara")
+        self.close()
 #Clase modelo generico de loggin 
 class PopUpLoggin(QWidget):
     def __init__(self):
@@ -6142,7 +6880,7 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset1Cam1.setToolTip("Toggle to change position focus cam 1")
         #Defino la funcion asociada al set y reset de los presets
         enablePreset1Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset1Cam1)
-        disablePreset1Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset1Cam1)
+        disablePreset1Cam1 = partial(self.popUpRestartConfiguracionPresetFocoCam1, valuePreset1Cam1)
         valuePreset1Cam1.stateChanged.connect(lambda x: enablePreset1Cam1() if x else disablePreset1Cam1())
         #        
         contenedorValuePreset1Cam1Layout.addWidget(labelValuePreset1Cam1)
@@ -6163,7 +6901,7 @@ class MainWindow(QWidget):#(QDialog):
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset2Cam1 = partial(self.popUpConfiguracionPreset2Cam1, valuePreset2Cam1)
-        disablePreset2Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset2Cam1)
+        disablePreset2Cam1 = partial(self.popUpRestartConfiguracionPresetTempRangeCam1, valuePreset2Cam1)
         valuePreset2Cam1.stateChanged.connect(lambda x: enablePreset2Cam1() if x else disablePreset2Cam1())
         #  
         #
@@ -6185,7 +6923,7 @@ class MainWindow(QWidget):#(QDialog):
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset3Cam1 = partial(self.popUpConfiguracionPreset3Cam1, valuePreset3Cam1)
-        disablePreset3Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset3Cam1)
+        disablePreset3Cam1 = partial(self.popUpRestartConfiguracionPresetLimManPalleteCam1, valuePreset3Cam1)
         valuePreset3Cam1.stateChanged.connect(lambda x: enablePreset3Cam1() if x else disablePreset3Cam1())
         # 
         #
@@ -6207,7 +6945,7 @@ class MainWindow(QWidget):#(QDialog):
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset4Cam1 = partial(self.popUpConfiguracionPreset4Cam1, valuePreset4Cam1)
-        disablePreset4Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset4Cam1)
+        disablePreset4Cam1 = partial(self.popUpRestartConfiguracionPresetAutoManCam1, valuePreset4Cam1)
         valuePreset4Cam1.stateChanged.connect(lambda x: enablePreset4Cam1() if x else disablePreset4Cam1())
         # 
         #
@@ -6229,7 +6967,7 @@ class MainWindow(QWidget):#(QDialog):
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset5Cam1 = partial(self.popUpConfiguracionPreset5Cam1, valuePreset5Cam1)
-        disablePreset5Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset5Cam1)
+        disablePreset5Cam1 = partial(self.popUpRestartConfiguracionPresetPalleteCam1, valuePreset5Cam1)
         valuePreset5Cam1.stateChanged.connect(lambda x: enablePreset5Cam1() if x else disablePreset5Cam1())
         #
         #
@@ -6251,7 +6989,7 @@ class MainWindow(QWidget):#(QDialog):
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset6Cam1 = partial(self.popUpConfiguracionPreset6Cam1, valuePreset6Cam1)
-        disablePreset6Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset6Cam1)
+        disablePreset6Cam1 = partial(self.popUpRestartConfiguracionPresetTempAmbienteCam1, valuePreset6Cam1)
         valuePreset6Cam1.stateChanged.connect(lambda x: enablePreset6Cam1() if x else disablePreset6Cam1())
         #
         #
@@ -6273,7 +7011,7 @@ class MainWindow(QWidget):#(QDialog):
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset7Cam1 = partial(self.popUpConfiguracionPreset7Cam1, valuePreset7Cam1)
-        disablePreset7Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset7Cam1)
+        disablePreset7Cam1 = partial(self.popUpRestartConfiguracionPresetTransmisividadCam1, valuePreset7Cam1)
         valuePreset7Cam1.stateChanged.connect(lambda x: enablePreset7Cam1() if x else disablePreset7Cam1())
         #
         #
@@ -6295,7 +7033,7 @@ class MainWindow(QWidget):#(QDialog):
         #
         #Defino la funcion asociada al set y reset de los presets
         enablePreset8Cam1 = partial(self.popUpConfiguracionPreset8Cam1, valuePreset8Cam1)
-        disablePreset8Cam1 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset8Cam1)
+        disablePreset8Cam1 = partial(self.popUpRestartConfiguracionPresetEmisividadCam1, valuePreset8Cam1)
         valuePreset8Cam1.stateChanged.connect(lambda x: enablePreset8Cam1() if x else disablePreset8Cam1())
         #
         #
@@ -7715,7 +8453,7 @@ class MainWindow(QWidget):#(QDialog):
     def popUpConfiguracionPreset6Cam1(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionTmp = PopUpWritePresetTempAmbienteCam(self.thread, self.image_label)
+            self.configuracionTmp = PopUpWritePresetTempAmbienteCam(self.thread, self.image_label, nameCamera="cam1")
             self.configuracionTmp.show()
             print("mostramos popup cambio de temperatura")
             self.mostrarImagenPopUpCambioTmpAmb = True
@@ -7723,7 +8461,7 @@ class MainWindow(QWidget):#(QDialog):
     def popUpConfiguracionPreset7Cam1(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionTmd = PopUpWritePresetTransmisividadCam(self.thread, self.image_label)
+            self.configuracionTmd = PopUpWritePresetTransmisividadCam(self.thread, self.image_label, nameCamera="cam1")
             self.configuracionTmd.show()
             print("mostramos popup cambio de transmisividad")
             self.mostrarImagenPopUpCambioTmdAmb = True
@@ -7731,7 +8469,7 @@ class MainWindow(QWidget):#(QDialog):
     def popUpConfiguracionPreset8Cam1(self, checkbox):
         if checkbox.isChecked() == True:
             #creamos un hilo para mostrar la imagen y permitir ajustar el rango de emisividad 
-            self.configuracionEmi = PopUpWritePresetEmisividadCam(self.thread, self.image_label)
+            self.configuracionEmi = PopUpWritePresetEmisividadCam(self.thread, self.image_label, nameCamera="cam1")
             self.configuracionEmi.show()
             print("mostramos popup cambio de emisividad")
             self.mostrarImagenPopUpCambioEmisividad = True
@@ -7741,6 +8479,55 @@ class MainWindow(QWidget):#(QDialog):
         if checkbox.isChecked() == False:            
             self.dlgDefaultPresetCam1 = PopUpResetPresetCam()
             self.dlgDefaultPresetCam1.show()
+
+    def popUpRestartConfiguracionPresetFocoCam1(self, checkbox):
+        print("reset preset foco seleccion en camara 1")
+        if checkbox.isChecked() == False:            
+            self.dlgDefaultPresetCam1 = PopUpResetPresetFocoCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+            self.dlgDefaultPresetCam1.show()
+    
+    def popUpRestartConfiguracionPresetTempRangeCam1(self, checkbox):
+        print("reset preset foco seleccion en camara 1")
+        if checkbox.isChecked() == False:            
+            self.dlgDefaultPresetCam1 = PopUpResetPresetTempRangeCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+            self.dlgDefaultPresetCam1.show()
+
+    def popUpRestartConfiguracionPresetPalleteCam1(self, checkbox):
+        print("reset preset foco seleccion en camara 1")
+        if checkbox.isChecked() == False:            
+            self.dlgDefaultPresetCam1 = PopUpResetPresetPalleteCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+            self.dlgDefaultPresetCam1.show()
+    
+    def popUpRestartConfiguracionPresetAutoManCam1(self, checkbox):
+        print("reset preset foco seleccion en camara 1")
+        if checkbox.isChecked() == False:            
+            self.dlgDefaultPresetCam1 = PopUpResetPresetAutoManCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+            self.dlgDefaultPresetCam1.show()
+
+    def popUpRestartConfiguracionPresetLimManPalleteCam1(self, checkbox):
+        print("reset preset foco seleccion en camara 1")
+        if checkbox.isChecked() == False:            
+            self.dlgDefaultPresetCam1 = PopUpResetPresetLimManPalleteCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+            self.dlgDefaultPresetCam1.show()
+
+    def popUpRestartConfiguracionPresetTempAmbienteCam1(self, checkbox):
+        print("reset preset foco seleccion en camara 1")
+        if checkbox.isChecked() == False:            
+            self.dlgDefaultPresetCam1 = PopUpResetPresetTempAmbienteCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+            self.dlgDefaultPresetCam1.show()
+
+    def popUpRestartConfiguracionPresetTransmisividadCam1(self, checkbox):
+        print("reset preset foco seleccion en camara 1")
+        if checkbox.isChecked() == False:            
+            self.dlgDefaultPresetCam1 = PopUpResetPresetTransmisividadCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+            self.dlgDefaultPresetCam1.show()
+    
+    def popUpRestartConfiguracionPresetEmisividadCam1(self, checkbox):
+        print("reset preset foco seleccion en camara 1")
+        if checkbox.isChecked() == False:            
+            self.dlgDefaultPresetCam1 = PopUpResetPresetEmisividadCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+            self.dlgDefaultPresetCam1.show()
+
     #defino la funcion asociada con el cambio de preset de la camara 2
     def popUpConfiguracionPresetCam2(self, checkbox):
         print("cambiar preset seleccionado en camara 2")
