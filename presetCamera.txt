@@ -1,9 +1,9 @@
 presetFococam1 = 60.0
 presetRangocam1 = 0
-presetPaletacam1 = 2
-presetAjustePaletacam1 = 1
-presetAjusteMinEscalaManualPaletacam1 = 50
-presetAjusteMaxEscalaManualPaletacam1 = 66
-presetTempAmbientecam1 = 25.0
-presetTransmisividadcam1 = 0.75
-presetEmisividadcam1 = 0.69
+presetPaletacam1 = 3
+presetAjustePaletacam1 = 2
+presetAjusteMinEscalaManualPaletacam1 = 30
+presetAjusteMaxEscalaManualPaletacam1 = 40
+presetTempAmbientecam1 = 25
+presetTransmisividadcam1 = 1
+presetEmisividadcam1 = 0.8

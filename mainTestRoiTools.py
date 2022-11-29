@@ -3742,15 +3742,67 @@ class PopUpResetPresetPalleteCam(QWidget):
     def __init__(self, miThreadAdqImagen,nameCamera):
         super().__init__()
         self.setWindowTitle("Reset Preset Pallete Of Camera "+nameCamera)
+        self.valorNombreMedicion = "presetPaleta" + nameCamera
+        #asigno el hilo
+        self.threadAdqImg = miThreadAdqImagen
         layoutPresetCurrentReset = QVBoxLayout()
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        #solicitamos al hilo de la camara el valor de rango actual
+        self.currentPalleteRange = self.threadAdqImg.getTipoPaleta()
+        self.textCurrentPalleteRange = "..."
+        #lista de paletas 
+        if self.currentPalleteRange == 1:
+            self.textCurrentPalleteRange = "AlarmBlue"
+        elif self.currentPalleteRange == 2:
+            self.textCurrentPalleteRange = "AlarmBlueHi"
+        elif self.currentPalleteRange == 3:
+            self.textCurrentPalleteRange = "GrayBW"
+        elif self.currentPalleteRange == 4:
+            self.textCurrentPalleteRange = "GrayWB"
+        elif self.currentPalleteRange == 5:
+            self.textCurrentPalleteRange = "AlarmGreen"
+        elif self.currentPalleteRange == 6:
+            self.textCurrentPalleteRange = "Iron"
+        elif self.currentPalleteRange == 7:
+            self.textCurrentPalleteRange = "IronHi"
+        elif self.currentPalleteRange == 8:
+            self.textCurrentPalleteRange = "Medical"
+        elif self.currentPalleteRange == 9:
+            self.textCurrentPalleteRange = "Rainbow"
+        elif self.currentPalleteRange == 10:
+            self.textCurrentPalleteRange = "RainbowHi"
+        elif self.currentPalleteRange == 11:
+            self.textCurrentPalleteRange = "AlarmRed"
+        self.valueCurrentPreset = QLineEdit(self.textCurrentPalleteRange)
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
         self.labelDefaultPreset = QLabel("Default Preset")
-        self.valueDefaultPreset = QLineEdit("124.15")
+        self.currentDefaultPalleteRange = 3
+        if self.currentDefaultPalleteRange == 1:
+            self.textCurrentDefaultPalleteRange = "AlarmBlue"
+        elif self.currentDefaultPalleteRange == 2:
+            self.textCurrentDefaultPalleteRange = "AlarmBlueHi"
+        elif self.currentDefaultPalleteRange == 3:
+            self.textCurrentDefaultPalleteRange = "GrayBW"
+        elif self.currentDefaultPalleteRange == 4:
+            self.textCurrentDefaultPalleteRange = "GrayWB"
+        elif self.currentDefaultPalleteRange == 5:
+            self.textCurrentDefaultPalleteRange = "AlarmGreen"
+        elif self.currentDefaultPalleteRange == 6:
+            self.textCurrentDefaultPalleteRange = "Iron"
+        elif self.currentDefaultPalleteRange == 7:
+            self.textCurrentDefaultPalleteRange = "IronHi"
+        elif self.currentDefaultPalleteRange == 8:
+            self.textCurrentDefaultPalleteRange = "Medical"
+        elif self.currentDefaultPalleteRange == 9:
+            self.textCurrentDefaultPalleteRange = "Rainbow"
+        elif self.currentDefaultPalleteRange == 10:
+            self.textCurrentDefaultPalleteRange = "RainbowHi"
+        elif self.currentDefaultPalleteRange == 11:
+            self.textCurrentDefaultPalleteRange = "AlarmRed"
+        self.valueDefaultPreset = QLineEdit(self.textCurrentDefaultPalleteRange)
         self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
         self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
         #agrego los dos widgets al layout
@@ -3778,7 +3830,47 @@ class PopUpResetPresetPalleteCam(QWidget):
         self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
     def okUpDatePresetCam(self):
         print("Bajando default value a camara")
-    
+        self.threadAdqImg.selPaleta(self.currentDefaultPalleteRange)
+        self.valorPresetMedicion = str(self.currentDefaultPalleteRange)
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("Update preset cam a disco")
+        self.close()
+
     def cancelUpDatePresetCam(self):
         print("Cancelar default value a camara")
         self.close()
@@ -3973,15 +4065,39 @@ class PopUpResetPresetAutoManCam(QWidget):
     def __init__(self, miThreadAdqImagen,nameCamera):
         super().__init__()
         self.setWindowTitle("Reset Preset Auto Man Of Camera "+nameCamera)
+        self.valorNombreMedicion = "presetAjustePaleta" + nameCamera
         layoutPresetCurrentReset = QVBoxLayout()
+        #asigno el hilo
+        self.threadAdqImg = miThreadAdqImagen
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        #valor preset actual
+        self.curenteModeManAuto = self.threadAdqImg.getManAuto()
+        self.textCurrentModeManAuto = "..."
+        if self.curenteModeManAuto == 1:
+            self.textCurrentModeManAuto = "Manual"
+        elif self.curenteModeManAuto == 2:
+            self.textCurrentModeManAuto = "Automatico"
+        elif self.curenteModeManAuto == 3:
+            self.textCurrentModeManAuto = "1SigmaDesv"
+        elif self.curenteModeManAuto == 4:
+            self.textCurrentModeManAuto = "3SigmaDesv"
+        self.valueCurrentPreset = QLineEdit(self.textCurrentModeManAuto)
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
         self.labelDefaultPreset = QLabel("Default Preset")
-        self.valueDefaultPreset = QLineEdit("124.15")
+        self.valueModeManAutoDefault = 2
+        self.textDefaultModeManAutoDefault = "..."
+        if self.valueModeManAutoDefault == 1:
+            self.textDefaultModeManAutoDefault = "Manual"
+        elif self.valueModeManAutoDefault == 2:
+            self.textDefaultModeManAutoDefault = "Automatico"
+        elif self.valueModeManAutoDefault == 3:
+            self.textDefaultModeManAutoDefault = "1SigmaDesv"
+        elif self.valueModeManAutoDefault == 4:
+            self.textDefaultModeManAutoDefault = "3SigmaDesv"
+        self.valueDefaultPreset = QLineEdit(self.textDefaultModeManAutoDefault)
         self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
         self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
         #agrego los dos widgets al layout
@@ -4009,7 +4125,49 @@ class PopUpResetPresetAutoManCam(QWidget):
         self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
     def okUpDatePresetCam(self):
         print("Bajando default value a camara")
-    
+        print(self.valueModeManAutoDefault)
+        scaleModeManAuto = self.valueModeManAutoDefault
+        self.threadAdqImg.selScalePaleta(scaleModeManAuto)
+        self.valorPresetMedicion = str(self.valueModeManAutoDefault)
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("Update preset cam a disco")        
+        self.close()
     def cancelUpDatePresetCam(self):
         print("Cancelar default value a camara")
         self.close()
@@ -4226,15 +4384,25 @@ class PopUpResetPresetLimManPalleteCam(QWidget):
     def __init__(self, miThreadAdqImagen,nameCamera):
         super().__init__()
         self.setWindowTitle("Reset Preset Lim Man Pallete Of Camera "+nameCamera)
+        self.valorNombreMedicion1 = "presetAjusteMinEscalaManualPaleta" + nameCamera
+        self.valorNombreMedicion2 = "presetAjusteMaxEscalaManualPaleta" + nameCamera
+        #hilo
+        self.threadAdqImg = miThreadAdqImagen
         layoutPresetCurrentReset = QVBoxLayout()
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        #solicitamos al hilo de la camara
+        minimo, maximo = self.threadAdqImg.getMinMaxPaletaManual()
+        self.currentMinEscalaManualPaleta = minimo
+        self.currentMaxEscalaManualPaleta = maximo
+        self.valueCurrentPreset = QLineEdit("rango: "+str(self.currentMinEscalaManualPaleta)+"-"+str(self.currentMaxEscalaManualPaleta))
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
         self.labelDefaultPreset = QLabel("Default Preset")
-        self.valueDefaultPreset = QLineEdit("124.15")
+        self.currentMinEscalaManualPaletaDefault = 30
+        self.currentMaxEscalaManualPaletaDefault = 40
+        self.valueDefaultPreset = QLineEdit("rango: "+str(self.currentMinEscalaManualPaletaDefault)+"-"+str(self.currentMaxEscalaManualPaletaDefault))
         self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
         self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
         #agrego los dos widgets al layout
@@ -4262,7 +4430,79 @@ class PopUpResetPresetLimManPalleteCam(QWidget):
         self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
     def okUpDatePresetCam(self):
         print("Bajando default value a camara")
-    
+        self.threadAdqImg.selRangeTempManual(self.currentMinEscalaManualPaletaDefault,self.currentMaxEscalaManualPaletaDefault)
+        self.valorPresetMedicion1 = self.currentMinEscalaManualPaletaDefault
+        self.valorPresetMedicion2 = self.currentMaxEscalaManualPaletaDefault
+        if os.path.isfile("presetCamera.txt"):
+            presetAGuardar1 = str(self.valorPresetMedicion1)
+            nombrePreset1 = self.valorNombreMedicion1 
+            with open('presetCamera.txt', 'r') as f:                               
+                #realizo logica para buscar datos.
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset1) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == '=':
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar1+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset1 + " = " + presetAGuardar1 + "\n")
+            #preset 2
+            presetAGuardar2 = str(self.valorPresetMedicion2)
+            nombrePreset2 = str(self.valorNombreMedicion2)
+            with open('presetCamera.txt', 'r') as f: 
+                #realizo logica para buscar datos.
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset2) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == '=':
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar2+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset2 + " = " + presetAGuardar2 + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:               
+                presetAguardar2 = self.valorPresetMedicion2
+                nombrePreset2 = self.valorNombreMedicion2                
+                f.write(nombrePreset2 + " = " + presetAguardar2 + "\n")
+        self.close()
     def cancelUpDatePresetCam(self):
         print("Cancelar default value a camara")
         self.close()
@@ -4452,15 +4692,20 @@ class PopUpResetPresetTempAmbienteCam(QWidget):
     def __init__(self, miThreadAdqImagen,nameCamera):
         super().__init__()
         self.setWindowTitle("Reset Preset Temp Ambiente Of Camera "+nameCamera)
+        self.valorNombreMedicion = "presetTempAmbiente"+nameCamera
+        #asigno el hilo
+        self.threadAdqImg = miThreadAdqImagen
         layoutPresetCurrentReset = QVBoxLayout()
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        self.currentTempAmbiente = self.threadAdqImg.getTemperaturaAmbiente()
+        self.valueCurrentPreset = QLineEdit(str(self.currentTempAmbiente))
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
         self.labelDefaultPreset = QLabel("Default Preset")
-        self.valueDefaultPreset = QLineEdit("124.15")
+        self.currentTempAmbienteDefault = 25
+        self.valueDefaultPreset = QLineEdit(str(self.currentTempAmbienteDefault))        
         self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
         self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
         #agrego los dos widgets al layout
@@ -4488,7 +4733,47 @@ class PopUpResetPresetTempAmbienteCam(QWidget):
         self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
     def okUpDatePresetCam(self):
         print("Bajando default value a camara")
-    
+        self.valorPresetMedicion = str(self.currentTempAmbienteDefault)
+        self.threadAdqImg.incDecTempAmbiente(self.currentTempAmbienteDefault)
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("Update preset cam a disco")
+        self.close()
+
     def cancelUpDatePresetCam(self):
         print("Cancelar default value a camara")
         self.close()
@@ -4678,15 +4963,21 @@ class PopUpResetPresetTransmisividadCam(QWidget):
     def __init__(self, miThreadAdqImagen,nameCamera):
         super().__init__()
         self.setWindowTitle("Reset Preset Transmisividad Of Camera "+nameCamera)
+        self.valorNombreMedicion = "presetTransmisividad" + nameCamera
+        #asigno el hilo
+        self.threadAdqImg = miThreadAdqImagen
         layoutPresetCurrentReset = QVBoxLayout()
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        self.currentTransmisividad = self.threadAdqImg.getTransmisividad()
+        self.valueCurrentPreset = QLineEdit(self.currentTransmisividad)
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
         self.labelDefaultPreset = QLabel("Default Preset")
-        self.valueDefaultPreset = QLineEdit("124.15")
+        self.currentTransmisividadDefault = 1
+        self.enPorcentajeCurrentTransmisividadDefault = self.currentTransmisividadDefault * 100
+        self.valueDefaultPreset = QLineEdit(str(self.enPorcentajeCurrentTransmisividadDefault))
         self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
         self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
         #agrego los dos widgets al layout
@@ -4714,7 +5005,47 @@ class PopUpResetPresetTransmisividadCam(QWidget):
         self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
     def okUpDatePresetCam(self):
         print("Bajando default value a camara")
-    
+        self.valorPresetMedicion = str(self.currentTransmisividadDefault)
+        self.threadAdqImg.incDecTransmisividad(self.currentTransmisividadDefault)
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1]+"\n", presetAGuardar+"\n")
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        print("Update preset cam a disco")
+        self.close()
+
     def cancelUpDatePresetCam(self):
         print("Cancelar default value a camara")
         self.close()
@@ -4907,15 +5238,20 @@ class PopUpResetPresetEmisividadCam(QWidget):
     def __init__(self, miThreadAdqImagen,nameCamera):
         super().__init__()
         self.setWindowTitle("Reset Preset Emisividad Of Camera " + nameCamera)
+        self.valorNombreMedicion = "presetEmisividad" + nameCamera
+        #asigno el hilo
+        self.threadAdqImg = miThreadAdqImagen
         layoutPresetCurrentReset = QVBoxLayout()
         #valor de preset actual
         self.labelCurrentPreset = QLabel("Current Preset")
-        self.valueCurrentPreset = QLineEdit("124.15")
+        self.currentEmisividad = self.threadAdqImg.getEmisividad()
+        self.valueCurrentPreset = QLineEdit(str(self.currentEmisividad))
         self.valueCurrentPreset.setStyleSheet("border: 2px solid black; background-color : lightgray;")        
         self.labelCurrentPreset.setBuddy(self.valueCurrentPreset)
         #valor de preset a cambiar
         self.labelDefaultPreset = QLabel("Default Preset")
-        self.valueDefaultPreset = QLineEdit("124.15")
+        self.currentEmisividadDefault = 0.80
+        self.valueDefaultPreset = QLineEdit(str(self.currentEmisividadDefault))
         self.valueDefaultPreset.setStyleSheet("border: 2px solid black; background-color:lightgreen;")
         self.labelDefaultPreset.setBuddy(self.valueDefaultPreset)
         #agrego los dos widgets al layout
@@ -4943,6 +5279,49 @@ class PopUpResetPresetEmisividadCam(QWidget):
         self.labelDefaultPreset.setFocus(Qt.NoFocusReason)
     def okUpDatePresetCam(self):
         print("Bajando default value a camara")
+        self.valorPresetMedicion = str(self.currentEmisividadDefault)
+        self.threadAdqImg.incDecEmisividad(self.currentEmisividadDefault)
+        print(self.currentEmisividadDefault)
+        if os.path.isfile("presetCamera.txt"):
+            with open('presetCamera.txt', 'r') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                lines = f.readlines()
+                indiceLineas = 0
+                flagEncontrePalabra = False
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras = row.split()
+                        indicePalabraReemplazar = 0
+                        for palabras in listaPalabras:
+                            if palabras == "=":
+                                break
+                            indicePalabraReemplazar += 1
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:]
+                        filaOriginal = row
+                        row = row.replace(palabraReemplazar[1], presetAGuardar)
+                        filaAReemplazar = row
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            
+            if flagEncontrePalabra:
+                with open('presetCamera.txt', 'r') as f:
+                    textoCompleto = f.read()
+                with open('presetCamera.txt', 'w') as f:                    
+                    textoCompleto = textoCompleto.replace(filaOriginal, filaAReemplazar)
+                    f.write(textoCompleto)
+            else:
+                with open('presetCamera.txt', 'a') as f:
+                    f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        else:
+            with open('presetCamera.txt', 'w') as f:
+                presetAGuardar = self.valorPresetMedicion
+                nombrePreset = self.valorNombreMedicion
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        
+        print("Update preset cam a disco")
+        self.close()
     
     def cancelUpDatePresetCam(self):
         print("Cancelar default value a camara")
