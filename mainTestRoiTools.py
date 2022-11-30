@@ -5451,24 +5451,101 @@ class MainWindow(QWidget):#(QDialog):
         #
         #creo los valores para ser cargados con el nivel de alarma
         #
-        self.valorNuevoPresetRoiMinRect1 = QLabel("0")
-        self.valorNuevoPresetRoiAvgRect1 = QLabel("0")
-        self.valorNuevoPresetRoiMaxRect1 = QLabel("0")
-        self.valorNuevoPresetRoiMinLine1 = QLabel("0")
-        self.valorNuevoPresetRoiAvgLine1 = QLabel("0")
-        self.valorNuevoPresetRoiMaxLine1 = QLabel("0")
-        self.valorNuevoPresetRoiMinEllipse1 = QLabel("0")
-        self.valorNuevoPresetRoiAvgEllipse1 = QLabel("0")
-        self.valorNuevoPresetRoiMaxEllipse1 = QLabel("0")
-        self.valorNuevoPresetRoiMinRect2 = QLabel("0")
-        self.valorNuevoPresetRoiAvgRect2 = QLabel("0")
-        self.valorNuevoPresetRoiMaxRect2 = QLabel("0")
-        self.valorNuevoPresetRoiMinLine2 = QLabel("0")
-        self.valorNuevoPresetRoiAvgLine2 = QLabel("0")
-        self.valorNuevoPresetRoiMaxLine2 = QLabel("0")
-        self.valorNuevoPresetRoiMinEllipse2 = QLabel("0")
-        self.valorNuevoPresetRoiAvgEllipse2 = QLabel("0")
-        self.valorNuevoPresetRoiMaxEllipse2 = QLabel("0")
+        flagPresetAplicCurrent, presetCurrentAplic = self.inicializacionPreset(nombre="MinRoiRect1", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMinRect1 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMinRect1 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic= self.inicializacionPreset(nombre="AvgRoiRect1", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiAvgRect1 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiAvgRect1 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="MaxRoiRect1", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMaxRect1 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMaxRect1 = QLabel("25")
+        #
+        flagPresetAplicCurrent, presetCurrentAplic = self.inicializacionPreset(nombre="MinRoiLine1", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMinLine1 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMinLine1 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic = self.inicializacionPreset(nombre="AvgRoiLine1", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiAvgLine1 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiAvgLine1 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="MaxRoiLine1", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMaxLine1 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMaxLine1 = QLabel("25")
+        #
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="MinRoiEllipse1", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMinEllipse1 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMinEllipse1 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="AvgRoiEllipse1", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiAvgEllipse1 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiAvgEllipse1 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="MaxRoiEllipse1", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMaxEllipse1 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMaxEllipse1 = QLabel("25")
+        #
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="MinRoiRect2", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMinRect2 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMinRect2 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="AvgRoiRect2", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiAvgRect2 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiAvgRect2 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="MaxRoiRect2", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMaxRect2 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMaxRect2 = QLabel("25")        
+        #
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="MinRoiLine2", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMinLine2 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMinLine2 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="AvgRoiLine2", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiAvgLine2 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiAvgLine2 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="MaxRoiLine2", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMaxLine2 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMaxLine2 = QLabel("25")
+        #
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="MinRoiEllipse2", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMinEllipse2 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMinEllipse2 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="AvgRoiEllipse2", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiAvgEllipse2 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiAvgEllipse2 = QLabel("25")
+        flagPresetAplicCurrent, presetCurrentAplic=self.inicializacionPreset(nombre="MaxRoiEllipse2", valor="25")
+        if flagPresetAplicCurrent:
+            self.valorNuevoPresetRoiMaxEllipse2 = QLabel(presetCurrentAplic)
+        else:
+            self.valorNuevoPresetRoiMaxEllipse2 = QLabel("25")
         #*****cargo la clase asociada a la comunicacion con la camara
         #*****optris
         #
@@ -5959,8 +6036,8 @@ class MainWindow(QWidget):#(QDialog):
         contenedorIzqTab1 = QWidget()        
         contenedorIzqTab1Layout = QVBoxLayout()
         #creo label 1
-        label1Tab1 = QLabel("Min")
-        label1Tab1.setFixedSize(QSize(16,16))
+        label1Tab1 = QLabel("MinR")
+        label1Tab1.setFixedSize(QSize(25,16))
         label1Tab1.setStyleSheet("border-style: none;")
         #creo boton 1
         boton1Tab1 = AnimatedToggle()
@@ -5976,8 +6053,8 @@ class MainWindow(QWidget):#(QDialog):
         self.valor1IndTab1MinRoi1Rect.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
         self.valor1IndTab1MinRoi1Rect.setFixedSize(QSize(40,23))
         #creo label 11
-        label11Tab1 = QLabel("Min")
-        label11Tab1.setFixedSize(QSize(16,16))
+        label11Tab1 = QLabel("MinL")
+        label11Tab1.setFixedSize(QSize(25,16))
         label11Tab1.setStyleSheet("border-style: none;")
         #creo boton 11
         boton11Tab1 = AnimatedToggle()
@@ -5993,8 +6070,8 @@ class MainWindow(QWidget):#(QDialog):
         self.valor11IndTab1MinRoi1Line.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
         self.valor11IndTab1MinRoi1Line.setFixedSize(QSize(40,23))
         #creo label 12
-        label12Tab1 = QLabel("Min")
-        label12Tab1.setFixedSize(QSize(16,16))
+        label12Tab1 = QLabel("MinE")
+        label12Tab1.setFixedSize(QSize(25,16))
         label12Tab1.setStyleSheet("border-style: none;")
         #creo boton 12
         boton12Tab1 = AnimatedToggle()
@@ -6010,8 +6087,8 @@ class MainWindow(QWidget):#(QDialog):
         self.valor12IndTab1MinRoi1Ellipse.setStyleSheet("border: 2px solid green;border-radius: 4px;padding: 2px; text-align:center; background-color: lightgreen;")
         self.valor12IndTab1MinRoi1Ellipse.setFixedSize(QSize(40,23))
         #creo label 2
-        label2Tab1 = QLabel("Avg")
-        label2Tab1.setFixedSize(QSize(16,16))
+        label2Tab1 = QLabel("AvgR")
+        label2Tab1.setFixedSize(QSize(25,16))
         label2Tab1.setStyleSheet("border-style: none;")
         #creo el boton 2
         boton2Tab1 = AnimatedToggle()
@@ -6027,8 +6104,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton2Tab1 = partial(self.popUpResetBotonTab1, boton2Tab1)
         boton2Tab1.stateChanged.connect(lambda x: enableBoton2Tab1() if x else disableBoton2Tab1())
         #creo label 21
-        label21Tab1 = QLabel("Avg")
-        label21Tab1.setFixedSize(QSize(16,16))
+        label21Tab1 = QLabel("AvgL")
+        label21Tab1.setFixedSize(QSize(25,16))
         label21Tab1.setStyleSheet("border-style: none;")
         #creo el boton 21
         boton21Tab1 = AnimatedToggle()
@@ -6044,8 +6121,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton21Tab1 = partial(self.popUpResetBotonTab1, boton21Tab1)
         boton21Tab1.stateChanged.connect(lambda x: enableBoton21Tab1() if x else disableBoton21Tab1())
          #creo label 22
-        label22Tab1 = QLabel("Avg")
-        label22Tab1.setFixedSize(QSize(16,16))
+        label22Tab1 = QLabel("AvgE")
+        label22Tab1.setFixedSize(QSize(25,16))
         label22Tab1.setStyleSheet("border-style: none;")
         #creo el boton 22
         boton22Tab1 = AnimatedToggle()
@@ -6061,8 +6138,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton22Tab1 = partial(self.popUpResetBotonTab1, boton22Tab1)
         boton22Tab1.stateChanged.connect(lambda x: enableBoton22Tab1() if x else disableBoton22Tab1())
         #creo label 3
-        label3Tab1 = QLabel("Max")
-        label3Tab1.setFixedSize(QSize(16,16))
+        label3Tab1 = QLabel("MaxR")
+        label3Tab1.setFixedSize(QSize(25,16))
         label3Tab1.setStyleSheet("border-style: none;")
         #creo el boton 3
         boton3Tab1 = AnimatedToggle()
@@ -6078,8 +6155,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton3Tab1 = partial(self.popUpResetBotonTab1, boton3Tab1)
         boton3Tab1.stateChanged.connect(lambda x: enableBoton3Tab1() if x else disableBoton3Tab1())
         #creo label 31
-        label31Tab1 = QLabel("Max")
-        label31Tab1.setFixedSize(QSize(16,16))
+        label31Tab1 = QLabel("MaxL")
+        label31Tab1.setFixedSize(QSize(25,16))
         label31Tab1.setStyleSheet("border-style: none;")
         #creo el boton 31
         boton31Tab1 = AnimatedToggle()
@@ -6095,8 +6172,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton31Tab1 = partial(self.popUpResetBotonTab1, boton31Tab1)
         boton31Tab1.stateChanged.connect(lambda x: enableBoton31Tab1() if x else disableBoton31Tab1())
          #creo label 32
-        label32Tab1 = QLabel("Max")
-        label32Tab1.setFixedSize(QSize(16,16))
+        label32Tab1 = QLabel("MaxE")
+        label32Tab1.setFixedSize(QSize(25,16))
         label32Tab1.setStyleSheet("border-style: none;")
         #creo el boton 32
         boton32Tab1 = AnimatedToggle()
@@ -6186,8 +6263,8 @@ class MainWindow(QWidget):#(QDialog):
         contenedorDerTab1 = QWidget()
         contenedorDerTab1Layout = QVBoxLayout()
         #creo label 4
-        label4Tab1 = QLabel("Min")
-        label4Tab1.setFixedSize(QSize(16,16))
+        label4Tab1 = QLabel("MinR")
+        label4Tab1.setFixedSize(QSize(25,16))
         label4Tab1.setStyleSheet("border-style: none;")
         #creo boton 3
         boton4Tab1 = AnimatedToggle()
@@ -6203,8 +6280,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton4Tab1 = partial(self.popUpResetBotonTab1, boton4Tab1)
         boton4Tab1.stateChanged.connect(lambda x: enableBoton4Tab1() if x else disableBoton4Tab1())
         #creo label 41
-        label41Tab1 = QLabel("Min")
-        label41Tab1.setFixedSize(QSize(16,16))
+        label41Tab1 = QLabel("MinL")
+        label41Tab1.setFixedSize(QSize(25,16))
         label41Tab1.setStyleSheet("border-style: none;")
         #creo boton 41
         boton41Tab1 = AnimatedToggle()
@@ -6220,8 +6297,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton41Tab1 = partial(self.popUpResetBotonTab1, boton41Tab1)
         boton41Tab1.stateChanged.connect(lambda x: enableBoton41Tab1() if x else disableBoton41Tab1())
         #creo label 42
-        label42Tab1 = QLabel("Min")
-        label42Tab1.setFixedSize(QSize(16,16))
+        label42Tab1 = QLabel("MinE")
+        label42Tab1.setFixedSize(QSize(25,16))
         label42Tab1.setStyleSheet("border-style: none;")
         #creo boton 42
         boton42Tab1 = AnimatedToggle()
@@ -6237,8 +6314,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton42Tab1 = partial(self.popUpResetBotonTab1, boton42Tab1)
         boton42Tab1.stateChanged.connect(lambda x: enableBoton42Tab1() if x else disableBoton42Tab1())
         #creo label 5
-        label5Tab1 = QLabel("Avg")
-        label5Tab1.setFixedSize(QSize(16,16))
+        label5Tab1 = QLabel("AvgR")
+        label5Tab1.setFixedSize(QSize(25,16))
         label5Tab1.setStyleSheet("border-style: none;")
         #creo boton 4
         boton5Tab1 = AnimatedToggle()
@@ -6254,8 +6331,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton5Tab1 = partial(self.popUpResetBotonTab1, boton5Tab1)
         boton5Tab1.stateChanged.connect(lambda x: enableBoton5Tab1() if x else disableBoton5Tab1())
         #creo label 5
-        label51Tab1 = QLabel("Avg")
-        label51Tab1.setFixedSize(QSize(16,16))
+        label51Tab1 = QLabel("AvgL")
+        label51Tab1.setFixedSize(QSize(25,16))
         label51Tab1.setStyleSheet("border-style: none;")
         #creo boton 4
         boton51Tab1 = AnimatedToggle()
@@ -6271,8 +6348,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton51Tab1 = partial(self.popUpResetBotonTab1, boton51Tab1)
         boton51Tab1.stateChanged.connect(lambda x: enableBoton51Tab1() if x else disableBoton51Tab1())        
         #creo label 52
-        label52Tab1 = QLabel("Avg")
-        label52Tab1.setFixedSize(QSize(16,16))
+        label52Tab1 = QLabel("AvgE")
+        label52Tab1.setFixedSize(QSize(25,16))
         label52Tab1.setStyleSheet("border-style: none;")
         #creo boton 4
         boton52Tab1 = AnimatedToggle()
@@ -6288,8 +6365,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton52Tab1 = partial(self.popUpResetBotonTab1, boton52Tab1)
         boton52Tab1.stateChanged.connect(lambda x: enableBoton52Tab1() if x else disableBoton52Tab1())        
         #creo label 6
-        label6Tab1 = QLabel("Max")
-        label6Tab1.setFixedSize(QSize(16,16))
+        label6Tab1 = QLabel("MaxR")
+        label6Tab1.setFixedSize(QSize(25,16))
         label6Tab1.setStyleSheet("border-style: none;")
         #creo boton 6
         boton6Tab1 = AnimatedToggle()
@@ -6305,8 +6382,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton6Tab1 = partial(self.popUpResetBotonTab1, boton6Tab1)
         boton6Tab1.stateChanged.connect(lambda x: enableBoton6Tab1() if x else disableBoton6Tab1())
         #creo label 61
-        label61Tab1 = QLabel("Max")
-        label61Tab1.setFixedSize(QSize(16,16))
+        label61Tab1 = QLabel("MaxL")
+        label61Tab1.setFixedSize(QSize(25,16))
         label61Tab1.setStyleSheet("border-style: none;")
         #creo boton 6
         boton61Tab1 = AnimatedToggle()
@@ -6322,8 +6399,8 @@ class MainWindow(QWidget):#(QDialog):
         disableBoton61Tab1 = partial(self.popUpResetBotonTab1, boton61Tab1)
         boton61Tab1.stateChanged.connect(lambda x: enableBoton61Tab1() if x else disableBoton61Tab1())
         #creo label 62
-        label62Tab1 = QLabel("Max")
-        label62Tab1.setFixedSize(QSize(16,16))
+        label62Tab1 = QLabel("MaxE")
+        label62Tab1.setFixedSize(QSize(25,16))
         label62Tab1.setStyleSheet("border-style: none;")
         #creo boton 6
         boton62Tab1 = AnimatedToggle()
@@ -7936,6 +8013,49 @@ class MainWindow(QWidget):#(QDialog):
         self.setLayout(mainLayout)
  
     #***************************************************
+    #inicializo preset aplicacion al startup
+    def inicializacionPreset (self,nombre, valor):
+        presetAGuardar = valor
+        nombrePreset = nombre
+        flagEncontrePalabra = False
+        presetCurrent = presetAGuardar
+        if os.path.isfile("preset.txt"):
+            with open('preset.txt','r') as f:                
+                
+                #f.write(nombrePreset + "=" +presetAGuardar+"\n")                
+                lines=f.readlines() #separo las lineas
+                indiceLineas = 0                
+                print("las lineas son:\n",lines)
+                for row in lines:
+                    if row.find(nombrePreset) != -1:
+                        listaPalabras=row.split() #divido en palabras la fila
+                        indicePalabraReemplazar = 0 
+                        for palabras in listaPalabras: #buscamos la palabra "="                            
+                            if palabras == "=": 
+                                #indice encontrado salgo del for con el indice                               
+                                break
+                            indicePalabraReemplazar += 1 
+                        #encuentro la palabra a reemplazar, que es la que esta despues del =
+                        palabraReemplazar = listaPalabras[indicePalabraReemplazar:] 
+                        print("palabra a reemplazar = ", palabraReemplazar[1]) 
+                        filaOriginal = row                      
+                        row = row.replace(palabraReemplazar[1]+"\n",presetAGuardar+"\n") #reemplazo en la fila el preset viejo por el nuevo
+                        print("fila a reemplazar = ", row)
+                        filaAReemplazar = row #texto completo a reemplazar
+                        flagEncontrePalabra = True
+                        break
+                    indiceLineas += 1
+            if flagEncontrePalabra:
+                presetCurrent = presetAGuardar
+            else:
+                with open('preset.txt', 'a') as f:                    
+                    f.write(nombrePreset + " = " +presetAGuardar+"\n") 
+        else:
+            with open('preset.txt','w') as f:                
+                f.write(nombrePreset + " = " + presetAGuardar + "\n")
+        
+        print("Update preset a disco")
+        return flagEncontrePalabra, presetCurrent
     #funciones asociadas a los botones de guardado de imagenes
     def playMostrarImageOnline(self):
         print("play")
@@ -9981,7 +10101,7 @@ class MainWindow(QWidget):#(QDialog):
     def populateUserCombo(self):
         #si la cantidad de usuario esta vacia la lleno
         if not self.userCombo.count():
-            self.userCombo.addItems('Iñaki Lucho Polaco'.split()) #Aca podría consultar los usuarios 
+            self.userCombo.addItems('Franco Martin Giusepe'.split()) #Aca podría consultar los usuarios 
                                                                   #a la base de datos
         #Agrego los iconos a cada usuario en la lista del combobox
         self.userCombo.setItemIcon(0,QIcon(os.path.join(basedir,"appIcons","user-worker-boss.png")))

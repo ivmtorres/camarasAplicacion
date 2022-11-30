@@ -3,7 +3,7 @@
 ProjectFileVersion = 1.1
 [General]
 Program name = Instalador Thermal Vision Lab
-Program version = 0.8
+Program version = 0.9
 Windows 2000 = 0
 Windows XP = 0
 Windows Server 2003 = 0
@@ -55,7 +55,7 @@ Time = 2
 PlaySound = 0
 Allow = 0
 [Build]
-File = C:\Users\lupus\OneDrive\Documentos\GUIPython\instalador\instaladorThermalVisualLabv08.exe
+File = C:\Users\lupus\OneDrive\Documentos\GUIPython\instalador\instaladorThermalVisualLabv09.exe
 SetupIconPath = ..\icons\ancient.ico
 UninstallIconPath = ..\icons\ancient.ico
 CompressionMethod = 0
@@ -75,11 +75,29 @@ Execdlls = 0
 [Languages]
 1
 [Files/Dirs]
-C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\msvcp140.dll
-618.3 KB
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\presetCamera.txt
+267 Byte
+txt
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\preset.txt
+342 Byte
+txt
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\log.txt
+16 Byte
+txt
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\MSVCP140_1.dll
+31 KB
 dll
-C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libEGL.dll
-24.5 KB
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\MSVCP140_2.dll
+192.8 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\vcruntime140_1.dll
+48.3 KB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\d3dcompiler_47.dll
+4 MB
+dll
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libGLESv2.dll
+3.2 MB
 dll
 C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\thermalVisionLab.exe
 27.2 MB
@@ -87,14 +105,11 @@ exe
 C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\base_library.zip
 781.2 KB
 zip
-C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\MSVCP140_1.dll
-24.9 KB
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\msvcp140.dll
+618.3 KB
 dll
-C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\d3dcompiler_47.dll
-4.3 MB
-dll
-C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libGLESv2.dll
-3.2 MB
+C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\libEGL.dll
+24.5 KB
 dll
 C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\opengl32sw.dll
 20 MB
@@ -102,9 +117,6 @@ dll
 C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\generic.xml
 2 KB
 xml
-C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\vcruntime140_1.dll
-37.4 KB
-dll
 C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\zlib.dll
 84 KB
 dll
@@ -122,9 +134,6 @@ C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\hdf5_hl.dll
 dll
 C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\winpty.dll
 2.4 MB
-dll
-C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\MSVCP140_2.dll
-182.9 KB
 dll
 C:\Users\lupus\OneDrive\Documentos\GUIPython\dist\mainTestRoiTools\arrow_flight.dll
 6.8 MB
