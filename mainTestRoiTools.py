@@ -5360,32 +5360,241 @@ class PopUpLoggin(QWidget):
         
     #funcion para conectarse con la base de datos
     def connectDB(self):
-        print("Conectando")
+        print("Conectando usuario:{} y password:{}".format(self.inputUser.text(), self.inputPassword.text()))
+        #verificamos en el archivo que exista el usuario
+        #si el usuario existe indicamos que existe
+        #si el usuario no existe indicamos que no existe
+        #si el usuario existe verificar si la clave es correcta
+        #si la clave es correcta indicar que se logeo correctamente y devolver el usuario nuevo
+        #si la clave es incorrecta indicar que no se logeo correctamente y volver a pedir el logeo de usuario
+        #si el usuario es administrador indicar que se logeo un administrador y abrir la popup de creacion de usuario nuevo
+        #mostrar la popup de creacion de usuario nuevo
+        #cargar el nombre password y clase de usuario nuevo a crear
+        #si da click en crear crea al usuario y lo carga en la aplicacion 
+        #si no da ok no carga el usuario y continua con el usuario previo.        
+        self.pantallabienvenida = popUpBienvenidoAdministrador()
+        self.pantallabienvenida.show()
+        
     #funcion salir de la ventana
     def cancelConnectDB(self):
         print("Cancelar")
         self.close()
+#clase usuario nuevo 
+"""  print("mostramos el campo para ingresar el nombre del usuario")
+        print("mostramos el campo para ingresar el password del usuario")
+        print("mostramos el campo para ingresar la clase de usuario")
+        print("mostramos el boton de ok")
+        print("mostramos el boton de cancel") """ 
+class popUpUsuarioNuevo(QWidget):
+    def __init__(self):              
+        super().__init__()
+        self.setWindowTitle("Create New User")
+        layoutVertical = QVBoxLayout()
+        #
+        layoutHorizontalName = QHBoxLayout()
+        self.inputLabelNombreUsuario = QLabel("User Name")
+        self.inputNombreUsuario = QLineEdit("input name")
+        self.inputNombreUsuario.setStyleSheet('color:#888;''font:italic;')
+        layoutHorizontalName.addWidget(self.inputLabelNombreUsuario)
+        layoutHorizontalName.addWidget(self.inputNombreUsuario)
+        layoutVertical.addLayout(layoutHorizontalName)
+        #
+        layoutHorizontalPassword = QHBoxLayout()
+        self.inputLabelPassword = QLabel("Password")
+        self.inputPassword = QLineEdit("input password")
+        self.inputPassword.setEchoMode(QLineEdit.Password)
+        layoutHorizontalPassword.addWidget(self.inputLabelPassword)
+        layoutHorizontalPassword.addWidget(self.inputPassword)
+        layoutVertical.addLayout(layoutHorizontalPassword)
+        #
+        layoutHorizontalClase = QHBoxLayout()
+        self.inputLabelClase = QLabel("Class")
+        self.inputClase = QLineEdit("input class")
+        self.inputClase.setStyleSheet('color:#888;''font:italic;')
+        layoutHorizontalClase.addWidget(self.inputLabelClase)
+        layoutHorizontalClase.addWidget(self.inputClase)
+        layoutVertical.addLayout(layoutHorizontalClase)
+        #
+        layoutHorizontalBotones = QHBoxLayout()
+        self.okCreateUsuario = QPushButton("Create")
+        self.okCreateUsuario.clicked.connect(self.crearUsuario)
+        self.cancelCreateUsuario = QPushButton("Cancel")
+        self.cancelCreateUsuario.clicked.connect(self.cancelUsuario)
+        layoutHorizontalBotones.addWidget(self.okCreateUsuario)
+        layoutHorizontalBotones.addWidget(self.cancelCreateUsuario)
+        layoutVertical.addLayout(layoutHorizontalBotones)
+        self.setLayout(layoutVertical)
+        self.resize(400,200)
+        self.inputNombreUsuario.setFocus(Qt.NoFocusReason)
+
+    def crearUsuario(self):
+        print("verificamos si el usuario existe")
+        print("si el usuario no existe lo creamos y guardamos sus datos")
+        print("cerramos la popup y volvemos a la pantalla principal sin cambiar el usaurio")
+        print("si el usaurio existe, indicamos que existe y preguntamos si quiere modificarlo")
+        print("si se da ok se modifica el usuario")
+        print("si se cancel no se modifica el usuario")
+        print("para ambos casos se vuelve a la aplicacion principal sin cambiar el usuario")
+        return True
+    def cancelUsuario(self):
+        return True
+#clase popup Borrar usuario
+class popUpUsuarioBorrar(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Delete User")
+        layoutVertical = QVBoxLayout()
+        #
+        layoutHorizontalName = QHBoxLayout()
+        self.inputLabelNombreUsuario = QLabel("User Name To Delete")
+        self.inputNombreUsuario = QLineEdit("Input name user")
+        self.inputNombreUsuario.setStyleSheet('color:#888;''font:italic;')
+        layoutHorizontalName.addWidget(self.inputLabelNombreUsuario)
+        layoutHorizontalName.addWidget(self.inputNombreUsuario)
+        layoutVertical.addLayout(layoutHorizontalName)
+        #
+        layoutHorizontalBoton = QHBoxLayout()
+        self.okBorrarUsuario = QPushButton("Delete")
+        self.okBorrarUsuario.clicked.connect(self.okDeleteUsuario)
+        self.cancelBorrarUsuario = QPushButton("Cancel")
+        self.cancelBorrarUsuario.clicked.connect(self.cancelDeleteUsuario)
+        layoutHorizontalBoton.addWidget(self.okBorrarUsuario)
+        layoutHorizontalBoton.addWidget(self.cancelBorrarUsuario)
+        layoutVertical.addLayout(layoutHorizontalBoton)
+        #
+        self.setLayout(layoutVertical)
+        self.resize(400,200)
+        self.inputLabelNombreUsuario.setFocus(Qt.NoFocusReason)
+
+    def okDeleteUsuario(self):
+        return True
+
+    def cancelDeleteUsuario(self):
+        return True
+#clase popup editar usuario
+class popUpUsuarioEditar(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Edit User")
+        layoutVertical = QVBoxLayout()
+        #
+        layoutHorizontalName = QHBoxLayout()
+        self.inputLabelNombreUsuario = QLabel("ComboBox User Name")
+        self.inputNombreUsuario = QLineEdit("Select the User Name")
+        self.inputNombreUsuario.setStyleSheet('color:#888;''font:italic;')
+        layoutHorizontalName.addWidget(self.inputLabelNombreUsuario)
+        layoutHorizontalName.addWidget(self.inputNombreUsuario)
+        layoutVertical.addLayout(layoutHorizontalName)
+        #
+        layoutHorizontalPassword = QHBoxLayout()
+        self.inputLabelPassword = QLabel("Password")
+        self.inputPassword = QLineEdit("Current Password") #se tiene que leer
+        self.inputPassword.setStyleSheet('color:#888;''font:italic;')
+        layoutHorizontalPassword.addWidget(self.inputLabelPassword)
+        layoutHorizontalPassword.addWidget(self.inputPassword)
+        layoutVertical.addLayout(layoutHorizontalPassword)
+        #
+        layoutHorizontalClase = QHBoxLayout()
+        self.inputLabelClase = QLabel("Class")
+        self.inputClase = QLineEdit("Current Class")
+        self.inputClase.setStyleSheet('color:888;''font:italic;')
+        layoutHorizontalClase.addWidget(self.inputLabelClase)
+        layoutHorizontalClase.addWidget(self.inputClase)
+        layoutVertical.addLayout(layoutHorizontalClase)
+        #
+        layoutHorizontalBoton = QHBoxLayout()
+        self.okEditUsuario = QPushButton("Edit")
+        self.okEditUsuario.clicked.connect(self.editUsuario)
+        self.cancelEditUsuario = QPushButton("Cancel")
+        self.cancelEditUsuario.clicked.connect(self.cancelUsuario)
+        layoutHorizontalBoton.addWidget(self.okEditUsuario)
+        layoutHorizontalBoton.addWidget(self.cancelEditUsuario)
+        layoutVertical.addLayout(layoutHorizontalBoton)
+        #
+        self.setLayout(layoutVertical)
+        self.resize(400,200)
+        self.inputNombreUsuario.setFocus(Qt.NoFocusReason)
+    
+    def editUsuario(self):
+        return True
+
+    def cancelUsuario(self):
+        return True
+#clase popup Bienvenido al usuario
+class popUpBienvenidoAdministrador(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Wellcome Administrator")
+        layoutVertical = QVBoxLayout()
+        #
+        layoutHorizontalName = QHBoxLayout()
+        self.inputLabelNombreAdministrador = QLabel("User Administrator")
+        self.inputNombreAdministrador = QLineEdit("Administrator Name")
+        layoutHorizontalName.addWidget(self.inputLabelNombreAdministrador)
+        layoutHorizontalName.addWidget(self.inputNombreAdministrador)
+        layoutVertical.addLayout(layoutHorizontalName)
+        #
+        layoutHorizontalBoton = QHBoxLayout()
+        self.crearUsuario = QPushButton("Create User")
+        self.crearUsuario.clicked.connect(self.crearNuevoUsuario)
+        self.borrarUsuario = QPushButton("Delete User")
+        self.borrarUsuario.clicked.connect(self.borrarExistenteUsuario)
+        self.editarUsuario = QPushButton("Edit Usuer")
+        self.editarUsuario.clicked.connect(self.editExistenteUsuario)
+        self.cancelar = QPushButton("Cancelar")
+        self.cancelar.clicked.connect(self.cancelarPantallaBienvenido)
+        layoutHorizontalBoton.addWidget(self.crearUsuario)
+        layoutHorizontalBoton.addWidget(self.borrarUsuario)
+        layoutHorizontalBoton.addWidget(self.editarUsuario)
+        layoutHorizontalBoton.addWidget(self.cancelar)        
+        #
+        layoutVertical.addLayout(layoutHorizontalBoton)
+        self.setLayout(layoutVertical)
+        self.resize(400,200)
+        
+    def crearNuevoUsuario(self):
+        self.crearUsuarioNuevo = popUpUsuarioNuevo()
+        self.crearUsuarioNuevo.show()
+        return True
+
+    def borrarExistenteUsuario(self):
+        self.borrarUsuarioNuevo = popUpUsuarioBorrar()
+        self.borrarUsuarioNuevo.show()
+        return True
+
+    def editExistenteUsuario(self):
+        self.editUsuarioNuevo = popUpUsuarioEditar()
+        self.editUsuarioNuevo.show()
+        return True
+
+    def cancelarPantallaBienvenido(self):
+        self.close()
+       
 #clase modelo generico de combo box
 class UserComboBox(QComboBox):
     popupAboutToBeShown = pyqtSignal()
     def showPopup(self):
         self.popupAboutToBeShown.emit()
         super(UserComboBox,self).showPopup()
+#clase rois combobox historicos
 class RoisComboBoxHistorico(QComboBox):
     popupAboutToBeShown = pyqtSignal()
     def showPopup(self):
         self.popupAboutToBeShown.emit()
         super(RoisComboBoxHistorico,self).showPopup()
+#clase cam combo box
 class CamComboBox(QComboBox):
     popupAboutToBeShown = pyqtSignal()
     def showPopup(self):
         self.popupAboutToBeShown.emit()
         super(CamComboBox,self).showPopup()
+#clase roi combo box
 class ROIComboBox(QComboBox):
     popupAboutToBeShown = pyqtSignal()
     def showPopup(self):
         self.popupAboutToBeShown.emit()
         super(ROIComboBox, self).showPopup()
+#clase perfil combo box
 class ProfileComboBox(QComboBox):
     popupAboutToBeShown = pyqtSignal()
     def showPopup(self):
@@ -8056,6 +8265,7 @@ class MainWindow(QWidget):#(QDialog):
         
         print("Update preset a disco")
         return flagEncontrePalabra, presetCurrent
+    
     #funciones asociadas a los botones de guardado de imagenes
     def playMostrarImageOnline(self):
         print("play")
@@ -8070,7 +8280,8 @@ class MainWindow(QWidget):#(QDialog):
         self.renameFileImagenOnline.setEnabled(False)
         self.editFileImagenOnline.setEnabled(False)
         self.deleteFileImagenOnline.setEnabled(False)
-        #self.snapshotImagenOnline.setEnabled(True)        
+    
+    #self.snapshotImagenOnline.setEnabled(True)        
     def stopMostrarImagenOnline(self):
         print("stop")
         self.mostrarImagenPantallaRecorded = False
@@ -8084,7 +8295,8 @@ class MainWindow(QWidget):#(QDialog):
         self.renameFileImagenOnline.setEnabled(True)
         self.editFileImagenOnline.setEnabled(True)
         self.deleteFileImagenOnline.setEnabled(True)
-        #self.snapshotImagenOnline.setEnabled(False)
+    
+    #self.snapshotImagenOnline.setEnabled(False)
     def startRecordImagenOnline(self):
         print("start record")
         self.recordImagenOnline.setEnabled(False)
@@ -8102,6 +8314,7 @@ class MainWindow(QWidget):#(QDialog):
         self.flagQueueReady = True
         self.noRecordImagenOnline.setEnabled(True)
         self.recordImagenOnline.setEnabled(False)
+    
     def createNewFolderImagenOnline(self):
         print("new folder")
         self.pathDirImagesFile = asyncio.run(crearDirectorioAsincronico())
@@ -8114,6 +8327,7 @@ class MainWindow(QWidget):#(QDialog):
         #no vamos a poner la habilitacion de leer porque asumimos que lo
         #vamosa buscar con las herramientas en el centro y extremo derecho 
         #de la pantalla
+    
     def makeMoveFileImagenOnline(self):
         print("move file")
         #no implementamos la funcion porque en el so de windows 
@@ -8137,12 +8351,15 @@ class MainWindow(QWidget):#(QDialog):
     def makeRenameFileImagenOnline(self):
         print("rename file")
         asyncio.run(renombrarArchivoAsincronico())
+    
     def makeEditFileImagenOnline(self):
         print("edit image")
         asyncio.run(modificarArchivoAsincronico())
+    
     def makeDeleteFileImagenOnline(self):
         print("delete file")
         asyncio.run(borrarArchivoAsincronico())
+    
     def makeSnapshotImagenOnline(self):
         print("snapshot image")
         #leemos el contenido
@@ -8330,6 +8547,7 @@ class MainWindow(QWidget):#(QDialog):
     def closeEvent(self, event):
         self.thread.stop()
         event.accept()
+   
     #hilo procesamiento de datos
     @pyqtSlot(np.ndarray)
     def update_procesamiento(self, procesamientoDatos):
@@ -8421,6 +8639,7 @@ class MainWindow(QWidget):#(QDialog):
         convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
         p = convert_to_Qt_format.scaled(self.display_width, self.display_height, Qt.KeepAspectRatio)
         return QPixmap.fromImage(p)
+    
     #***************************************************
     @pyqtSlot(np.ndarray)
     def thermal_image(self, thermal_img):
@@ -8844,6 +9063,7 @@ class MainWindow(QWidget):#(QDialog):
                 self.dlgChangePresetTab1 = PopUpWritePresetTab(valorLabelIndicador="MaxRoiEllipse2", valorPreset=self.valorNuevoPresetRoiMaxEllipse2)#self.valor62IndTab1MaxRoi2Ellipse
             #mostramos la popup
             self.dlgChangePresetTab1.show()
+    
     def popUpResetBotonTab1(self, checkbox):
         print("reset preset 1 tab1")
         if checkbox.isChecked() == False:
