@@ -5328,14 +5328,19 @@ class PopUpResetPresetEmisividadCam(QWidget):
         self.close()
 #Clase modelo generico de loggin 
 class PopUpLoggin(QWidget):
-    def __init__(self):
+    def __init__(self,comboBox,listaPresetMedicion,listaPresetCamara):
         super().__init__()
+        self.usuarioLogeado = comboBox
+        self.presetsMeidicon = listaPresetMedicion
+        self.presetsCamara = listaPresetCamara
         self.setWindowTitle("Request User Credential")
         layoutV = QVBoxLayout()
-        self.inputUser = QLineEdit()
-        self.inputUser.setText("User name input")
+        self.inputUser = UserComboBox(self)
+        self.inputUser.popupAboutToBeShown.connect(self.populateUserCombo)
+        #self.inputUser = QLineEdit()
+        #self.inputUser.setText("User name input")
         #defino una paleta         
-        self.inputUser.setStyleSheet('color:#888;''font:italic;')
+        #self.inputUser.setStyleSheet('color:#888;''font:italic;')
         self.inputPassword = QLineEdit()
         self.inputPassword.setText("User password input")
         self.inputPassword.setEchoMode(QLineEdit.Password)  
@@ -5357,10 +5362,33 @@ class PopUpLoggin(QWidget):
         self.setLayout(layoutV)
         self.resize(400,20)
         self.inputUser.setFocus(Qt.NoFocusReason)
+    def populateUserCombo(self):
+        if os.path.isfile("users.txt"):
+            with open('users.txt','r') as f:
+                lines = f.readlines()
+                indiceNombre = 0
+                listaNombreUsuarios = []
+                for row in lines:
+                    if row.find("nombreUsuario") != -1:
+                        indice = row.find("=")
+                        auxiliar = row[indice+2:]
+                        indice1 = auxiliar.find("-")
+                        auxiliar1 = auxiliar[:indice1-1]
+                        listaNombreUsuarios.append(auxiliar1)
+                print(listaNombreUsuarios)
+        if not self.inputUser.count():
+            self.inputUser.addItems(listaNombreUsuarios)
+        for indice in range(len(listaNombreUsuarios)):
+            self.inputUser.setItemIcon(indice,QIcon(os.path.join(basedir,"appIcons","user-yellow.png")))
         
     #funcion para conectarse con la base de datos
     def connectDB(self):
-        print("Conectando usuario:{} y password:{}".format(self.inputUser.text(), self.inputPassword.text()))
+        #print("Conectando usuario:{} y password:{}".format(self.inputUser.text(), self.inputPassword.text()))
+        print("Conectando usuario:{} y password:{}".format(self.inputUser.currentText(), self.inputPassword.text()))
+        #verificamos la existencia del archivo de usuarios. 
+        #Si no existe lo creamos, si el usuario loggeado es AdminMaster/AdminMaster
+        #entonces abrimos la pantalla de bienvenida para Administrador
+        #si no es AdminMaster/AdminMaster volvemos a la pantalla Main
         #verificamos en el archivo que exista el usuario
         #si el usuario existe indicamos que existe
         #si el usuario no existe indicamos que no existe
@@ -5371,14 +5399,164 @@ class PopUpLoggin(QWidget):
         #mostrar la popup de creacion de usuario nuevo
         #cargar el nombre password y clase de usuario nuevo a crear
         #si da click en crear crea al usuario y lo carga en la aplicacion 
-        #si no da ok no carga el usuario y continua con el usuario previo.        
-        self.pantallabienvenida = popUpBienvenidoAdministrador()
-        self.pantallabienvenida.show()
-        
+        #si no da ok no carga el usuario y continua con el usuario previo.
+        if os.path.isfile("users.txt"):
+            with open('users.txt', 'r') as f:
+                #buscar el nombre de usuario cargado
+                #si el usuario es AdminMaster/AdminMaster abrir la pantalla de
+                #bienvenida administrador
+                #si el usuario no es AdminMaster/AdminMaster buscar en el archivo
+                #si el usuario existe y es operador volver a la pantalla Main indicando Operador
+                #si el usuario existe y es supervisor volver a la pantalla Main indicando Supervisor
+                #si el usuario no existe volver a la pantalla Main indicando usuario no logeado
+                #si el usuario es clase Administrador abrir la pantalla bienvenida Administrador
+                print("buscamos los datos del usuario loggeado")
+                nombreUsuario = self.inputUser.currentText() #.text() #guardamos el nombre del usuario
+                passwordUsuario = self.inputPassword.text() #guardamos el password del usuario
+                lines = f.readlines() #separo las lineas
+                indiceLineas = 0
+                flagExisteUsuario = False #indicamos si existe o no el usuario
+                flagEsAdministrador = False
+                flagEsSupervisor = False
+                flagEsOperador = False
+                print("las lineas son: \n", lines)
+                for row in lines:
+                    if row.find("nombreUsuario") != -1:                        
+                        #existe nombre de usuario saco el indice
+                        indice1 = row.find("nombreUsuario")
+                        auxiliarTexto=row[indice1 :] #auxiliar para buscar el nombre de usuario
+                        indice2 = auxiliarTexto.find("-") #encontramos el indice a donde separa los datos
+                        auxiliarTexto2 = auxiliarTexto[indice1:indice2]
+                        auxiliarTexto3 = auxiliarTexto[indice2+2:-1]
+                        indice3 = auxiliarTexto3.find("-")
+                        auxiliarTexto5 = auxiliarTexto3[:indice3]
+                        indice4 = auxiliarTexto3.find("claseUsuario")
+                        auxiliarTexto4 = auxiliarTexto3[indice4:]
+                        print(auxiliarTexto3)
+                        print(auxiliarTexto2)
+                        print(auxiliarTexto4)
+                        print(auxiliarTexto5)
+                        print("buscar {} en {}".format(nombreUsuario,auxiliarTexto2))
+                        if auxiliarTexto2.find(nombreUsuario) != -1:
+                            flagExisteUsuario = True
+                            #verificamos si existe el nombre de usuario en la lista                            
+                            #verificamos si el usuario es AdminMaster
+                            indice5 = auxiliarTexto2.find("=") + 2
+                            nombreLoggeado = auxiliarTexto2[indice5:]
+                            print("nombre de usuario:" + nombreLoggeado)
+                            self.nombreUsuarioLoggeado = nombreLoggeado
+                            #verifico que el password sea correcto
+                            indice6 = auxiliarTexto5.find("=")+2
+                            passwordLoggeado = auxiliarTexto5[indice6:-1]
+                            print(passwordLoggeado)
+                            print(passwordUsuario)
+                            if nombreLoggeado == "AdminMaster ":                                
+                                if passwordLoggeado == passwordUsuario:
+                                    self.pantallabienvenida = popUpBienvenidoAdministrador(self.nombreUsuarioLoggeado)
+                                    self.pantallabienvenida.show()
+                                    print("AdminMaster logeado") 
+                                    break
+                                else:
+                                    print("AdminMaster no logeado password incorrecto")
+                                    break
+                            else:
+                                #no es AdminMaster pero es un usuario que existe vemos de que tipo                              
+                                #identificar si es un usuario de clase administrador                                
+                                indice7 = auxiliarTexto4.find("=")
+                                tipoDeUsuario = auxiliarTexto4[indice7+2:]
+                                print("tipo de usuario:",tipoDeUsuario)
+                                if tipoDeUsuario == "Administrador": 
+                                    #verifico que el password sea correcto
+                                    print("es administrador verificamos password")
+                                    if passwordLoggeado == passwordUsuario:
+                                        flagEsAdministrador = True
+                                        self.pantallabienvenida = popUpBienvenidoAdministrador(self.nombreUsuarioLoggeado)
+                                        self.pantallabienvenida.show()
+                                        print("el usuario es Administrador")                                    
+                                        break
+                                    else:
+                                        print("el usuario Administrador no logeado password incorrecto")
+                                        break
+                                elif tipoDeUsuario == "Supervisor":
+                                    #no es un usuario clase Administrador
+                                    #es clase Supervisor
+                                    print("es supervisor verificamos password")
+                                    if passwordLoggeado == passwordUsuario:
+                                        flagEsSupervisor = True
+                                        print("el usuario es del tipo supervisor")
+                                        break
+                                    else:
+                                        print("el usuario Supervisor no logeado password incorrecto")
+                                        break
+                                elif tipoDeUsuario == "Operador":
+                                    #no es un usuario clase Administrador o Supervisor
+                                    #es clase Operador
+                                    print("es operador verificamos password")
+                                    if passwordLoggeado == passwordUsuario:
+                                        flagEsOperador = True                                        
+                                        print("el usuario es del tipo operador")
+                                        break                                    
+                                    else:
+                                        print("el usuario Operador no logeado password incorrecto")
+                                        break                
+                if flagExisteUsuario:
+                    print("el usuario se encontro")
+                    self.usuarioLogeado.clear()
+                    self.usuarioLogeado.addItem(QIcon(os.path.join(basedir,"appIcons","user-yellow.png")), nombreUsuario)
+                    if flagEsAdministrador:
+                        print("es administrador")
+                        #habilito los presets de medicion
+                        for indice in range(len(self.presetsMeidicon)):
+                            self.presetsMeidicon[indice].setDisabled(False)
+                        for indice in range(len(self.presetsCamara)):
+                            self.presetsCamara[indice].setDisabled(False)
+                    elif flagEsSupervisor:
+                        print("es supervisor")
+                        #habilito los presets de medicion
+                        for indice in range(len(self.presetsMeidicon)):
+                            self.presetsMeidicon[indice].setDisabled(False)
+                        for indice in range(len(self.presetsCamara)):
+                            self.presetsCamara[indice].setDisabled(False)
+                    elif flagEsOperador:
+                        print("es operador")
+                        #deshabilito los presets de medicion
+                        for indice in range(len(self.presetsMeidicon)):
+                            self.presetsMeidicon[indice].setDisabled(True)
+                        for indice in range(len(self.presetsCamara)):
+                            self.presetsCamara[indice].setDisabled(True)                    
+                else:
+                    print("el usuario no se encontro")
+                self.close()
+        else:#si no existe el archivo lo crea y crea el usuario AdminMaster/AdminMaster
+            with open('users.txt', 'w') as f:
+                nombreUsuario = "AdminMaster"
+                passwordUsuario = "AdminMaster"
+                claseUsuario = "Administrador"
+                f.write("nombreUsuario" + " = " + nombreUsuario + " - " + "passwordUsuario" + " = " + passwordUsuario + " - " + "claseUsuario" + " = " + claseUsuario + "\n")                
+                #no existe el usuario mostramos popup
+                self.nohayUsuario = popUpNoExisteUsuario()
+                self.nohayUsuario.show()
+                self.close()
     #funcion salir de la ventana
     def cancelConnectDB(self):
         print("Cancelar")
         self.close()
+#clase no existe usuario
+class popUpNoExisteUsuario(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Not Loggin")
+        layoutVertical = QVBoxLayout()
+        self.inputLabelNotLoggin = QLabel("User not exist")
+        self.botonAccept = QPushButton("Accept")
+        self.botonAccept.clicked.connect(self.cerrarPantalla)
+        layoutVertical.addWidget(self.inputLabelNotLoggin)
+        layoutVertical.addWidget(self.botonAccept)
+        self.setLayout(layoutVertical)
+
+    def cerrarPantalla(self):
+        self.close()
+
 #clase usuario nuevo 
 """  print("mostramos el campo para ingresar el nombre del usuario")
         print("mostramos el campo para ingresar el password del usuario")
@@ -5409,8 +5587,10 @@ class popUpUsuarioNuevo(QWidget):
         #
         layoutHorizontalClase = QHBoxLayout()
         self.inputLabelClase = QLabel("Class")
-        self.inputClase = QLineEdit("input class")
-        self.inputClase.setStyleSheet('color:#888;''font:italic;')
+        self.inputClase = UserComboBox(self)
+        self.inputClase.popupAboutToBeShown.connect(self.populateClassCombo)
+        #self.inputClase = QLineEdit("input class")
+        #self.inputClase.setStyleSheet('color:#888;''font:italic;')
         layoutHorizontalClase.addWidget(self.inputLabelClase)
         layoutHorizontalClase.addWidget(self.inputClase)
         layoutVertical.addLayout(layoutHorizontalClase)
@@ -5426,18 +5606,49 @@ class popUpUsuarioNuevo(QWidget):
         self.setLayout(layoutVertical)
         self.resize(400,200)
         self.inputNombreUsuario.setFocus(Qt.NoFocusReason)
-
+    def populateClassCombo(self):
+        print("populamos las clases")
+        if not self.inputClase.count():
+            self.inputClase.addItems('Administrador Supervisor Operador'.split())
+            #agrego los iconos
+        self.inputClase.setItemIcon(0,QIcon(os.path.join(basedir,"appIcons","user-worker-boss.png")))
+        self.inputClase.setItemIcon(1,QIcon(os.path.join(basedir,"appIcons","user-worker.png")))
+        self.inputClase.setItemIcon(2,QIcon(os.path.join(basedir,"appIcons","user-yellow.png")))
+        
     def crearUsuario(self):
-        print("verificamos si el usuario existe")
-        print("si el usuario no existe lo creamos y guardamos sus datos")
-        print("cerramos la popup y volvemos a la pantalla principal sin cambiar el usaurio")
-        print("si el usaurio existe, indicamos que existe y preguntamos si quiere modificarlo")
-        print("si se da ok se modifica el usuario")
-        print("si se cancel no se modifica el usuario")
-        print("para ambos casos se vuelve a la aplicacion principal sin cambiar el usuario")
-        return True
+        nombreUsuario = self.inputNombreUsuario.text()
+        passwordUsuario = self.inputPassword.text()
+        claseUsuario = self.inputClase.currentText() #.text()
+        print(claseUsuario)
+        flagExisteUsuario = False
+        if os.path.isfile("users.txt"):
+            with open('users.txt','r') as f:
+                print("buscamos el usuario cargado") 
+                lines = f.readlines()                
+                for row in lines:
+                    if row.find("nombreUsuario") != -1:
+                        indice = row.find("=")
+                        auxiliar = row[indice+2:]
+                        print(auxiliar)
+                        indice1 = auxiliar.find("-")
+                        nombreRegistrado = auxiliar[:indice1-1]
+                        print(nombreRegistrado)
+                        if nombreRegistrado == nombreUsuario:                            
+                            flagExisteUsuario = True
+                            break
+                if flagExisteUsuario:
+                    print("El usuario existe no se puede crear")
+                else:
+                    print("el usuario no existe se crea")
+                    with open('users.txt','a') as f:
+                        print("creamos el archivo")
+                        f.write("nombreUsuario" + " = " + nombreUsuario + " - " + "passwordUsuario" + " = " + passwordUsuario + " - " + "claseUsuario" + " = " + claseUsuario + "\n")                
+        else:
+            print("no existe archivo, no se puede crear usuairo")
+          
+        self.close() #cerramos la ventana una vez creado
     def cancelUsuario(self):
-        return True
+        self.close()
 #clase popup Borrar usuario
 class popUpUsuarioBorrar(QWidget):
     def __init__(self):
@@ -5447,8 +5658,10 @@ class popUpUsuarioBorrar(QWidget):
         #
         layoutHorizontalName = QHBoxLayout()
         self.inputLabelNombreUsuario = QLabel("User Name To Delete")
-        self.inputNombreUsuario = QLineEdit("Input name user")
-        self.inputNombreUsuario.setStyleSheet('color:#888;''font:italic;')
+        self.inputNombreUsuario = UserComboBox(self)
+        self.inputNombreUsuario.popupAboutToBeShown.connect(self.populateClassCombo)
+        #self.inputNombreUsuario = QLineEdit("Input name user")
+        #self.inputNombreUsuario.setStyleSheet('color:#888;''font:italic;')
         layoutHorizontalName.addWidget(self.inputLabelNombreUsuario)
         layoutHorizontalName.addWidget(self.inputNombreUsuario)
         layoutVertical.addLayout(layoutHorizontalName)
@@ -5465,12 +5678,65 @@ class popUpUsuarioBorrar(QWidget):
         self.setLayout(layoutVertical)
         self.resize(400,200)
         self.inputLabelNombreUsuario.setFocus(Qt.NoFocusReason)
-
+    def populateClassCombo(self):
+        print("populamos con los usuarios existentes") 
+        if os.path.isfile("users.txt"):
+            with open('users.txt','r') as f:
+                #leemos todos las lineas 
+                lines = f.readlines()
+                indiceNombre = 0
+                listaNombreUsuarios = []
+                for row in lines:
+                    if row.find("nombreUsuario") != -1:
+                        indice = row.find("=")
+                        auxiliar = row[indice+2:]
+                        indice1 = auxiliar.find("-")
+                        auxiliar1 = auxiliar[:indice1-1]
+                        listaNombreUsuarios.append(auxiliar1)
+                print(listaNombreUsuarios)
+        if not self.inputNombreUsuario.count():
+            self.inputNombreUsuario.addItems(listaNombreUsuarios)#'Administrador Supervisor Operador'.split())
+            #agrego los iconos
+        for indice in range(len(listaNombreUsuarios)):
+            self.inputNombreUsuario.setItemIcon(indice,QIcon(os.path.join(basedir,"appIcons","user-yellow.png")))
+        
     def okDeleteUsuario(self):
-        return True
+        nombreUsuarioBorrar = self.inputNombreUsuario.currentText() #.text()
+        if nombreUsuarioBorrar == "AdminMaster":
+            print("No se puede borrar el usuario AdminMaster")
+            self.close()
+        else:
+            flagSeEncontroUsuario = False
+            if os.path.isfile("users.txt"):
+                with open('users.txt', 'r') as f:
+                    print("buscamos el nombre de usuario a borrar")
+                    lines = f.readlines()
+                    indiceNombre = 0
+                    for row in lines:
+                        if row.find("nombreUsuario") != -1:
+                            indice = row.find("=")
+                            auxiliar = row[indice+2:]
+                            print(auxiliar)
+                            indice1 = auxiliar.find("-")
+                            auxiliar1 = auxiliar[:indice1-1]
+                            print(auxiliar1)
+                            if auxiliar1 == nombreUsuarioBorrar:
+                                print("encontro el usuario a borrar")                            
+                                flagSeEncontroUsuario = True
+                                break
+                        indiceNombre += 1
+                if flagSeEncontroUsuario:
+                    print("el usuario a borrar se realizo")
+                    with open('users.txt', 'w') as f:
+                        print("guardamos los cambios")
+                        f.writelines(lines[:indiceNombre]+lines[indiceNombre+1:])                    
+                else:
+                    print("el usuario a borrar no se realizo")       
+            self.close()
 
     def cancelDeleteUsuario(self):
-        return True
+        print("cerramos la ventana")
+        self.close()
 #clase popup editar usuario
 class popUpUsuarioEditar(QWidget):
     def __init__(self):
@@ -5480,8 +5746,10 @@ class popUpUsuarioEditar(QWidget):
         #
         layoutHorizontalName = QHBoxLayout()
         self.inputLabelNombreUsuario = QLabel("ComboBox User Name")
-        self.inputNombreUsuario = QLineEdit("Select the User Name")
-        self.inputNombreUsuario.setStyleSheet('color:#888;''font:italic;')
+        self.inputNombreUsuario = UserComboBox(self)
+        self.inputNombreUsuario.popupAboutToBeShown.connect(self.populateClassComboUser)
+        #self.inputNombreUsuario = QLineEdit("Select the User Name")
+        #self.inputNombreUsuario.setStyleSheet('color:#888;''font:italic;')
         layoutHorizontalName.addWidget(self.inputLabelNombreUsuario)
         layoutHorizontalName.addWidget(self.inputNombreUsuario)
         layoutVertical.addLayout(layoutHorizontalName)
@@ -5496,8 +5764,10 @@ class popUpUsuarioEditar(QWidget):
         #
         layoutHorizontalClase = QHBoxLayout()
         self.inputLabelClase = QLabel("Class")
-        self.inputClase = QLineEdit("Current Class")
-        self.inputClase.setStyleSheet('color:888;''font:italic;')
+        self.inputClase = UserComboBox(self)
+        self.inputClase.popupAboutToBeShown.connect(self.populateClassComboClase)
+        #self.inputClase = QLineEdit("Current Class")
+        #self.inputClase.setStyleSheet('color:888;''font:italic;')
         layoutHorizontalClase.addWidget(self.inputLabelClase)
         layoutHorizontalClase.addWidget(self.inputClase)
         layoutVertical.addLayout(layoutHorizontalClase)
@@ -5514,22 +5784,83 @@ class popUpUsuarioEditar(QWidget):
         self.setLayout(layoutVertical)
         self.resize(400,200)
         self.inputNombreUsuario.setFocus(Qt.NoFocusReason)
-    
+    def populateClassComboClase(self):
+        print("populamos las clases")
+        if not self.inputClase.count():
+            self.inputClase.addItems('Administrador Supervisor Operador'.split())
+        #agrego los iconos
+        self.inputClase.setItemIcon(0,QIcon(os.path.join(basedir,"appIcons","user-worker-boss.png")))
+        self.inputClase.setItemIcon(1,QIcon(os.path.join(basedir,"appIcons","user-worker.png")))
+        self.inputClase.setItemIcon(2,QIcon(os.path.join(basedir,"appIcons","user-yellow.png")))
+
+    def populateClassComboUser(self):
+        print("populamos con los usuarios existentes")
+        if os.path.isfile("users.txt"):
+            with open('users.txt','r') as f:
+                #leemos todas las lineas
+                lines = f.readlines()
+                indiceNombre = 0
+                listaNombreUsuarios = []
+                for row in lines:
+                    if row.find("nombreUsuario") != -1:
+                        indice = row.find("=")
+                        auxiliar = row[indice+2:]
+                        indice1 = auxiliar.find("-")
+                        auxiliar1 = auxiliar[:indice1-1]
+                        listaNombreUsuarios.append(auxiliar1)
+                print(listaNombreUsuarios)
+        if not self.inputNombreUsuario.count():
+            self.inputNombreUsuario.addItems(listaNombreUsuarios)
+        for indice in range(len(listaNombreUsuarios)):
+            self.inputNombreUsuario.setItemIcon(indice,QIcon(os.path.join(basedir,"appIcons","user-yellow.png")))
+
     def editUsuario(self):
-        return True
+        nombreUsuarioEditar = self.inputNombreUsuario.currentText()#.text()
+        passwordEditar = self.inputPassword.text()
+        claseEditar = self.inputClase.currentText()#.text()
+        flagSeEncontroUsuario = False
+        if os.path.isfile("users.txt"):
+            with open('users.txt','r') as f:
+                print("buscamos el nombre de usuario a editar")
+                lines = f.readlines()
+                indiceNombre = 0
+                for row in lines:
+                    if row.find("nombreUsuario") != -1:
+                        indice = row.find("=")
+                        auxiliar = row[indice+2:]
+                        print(auxiliar)
+                        indice1 = auxiliar.find("-")
+                        auxiliar1 = auxiliar[:indice1-1]
+                        print(auxiliar1)
+                        if auxiliar1 == nombreUsuarioEditar:
+                            print("encontro el usuario a borrar")
+                            flagSeEncontroUsuario = True
+                            break
+                    indiceNombre += 1
+            if flagSeEncontroUsuario:
+                print("el usuario a editar se edito")
+                lineEditada = ["nombreUsuario" + " = " + nombreUsuarioEditar + " - " + "passwordUsuario" + " = " + passwordEditar + " - " + "claseUsuario" + " = " + claseEditar + "\n"]
+                
+                with open('users.txt', 'w') as f:                    
+                    f.writelines(lines[:indiceNombre]+lineEditada+lines[indiceNombre+1:])
+            else:
+                print("el usuario a editar no se edito")
+        self.close()
 
     def cancelUsuario(self):
-        return True
+        print("cerramos la ventana")
+        self.close()
 #clase popup Bienvenido al usuario
 class popUpBienvenidoAdministrador(QWidget):
-    def __init__(self):
+    def __init__(self, nombreUsuario):
         super().__init__()
+        self.nombre = nombreUsuario
         self.setWindowTitle("Wellcome Administrator")
         layoutVertical = QVBoxLayout()
         #
         layoutHorizontalName = QHBoxLayout()
         self.inputLabelNombreAdministrador = QLabel("User Administrator")
-        self.inputNombreAdministrador = QLineEdit("Administrator Name")
+        self.inputNombreAdministrador = QLineEdit(self.nombre)
         layoutHorizontalName.addWidget(self.inputLabelNombreAdministrador)
         layoutHorizontalName.addWidget(self.inputNombreAdministrador)
         layoutVertical.addLayout(layoutHorizontalName)
@@ -5555,17 +5886,17 @@ class popUpBienvenidoAdministrador(QWidget):
     def crearNuevoUsuario(self):
         self.crearUsuarioNuevo = popUpUsuarioNuevo()
         self.crearUsuarioNuevo.show()
-        return True
+        self.close() #cierro la ventana
 
     def borrarExistenteUsuario(self):
         self.borrarUsuarioNuevo = popUpUsuarioBorrar()
         self.borrarUsuarioNuevo.show()
-        return True
+        self.close() #cierro la ventana
 
     def editExistenteUsuario(self):
         self.editUsuarioNuevo = popUpUsuarioEditar()
         self.editUsuarioNuevo.show()
-        return True
+        self.close() #cierro la ventana
 
     def cancelarPantallaBienvenido(self):
         self.close()
@@ -6238,7 +6569,8 @@ class MainWindow(QWidget):#(QDialog):
         self.timerIzq.setInterval(100)
         self.timerIzq.timeout.connect(self.update_plot_dfTab1Izq)
         self.timerIzq.start()
-
+        #lista de objetos a habilitar
+        self.listaObjetosHabilitados = []
         #agrego contenedor a la izquierda para curva
         #para label1 y boton1
         #para label2 y boton2
@@ -6252,6 +6584,9 @@ class MainWindow(QWidget):#(QDialog):
         boton1Tab1 = AnimatedToggle()
         boton1Tab1.setFixedSize(boton1Tab1.sizeHint())
         boton1Tab1.setToolTip("MinRoiRect1")
+        
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton1Tab1)
         #definimos la funcion asociada al preset1 del tab1
         enableBoton1Tab1 = partial(self.popUpSetBotonTab1, boton1Tab1 )
         disableBoton1Tab1 = partial(self.popUpResetBotonTab1, boton1Tab1)
@@ -6269,6 +6604,8 @@ class MainWindow(QWidget):#(QDialog):
         boton11Tab1 = AnimatedToggle()
         boton11Tab1.setFixedSize(boton11Tab1.sizeHint())
         boton11Tab1.setToolTip("MinRoiLine1")
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton11Tab1)
         #definimos la funcion asociada al preset11 del tab1
         enableBoton11Tab1 = partial(self.popUpSetBotonTab1, boton11Tab1 )
         disableBoton11Tab1 = partial(self.popUpResetBotonTab1, boton11Tab1)
@@ -6286,6 +6623,8 @@ class MainWindow(QWidget):#(QDialog):
         boton12Tab1 = AnimatedToggle()
         boton12Tab1.setFixedSize(boton12Tab1.sizeHint())
         boton12Tab1.setToolTip("MinRoiEllipse1")
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton12Tab1)
         #definimos la funcion asociada al preset12 del tab1
         enableBoton12Tab1 = partial(self.popUpSetBotonTab1, boton12Tab1 )
         disableBoton12Tab1 = partial(self.popUpResetBotonTab1, boton12Tab1)
@@ -6302,7 +6641,9 @@ class MainWindow(QWidget):#(QDialog):
         #creo el boton 2
         boton2Tab1 = AnimatedToggle()
         boton2Tab1.setFixedSize(boton2Tab1.sizeHint())
-        boton2Tab1.setToolTip("AvgRoiRect1")       
+        boton2Tab1.setToolTip("AvgRoiRect1")    
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton2Tab1)   
         #agregamos el indicador 2 de medicion
         valor2Tab1AvgRoi1Rect = "115.2" #avg roi rect
         self.valor2IndTab1AvgRoi1Rect = QLabel(valor2Tab1AvgRoi1Rect)
@@ -6319,7 +6660,9 @@ class MainWindow(QWidget):#(QDialog):
         #creo el boton 21
         boton21Tab1 = AnimatedToggle()
         boton21Tab1.setFixedSize(boton21Tab1.sizeHint())
-        boton21Tab1.setToolTip("AvgRoiLine1")       
+        boton21Tab1.setToolTip("AvgRoiLine1")  
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton21Tab1)     
         #agregamos el indicador 21 de medicion
         valor21Tab1AvgRoi1Line = "115.2" #avg roi line
         self.valor21IndTab1AvgRoi1Line = QLabel(valor21Tab1AvgRoi1Line)
@@ -6336,7 +6679,9 @@ class MainWindow(QWidget):#(QDialog):
         #creo el boton 22
         boton22Tab1 = AnimatedToggle()
         boton22Tab1.setFixedSize(boton22Tab1.sizeHint())
-        boton22Tab1.setToolTip("AvgRoiEllipse1")       
+        boton22Tab1.setToolTip("AvgRoiEllipse1") 
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton22Tab1)       
         #agregamos el indicador 22 de medicion
         valor22Tab1AvgRoi1Ellipse = "115.2" #avg roi elipse
         self.valor22IndTab1AvgRoi1Ellipse = QLabel(valor22Tab1AvgRoi1Ellipse)
@@ -6353,7 +6698,9 @@ class MainWindow(QWidget):#(QDialog):
         #creo el boton 3
         boton3Tab1 = AnimatedToggle()
         boton3Tab1.setFixedSize(boton3Tab1.sizeHint())
-        boton3Tab1.setToolTip("MaxRoiRect1")       
+        boton3Tab1.setToolTip("MaxRoiRect1")  
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton3Tab1)      
         #agregamos el indicador 3 de medicion
         valor3Tab1MaxRoi1Rect = "115.2" #max roi rect
         self.valor3IndTab1MaxRoi1Rect = QLabel(valor3Tab1MaxRoi1Rect)
@@ -6370,7 +6717,9 @@ class MainWindow(QWidget):#(QDialog):
         #creo el boton 31
         boton31Tab1 = AnimatedToggle()
         boton31Tab1.setFixedSize(boton31Tab1.sizeHint())
-        boton31Tab1.setToolTip("MaxRoiLine1")       
+        boton31Tab1.setToolTip("MaxRoiLine1")  
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton31Tab1)       
         #agregamos el indicador 31 de medicion
         valor31Tab1MaxRoi1Line = "115.2" #max roi Line
         self.valor31IndTab1MaxRoi1Line = QLabel(valor31Tab1MaxRoi1Line)
@@ -6387,7 +6736,9 @@ class MainWindow(QWidget):#(QDialog):
         #creo el boton 32
         boton32Tab1 = AnimatedToggle()
         boton32Tab1.setFixedSize(boton32Tab1.sizeHint())
-        boton32Tab1.setToolTip("MaxRoiEllipse1")       
+        boton32Tab1.setToolTip("MaxRoiEllipse1") 
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton32Tab1)        
         #agregamos el indicador 22 de medicion
         valor32Tab1MaxRoi1Ellipse = "115.2" #max roi ellipse
         self.valor32IndTab1MaxRoi1Ellipse = QLabel(valor32Tab1MaxRoi1Ellipse)
@@ -6479,6 +6830,8 @@ class MainWindow(QWidget):#(QDialog):
         boton4Tab1 = AnimatedToggle()
         boton4Tab1.setFixedSize(boton4Tab1.sizeHint())
         boton4Tab1.setToolTip("MinRoiRect2")
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton4Tab1)
         #agregamos el indicador 4 de medicion
         valor4Tab1MinRoi2Rect = "115.2"
         self.valor4IndTab1MinRoi2Rect = QLabel(valor4Tab1MinRoi2Rect)
@@ -6496,6 +6849,8 @@ class MainWindow(QWidget):#(QDialog):
         boton41Tab1 = AnimatedToggle()
         boton41Tab1.setFixedSize(boton41Tab1.sizeHint())
         boton41Tab1.setToolTip("MinRoiLine2")
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton41Tab1)
         #agregamos el indicador 31 de medicion
         valor41Tab1MinRoi2Line = "115.2"
         self.valor41IndTab1MinRoi2Line = QLabel(valor41Tab1MinRoi2Line)
@@ -6513,6 +6868,8 @@ class MainWindow(QWidget):#(QDialog):
         boton42Tab1 = AnimatedToggle()
         boton42Tab1.setFixedSize(boton42Tab1.sizeHint())
         boton42Tab1.setToolTip("MinRoiEllipse2")
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton42Tab1)
         #agregamos el indicador 42 de medicion
         valor42Tab1MinRoi2Ellipse = "115.2"
         self.valor42IndTab1MinRoi2Ellipse = QLabel(valor42Tab1MinRoi2Ellipse)
@@ -6530,6 +6887,8 @@ class MainWindow(QWidget):#(QDialog):
         boton5Tab1 = AnimatedToggle()
         boton5Tab1.setFixedSize(boton5Tab1.sizeHint())
         boton5Tab1.setToolTip("AvgRoiRect2")
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton5Tab1)
          #agregamos el indicador 4 de medicion
         valor5Tab1AvgRoi2Rect = "115.2"
         self.valor5IndTab1AvgRoi2Rect = QLabel(valor5Tab1AvgRoi2Rect)
@@ -6547,6 +6906,8 @@ class MainWindow(QWidget):#(QDialog):
         boton51Tab1 = AnimatedToggle()
         boton51Tab1.setFixedSize(boton51Tab1.sizeHint())
         boton51Tab1.setToolTip("AvgRoiLine2")
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton51Tab1)
          #agregamos el indicador 4 de medicion
         valor51Tab1AvgRoi2Line = "115.2"
         self.valor51IndTab1AvgRoi2Line = QLabel(valor51Tab1AvgRoi2Line)
@@ -6564,6 +6925,8 @@ class MainWindow(QWidget):#(QDialog):
         boton52Tab1 = AnimatedToggle()
         boton52Tab1.setFixedSize(boton52Tab1.sizeHint())
         boton52Tab1.setToolTip("AvgRoiEllipse2")
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton52Tab1)
          #agregamos el indicador 5 de medicion
         valor52Tab1AvgRoi2Ellipse = "115.2"
         self.valor52IndTab1AvgRoi2Ellipse = QLabel(valor52Tab1AvgRoi2Ellipse)
@@ -6581,6 +6944,8 @@ class MainWindow(QWidget):#(QDialog):
         boton6Tab1 = AnimatedToggle()
         boton6Tab1.setFixedSize(boton6Tab1.sizeHint())
         boton6Tab1.setToolTip("MaxRoiRect2")
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton6Tab1)
         #agregamos el indicador 6 de medicion
         valor6Tab1MaxRoi2Rect = "115.2"
         self.valor6IndTab1MaxRoi2Rect = QLabel(valor6Tab1MaxRoi2Rect)
@@ -6598,6 +6963,8 @@ class MainWindow(QWidget):#(QDialog):
         boton61Tab1 = AnimatedToggle()
         boton61Tab1.setFixedSize(boton61Tab1.sizeHint())
         boton61Tab1.setToolTip("MaxRoiLine2")
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton61Tab1)
         #agregamos el indicador 6 de medicion
         valor61Tab1MaxRoi2Line = "115.2"
         self.valor61IndTab1MaxRoi2Line = QLabel(valor61Tab1MaxRoi2Line)
@@ -6615,6 +6982,8 @@ class MainWindow(QWidget):#(QDialog):
         boton62Tab1 = AnimatedToggle()
         boton62Tab1.setFixedSize(boton62Tab1.sizeHint())
         boton62Tab1.setToolTip("MaxRoiEllipse2")
+        #agregamos a la lista de objetos a habilitar
+        self.listaObjetosHabilitados.append(boton62Tab1)
         #agregamos el indicador 6 de medicion
         valor62Tab1MaxRoi2Ellipse = "115.2"
         self.valor62IndTab1MaxRoi2Ellipse = QLabel(valor62Tab1MaxRoi2Ellipse)
@@ -7529,6 +7898,7 @@ class MainWindow(QWidget):#(QDialog):
         textEditCam1Configuration.setFixedSize(QSize(205,24))
         contenedorGrupoPresetCam1 = QGroupBox()
         contenedorGrupoPresetCam1.setStyleSheet("border: 2px solid lightblue;border-radius: 10px;")
+        self.listaPresetsCamara = []
         #zona declaracion controles de preset
         contenedorValuePreset1Cam1Layout = QHBoxLayout()
         #El preset 1 es ajuste de foco
@@ -7543,6 +7913,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset1Cam1 = AnimatedToggle()
         valuePreset1Cam1.setFixedSize(valuePreset1Cam1.sizeHint())
         valuePreset1Cam1.setToolTip("Toggle to change position focus cam 1")
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset1Cam1)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset1Cam1 = partial(self.popUpConfiguracionPresetCam1, valuePreset1Cam1)
         disablePreset1Cam1 = partial(self.popUpRestartConfiguracionPresetFocoCam1, valuePreset1Cam1)
@@ -7564,6 +7936,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset2Cam1.setFixedSize(valuePreset2Cam1.sizeHint())
         valuePreset2Cam1.setToolTip("Toggle to change range (-20,100)-(0,250)-(150,900) of camera")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset2Cam1)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset2Cam1 = partial(self.popUpConfiguracionPreset2Cam1, valuePreset2Cam1)
         disablePreset2Cam1 = partial(self.popUpRestartConfiguracionPresetTempRangeCam1, valuePreset2Cam1)
@@ -7586,6 +7960,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset3Cam1.setFixedSize(valuePreset3Cam1.sizeHint())
         valuePreset3Cam1.setToolTip("Toggle to change Min and Max Limits to Pallete only in Manual Selected")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset3Cam1)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset3Cam1 = partial(self.popUpConfiguracionPreset3Cam1, valuePreset3Cam1)
         disablePreset3Cam1 = partial(self.popUpRestartConfiguracionPresetLimManPalleteCam1, valuePreset3Cam1)
@@ -7608,6 +7984,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset4Cam1.setFixedSize(valuePreset4Cam1.sizeHint())
         valuePreset4Cam1.setToolTip("Toggle to change type of adjust of limits pallete Manual Automatic Sigma1 Sigma3")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset4Cam1)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset4Cam1 = partial(self.popUpConfiguracionPreset4Cam1, valuePreset4Cam1)
         disablePreset4Cam1 = partial(self.popUpRestartConfiguracionPresetAutoManCam1, valuePreset4Cam1)
@@ -7630,6 +8008,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset5Cam1.setFixedSize(valuePreset5Cam1.sizeHint())
         valuePreset5Cam1.setToolTip("Toggle to change type of pallete to AlarmBlue-AlarmBlueHi-GrayBW-GrayWB-AlarmGreen-Iron-IronHi-Medical-Rainbow-RainbowHi-AlarmRed")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset5Cam1)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset5Cam1 = partial(self.popUpConfiguracionPreset5Cam1, valuePreset5Cam1)
         disablePreset5Cam1 = partial(self.popUpRestartConfiguracionPresetPalleteCam1, valuePreset5Cam1)
@@ -7652,6 +8032,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset6Cam1.setFixedSize(valuePreset6Cam1.sizeHint())
         valuePreset6Cam1.setToolTip("Toggle to change ambient temperature")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset6Cam1)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset6Cam1 = partial(self.popUpConfiguracionPreset6Cam1, valuePreset6Cam1)
         disablePreset6Cam1 = partial(self.popUpRestartConfiguracionPresetTempAmbienteCam1, valuePreset6Cam1)
@@ -7674,6 +8056,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset7Cam1.setFixedSize(valuePreset7Cam1.sizeHint())
         valuePreset7Cam1.setToolTip("Toggle to change transmisivity of camera")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset7Cam1)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset7Cam1 = partial(self.popUpConfiguracionPreset7Cam1, valuePreset7Cam1)
         disablePreset7Cam1 = partial(self.popUpRestartConfiguracionPresetTransmisividadCam1, valuePreset7Cam1)
@@ -7696,6 +8080,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset8Cam1.setFixedSize(valuePreset8Cam1.sizeHint())
         valuePreset8Cam1.setToolTip("Toggle to change emisivity of object")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset8Cam1)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset8Cam1 = partial(self.popUpConfiguracionPreset8Cam1, valuePreset8Cam1)
         disablePreset8Cam1 = partial(self.popUpRestartConfiguracionPresetEmisividadCam1, valuePreset8Cam1)
@@ -7744,6 +8130,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset1Cam2.setFixedSize(valuePreset1Cam2.sizeHint())
         valuePreset1Cam2.setToolTip("Toggle to change preset 1")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset1Cam2)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset1Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset1Cam2)
         disablePreset1Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset1Cam2)
@@ -7766,6 +8154,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset2Cam2.setFixedSize(valuePreset2Cam2.sizeHint())
         valuePreset2Cam2.setToolTip("Toggle to change preset 2")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset2Cam2)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset2Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset2Cam2)
         disablePreset2Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset2Cam2)
@@ -7788,6 +8178,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset3Cam2.setFixedSize(valuePreset3Cam2.sizeHint())
         valuePreset3Cam2.setToolTip("Toggle to change preset 3")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset3Cam2)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset3Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset3Cam2)
         disablePreset3Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset3Cam2)
@@ -7810,6 +8202,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset4Cam2.setFixedSize(valuePreset4Cam2.sizeHint())
         valuePreset4Cam2.setToolTip("Toggle to change preset 4")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset4Cam2)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset4Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset4Cam2)
         disablePreset4Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset4Cam2)
@@ -7832,6 +8226,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset5Cam2.setFixedSize(valuePreset5Cam2.sizeHint())
         valuePreset5Cam2.setToolTip("Toggle to change preset 5")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset5Cam2)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset5Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset5Cam2)
         disablePreset5Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset5Cam2)
@@ -7854,6 +8250,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset6Cam2.setFixedSize(valuePreset6Cam2.sizeHint())
         valuePreset6Cam2.setToolTip("Toggle to change preset 6")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset6Cam2)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset6Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset6Cam2)
         disablePreset6Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset6Cam2)
@@ -7876,6 +8274,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset7Cam2.setFixedSize(valuePreset7Cam2.sizeHint())
         valuePreset7Cam2.setToolTip("Toggle to change preset 7")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset7Cam2)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset7Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset7Cam2)
         disablePreset7Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset7Cam2)
@@ -7898,6 +8298,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset8Cam2.setFixedSize(valuePreset8Cam2.sizeHint())
         valuePreset8Cam2.setToolTip("Toggle to change preset 8")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset8Cam2)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset8Cam2 = partial(self.popUpConfiguracionPresetCam1, valuePreset8Cam2)
         disablePreset8Cam2 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset8Cam2)
@@ -7946,6 +8348,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset1Cam3.setFixedSize(valuePreset1Cam3.sizeHint())
         valuePreset1Cam3.setToolTip("Toggle to change preset 1")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset1Cam3)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset1Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset1Cam3)
         disablePreset1Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset1Cam3)
@@ -7968,6 +8372,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset2Cam3.setFixedSize(valuePreset2Cam3.sizeHint())
         valuePreset2Cam3.setToolTip("Toggle to change preset 2")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset2Cam3)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset2Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset2Cam3)
         disablePreset2Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset2Cam3)
@@ -7990,6 +8396,9 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset3Cam3.setFixedSize(valuePreset3Cam3.sizeHint())
         valuePreset3Cam3.setToolTip("Toggle to change preset 3")
         #
+        #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset3Cam3)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset3Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset3Cam3)
         disablePreset3Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset3Cam3)
@@ -8012,6 +8421,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset4Cam3.setFixedSize(valuePreset4Cam3.sizeHint())
         valuePreset4Cam3.setToolTip("Toggle to change preset 4")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset4Cam3)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset4Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset4Cam3)
         disablePreset4Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset4Cam3)
@@ -8034,6 +8445,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset5Cam3.setFixedSize(valuePreset5Cam3.sizeHint())
         valuePreset5Cam3.setToolTip("Toggle to change preset 5")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset5Cam3)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset5Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset5Cam3)
         disablePreset5Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset5Cam3)
@@ -8056,6 +8469,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset6Cam3.setFixedSize(valuePreset6Cam3.sizeHint())
         valuePreset6Cam3.setToolTip("Toggle to change preset 6")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset6Cam3)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset6Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset6Cam3)
         disablePreset6Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset6Cam3)
@@ -8078,6 +8493,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset7Cam3.setFixedSize(valuePreset7Cam3.sizeHint())
         valuePreset7Cam3.setToolTip("Toggle to change preset 7")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset7Cam3)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset7Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset7Cam3)
         disablePreset7Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset7Cam3)
@@ -8101,6 +8518,8 @@ class MainWindow(QWidget):#(QDialog):
         valuePreset8Cam3.setFixedSize(valuePreset8Cam3.sizeHint())
         valuePreset8Cam3.setToolTip("Toggle to change preset 8")
         #
+        #agrego preset camara a la lista de presets camara
+        self.listaPresetsCamara.append(valuePreset8Cam3)
         #Defino la funcion asociada al set y reset de los presets
         enablePreset8Cam3 = partial(self.popUpConfiguracionPresetCam1, valuePreset8Cam3)
         disablePreset8Cam3 = partial(self.popUpRestartConfiguracionPresetCam1, valuePreset8Cam3)
@@ -10320,13 +10739,15 @@ class MainWindow(QWidget):#(QDialog):
     #Defino la función asociada a logear un usuario
     def populateUserCombo(self):
         #si la cantidad de usuario esta vacia la lleno
-        if not self.userCombo.count():
-            self.userCombo.addItems('Franco Martin Giusepe'.split()) #Aca podría consultar los usuarios 
-                                                                  #a la base de datos
-        #Agrego los iconos a cada usuario en la lista del combobox
-        self.userCombo.setItemIcon(0,QIcon(os.path.join(basedir,"appIcons","user-worker-boss.png")))
-        self.userCombo.setItemIcon(1,QIcon(os.path.join(basedir,"appIcons","user-worker-boss.png")))
-        self.userCombo.setItemIcon(2,QIcon(os.path.join(basedir,"appIcons","user-worker-boss.png")))
+        # if not self.userCombo.count():
+        #     self.userCombo.addItems('Franco Martin Giusepe'.split()) #Aca podría consultar los usuarios 
+        #                                                           #a la base de datos
+        # #Agrego los iconos a cada usuario en la lista del combobox
+        # self.userCombo.setItemIcon(0,QIcon(os.path.join(basedir,"appIcons","user-worker-boss.png")))
+        # self.userCombo.setItemIcon(1,QIcon(os.path.join(basedir,"appIcons","user-worker-boss.png")))
+        # self.userCombo.setItemIcon(2,QIcon(os.path.join(basedir,"appIcons","user-worker-boss.png")))
+        #
+        
         #abrimos la pop up para notificar que se va a cambiar de usuario
         dlgLoggin = QMessageBox(self)
         dlgLoggin.setWindowTitle("User Loggin")
@@ -10335,11 +10756,14 @@ class MainWindow(QWidget):#(QDialog):
         dlgLoggin.setIcon(QMessageBox.Question)
         buttonSelected = dlgLoggin.exec()
         if buttonSelected == QMessageBox.Yes:
-            print("test")
+            print("abrimos pantalla de loggin")
             #Se seleeciono realizar el loggin del usuario nuevo 
             #Se va a abrir la ventana para realizar la carga de usuario y password
-            self.dlgRequestUser = PopUpLoggin()
+            self.dlgRequestUser = PopUpLoggin(self.userCombo,self.listaObjetosHabilitados,self.listaPresetsCamara)
             self.dlgRequestUser.show()
+        else:
+            print("no seleccionamos usuario")
+            #self.userCombo.clear() #addItems([])
     #Defino la funcion asociada a seleccionar Rois
     #***
     def populateRoisComboHistoricosIzquierda(self):

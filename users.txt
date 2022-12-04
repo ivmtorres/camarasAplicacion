@@ -1,0 +1,5 @@
+nombreUsuario = AdminMaster - passwordUsuario = AdminMaster - claseUsuario = Administrador
+nombreUsuario = Benito - passwordUsuario = 6789 - claseUsuario = Operador
+nombreUsuario = Arianita - passwordUsuario = 4567 - claseUsuario = Supervisor
+nombreUsuario = Giusepe - passwordUsuario = 1234 - claseUsuario = Administrador
+nombreUsuario = Debora - passwordUsuario = 1234 - claseUsuario = Operador
