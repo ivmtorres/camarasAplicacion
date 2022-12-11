@@ -4,7 +4,7 @@ from threading import Thread, Barrier
 #from time import sleep, time
 from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QBrush, QPen, QPalette, QFont, QDoubleValidator, QPainterPath
-from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRect, QLine, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, QThread, QDir , pyqtProperty
+from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal, QSize, QPoint, QPointF, QRect, QLine, QRectF, QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, pyqtSlot, QThread, QDir , pyqtProperty, QDate, QTime
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -839,6 +839,7 @@ async def modificarArchivoAsincronico():
 #****Funciones para buscar imagenes historicas
 def leerArchivoSincronico(nombreArchivo):
     pathArchivo = nombreArchivo
+    #print(pathArchivo)
     fTh = gzip.GzipFile(pathArchivo + ".npTh.gz", "r")
     fCv = gzip.GzipFile(pathArchivo + ".npCv.gz", "r")
     datoTh = np.load(fTh)
@@ -2634,8 +2635,11 @@ class MplCanvas(FigureCanvasQTAgg):
         super(MplCanvas,self).__init__(fig)
 #Clase modelo generico de seleccion de fecha
 class PopUpDateSelected(QWidget):
-    def __init__(self):
+    def __init__(self,comboBoxListaImagenes):
         super().__init__()
+        self.comboBoxEditar = comboBoxListaImagenes
+        self.fechaStart = QDateTime() #fecha arranque busqueda
+        self.fechaEnd = QDateTime() #fecha final busqueda
         self.setWindowTitle("Request initial date and final date")
         layoutV = QVBoxLayout()
         self.inputInitialDate = QLabel("Initial Date")        
@@ -2643,11 +2647,13 @@ class PopUpDateSelected(QWidget):
         self.dateTimeStart.setDateTime(QDateTime.currentDateTime())
         self.inputInitialDate.setBuddy(self.dateTimeStart)
         self.dateTimeStart.setCalendarPopup(True)
+        self.dateTimeStart.dateTimeChanged.connect(lambda: self.cachedStartDate())
         self.inputFinalDate = QLabel("Final Date")
         self.dateTimeEnd = QDateTimeEdit()
         self.dateTimeEnd.setDateTime(QDateTime.currentDateTime())
         self.inputFinalDate.setBuddy(self.dateTimeEnd)
         self.dateTimeEnd.setCalendarPopup(True)
+        self.dateTimeEnd.dateTimeChanged.connect(lambda: self.cachedEndDate())
         layoutV = QVBoxLayout()
         layoutV.addWidget(self.inputInitialDate)
         layoutV.addWidget(self.dateTimeStart)
@@ -2668,8 +2674,105 @@ class PopUpDateSelected(QWidget):
         self.setLayout(layoutV)
         self.resize(400,20)
         self.dateTimeStart.setFocus(Qt.NoFocusReason)
+
+    def cachedStartDate(self):
+        #capturamos el dato cargado start
+        print("cargamos las fechas start")
+        self.fechaStart = self.dateTimeStart.dateTime()
+
+    def cachedEndDate(self):
+        #capturamos el dato cargado end
+        print("cargamos las fechas end")
+        self.fechaEnd = self.dateTimeEnd.dateTime()
+
     def realizarBusquedaOk(self):
-        print("Buscando ...")
+        print("Buscando desde {} hasta {}".format(self.fechaStart.toString("MMMdd.yyyy-hh:mm"),self.fechaEnd.toString("MMMdd.yyyy-hh:mm")))
+        # timeFolder1 = QDateTime(QDate(2022,12,7),QTime(16,22,59))
+        # print(timeFolder1.toString("MMMdd.yyyy"))        
+        # timeFolder2 = QDateTime(QDate(2022,9,30),QTime(9,9,53))
+        # print(timeFolder2.toString("MMMdd.yyyy"))
+        # if self.fechaStart < timeFolder1 < self.fechaEnd:
+        #     print("folder 1 entre fechas buscadas")
+        # else:
+        #     print("folder 2 no entre fechas buscadas")
+        pathImagenes = "imagenes"
+        if os.path.isdir(pathImagenes):
+            #creamos una lista para guardar cada path
+            listPath = []
+            #print("existe directorio imagenes")
+            dir_listDate = os.listdir(pathImagenes)                        
+            for folderDate in dir_listDate:
+                #print(folderDate)
+                dir_listTimeHour = os.listdir(pathImagenes+"/"+folderDate)
+                for folderTimeHour in dir_listTimeHour:
+                    #print("->"+folderTimeHour)
+                    dir_listTimeMinSec = os.listdir(pathImagenes+"/"+folderDate+"/"+folderTimeHour)
+                    for folderTimeMinSec in dir_listTimeMinSec:
+                        #print("-->"+folderTimeMinSec)
+                        indiceMes=folderDate.find("_")
+                        Mes=folderDate[:indiceMes]
+                        if Mes == "Jan":
+                            MesNum = 1
+                        elif Mes == "Feb":
+                            MesNum = 2
+                        elif Mes == "Mar":
+                            MesNum = 3
+                        elif Mes == "Apr":
+                            MesNum = 4
+                        elif Mes == "May":
+                            MesNum = 5
+                        elif Mes == "Jun":
+                            MesNum = 6
+                        elif Mes == "Jul":
+                            MesNum = 7
+                        elif Mes == "Aug":
+                            MesNum = 8
+                        elif Mes == "Sep":
+                            MesNum = 9
+                        elif Mes == "Oct":
+                            MesNum = 10
+                        elif Mes == "Nov":
+                            MesNum = 11
+                        elif Mes == "Dec":
+                            MesNum = 12
+                        auxiliar=folderDate[indiceMes+1:]
+                        #print(auxiliar)
+                        indiceDia=auxiliar.find("_")
+                        Dia=auxiliar[:indiceDia]
+                        auxiliar2 = auxiliar[indiceDia+1:]
+                        #print(auxiliar2)
+                        Año=auxiliar2
+                        hora=folderTimeHour
+                        indiceMinuto=folderTimeMinSec.find("_")
+                        minuto=folderTimeMinSec[:indiceMinuto]
+                        segundo=folderTimeMinSec[indiceMinuto+1:]
+                        pathFolderImagen = "imagenes/"+folderDate+"/"+folderTimeHour+"/"+folderTimeMinSec
+                        dateTimeFolder = QDateTime(QDate(int(Año),MesNum,int(Dia)),QTime(int(hora),int(minuto),int(segundo)))
+                        tuplaDate = (dateTimeFolder,pathFolderImagen)
+                        listPath.append(tuplaDate)
+        #print(listPath)
+        listPathFoldersEnc = []
+        for listImagenes in listPath:
+            if self.fechaStart < listImagenes[0] < self.fechaEnd:
+                #print("folder 1 entre fechas buscadas")
+                listPathFoldersEnc.append(listImagenes[1])
+            else:
+                continue
+                #print("folder 2 no entre fechas buscadas")
+        #print(listPathFoldersEnc)
+        listThermalFolders=[]
+        for pathsFoldersEnc in listPathFoldersEnc:
+            for pathsImageFolder in os.listdir(pathsFoldersEnc):
+                pathThermalFolder = os.path.join(pathsFoldersEnc,pathsImageFolder)
+                if os.path.isfile(pathThermalFolder):
+                    listThermalFolders.append(pathThermalFolder)
+        #print(listThermalFolders)
+        basedir = os.path.dirname(__file__)
+        imagIcon = QIcon(os.path.join(basedir,"appIcons","image.png"))
+        self.comboBoxEditar.clear()
+        for paths in listThermalFolders:
+            self.comboBoxEditar.addItem(imagIcon,paths)
+
     def realizarBusquedaCancel(self):
         print("Cancelar busqueda")
         self.close()
@@ -5524,8 +5627,15 @@ class PopUpLoggin(QWidget):
                             self.presetsMeidicon[indice].setDisabled(True)
                         for indice in range(len(self.presetsCamara)):
                             self.presetsCamara[indice].setDisabled(True)                    
+                    else:
+                        print("el password es incorrecto")
+                        self.noOkPassword = popUpPasswordIncorrecto()
+                        self.noOkPassword.show()
+                        self.usuarioLogeado.clear()
                 else:
                     print("el usuario no se encontro")
+                    self.nohayUsuario = popUpNoExisteUsuario()
+                    self.nohayUsuario.show()
                 self.close()
         else:#si no existe el archivo lo crea y crea el usuario AdminMaster/AdminMaster
             with open('users.txt', 'w') as f:
@@ -5556,7 +5666,35 @@ class popUpNoExisteUsuario(QWidget):
 
     def cerrarPantalla(self):
         self.close()
-
+#clase password incorrecto
+class popUpPasswordIncorrecto(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Error Password")
+        layoutVertical = QVBoxLayout()
+        self.inputLabelNotLoggin = QLabel("Wrong Password")
+        self.botonAccept = QPushButton("Accept")
+        self.botonAccept.clicked.connect(self.cerrarPantalla)
+        layoutVertical.addWidget(self.inputLabelNotLoggin)
+        layoutVertical.addWidget(self.botonAccept)
+        self.setLayout(layoutVertical)
+    
+    def cerrarPantalla(self):
+        self.close()
+#popup camara no concetcta no mostramos configuracion
+class popUpCamaraNoConectadaNoConfiguracion(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Camara not connected")
+        layoutVertical =QVBoxLayout()
+        self.inputLabelNotConnectCamera = QLabel("Camera not connected")
+        self.botonAccept = QPushButton("Accept")
+        self.botonAccept.clicked.connect(self.cerrarPantalla)
+        layoutVertical.addWidget(self.inputLabelNotConnectCamera)
+        layoutVertical.addWidget(self.botonAccept)
+        self.setLayout(layoutVertical)
+    def cerrarPantalla(self):
+        self.close()
 #clase usuario nuevo 
 """  print("mostramos el campo para ingresar el nombre del usuario")
         print("mostramos el campo para ingresar el password del usuario")
@@ -6116,74 +6254,77 @@ class MainWindow(QWidget):#(QDialog):
         #
         self.profileSelComboDer = ProfileComboBox(self)
         self.profileSelComboDer.popupAboutToBeShown.connect(self.profileRoiCombo2)
-        #
-        #
+        #*****************Defino los elementos del banner historicos izquierda **********************************************************************
+        #Definimos el combobox para la seleccion de camara historico hizquierda
         self.camCombo1 = CamComboBox(self) #combo box de camaras para los historicos de la izquierda
         self.camCombo1.popupAboutToBeShown.connect(self.populateCamCombo1)
         self.populateCamCombo1()
+        #Definimos el boton para la popup seleccion de fecha de busqueda
         self.dateCam1Image = QPushButton("Date Select") #apertura de popup para la seleccion con fecha inicial y final 
                                                         #para los historicos de la izquierda 
         self.dateCam1Image.setToolTip("Select the dates range of images to show")
         self.dateCam1Image.clicked.connect(self.popUpSearchDateToHistory)
         self.dateCam1Image.setIcon(QIcon(os.path.join(basedir, "appIcons","calendar-day.png")))
-        
+        #Definimos el combobox para cargar los archivos de imagenes disponibles
         self.img1ComboBoxReading = QComboBox(self)
         self.imag1_icon = QIcon(os.path.join(basedir,"appIcons","image.png"))
-        self.img1ComboBoxReading.addItem(self.imag1_icon,"image_1") #despues de realizar la consulta a los registros
-        self.img1ComboBoxReading.addItem(self.imag1_icon,"image_2") #de imagenes vamos a llenar estos datos con las 
-        self.img1ComboBoxReading.addItem(self.imag1_icon,"image_3") #imagenes que nos devuelva la busqueda.
-        self.img1ComboBoxReading.addItem(self.imag1_icon,"image_4") #por ahora lo dejamos hardcodeado
-        self.img1ComboBoxReading.setToolTip("Push for select the image to show")
-        
+        #self.img1ComboBoxReading.addItem(self.imag1_icon,"image_1") #despues de realizar la consulta a los registros
+        #self.img1ComboBoxReading.addItem(self.imag1_icon,"image_2") #de imagenes vamos a llenar estos datos con las 
+        #self.img1ComboBoxReading.addItem(self.imag1_icon,"image_3") #imagenes que nos devuelva la busqueda.
+        #self.img1ComboBoxReading.addItem(self.imag1_icon,"image_4") #por ahora lo dejamos hardcodeado
+        self.img1ComboBoxReading.setToolTip("Push for select the image to show")        
+        self.img1ComboBoxReading.activated.connect(self.cachedSelectedImagesFolder)
+        #definimos boton para popup busqueda de imagenes de manera manual
         self.botonLeerArchivoIzq = QPushButton("ManSelFile")
         self.botonLeerArchivoIzq.clicked.connect(self.leerArchivoIzq)
         self.botonLeerArchivoIzq.setEnabled(False)
         self.botonLeerArchivoIzq.setToolTip("Push for search image in system folder")
         self.botonLeerArchivoIzq.setIcon(QIcon(os.path.join(basedir,"appIcons","folder.png")))
-
+        #boton para avance de imagenes que se buscaron manualmente
         self.botonBackwardFileIzq = QPushButton("BackwardFile")
         self.botonBackwardFileIzq.clicked.connect(self.retrocederArchivoIzq)
         self.botonBackwardFileIzq.setEnabled(False)
         self.botonBackwardFileIzq.setToolTip("Push for backward 1 image in selected folder")
         self.botonBackwardFileIzq.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-180.png")))
-
+        #boton para retroceso de imagenes que se buscaron manualmente
         self.botonFordwardFileIzq = QPushButton("FordwardFile")
         self.botonFordwardFileIzq.clicked.connect(self.avanzarArchivoIzq)
         self.botonFordwardFileIzq.setEnabled(False)
         self.botonFordwardFileIzq.setToolTip("Push for foradward 1 image in selected folder")
         self.botonFordwardFileIzq.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow.png")))
-
         #
-        #Defino los elementos del banner historicos de la derecha
+        #*****************Defino los elementos del banner historicos derecha **********************************************************************
+        #combobox seleccion de camara
         self.camCombo2 = CamComboBox(self) #combo box de camaras para los historicos de la derecha
         self.camCombo2.popupAboutToBeShown.connect(self.populateCamCombo2)
         self.populateCamCombo2()
+        #boton para popup seleccion de fecha de busqueda
         self.dateCam2Image = QPushButton("Date Select") #apertura de popup para la seleccion con fecha incial y final
         self.dateCam2Image.setToolTip("Select the dates range of images to show")
-        self.dateCam2Image.clicked.connect(self.popUpSearchDateToHistory)                                                #para los historicos de la derecha
-        self.dateCam2Image.setIcon(QIcon(os.path.join(basedir,"appIcons","calendar-day.png")))
-        
+        self.dateCam2Image.clicked.connect(self.popUpSearchDateToHistoryDer)                                                #para los historicos de la derecha
+        self.dateCam2Image.setIcon(QIcon(os.path.join(basedir,"appIcons","calendar-day.png")))        
         #agrego el combobox de las imagenes cargadas despues de la busqueda
         self.img2ComboBoxReading = QComboBox(self)
         self.imag2_icon = QIcon(os.path.join(basedir,"appIcons","image.png"))
-        self.img2ComboBoxReading.addItem(self.imag2_icon,"image_1") #despues de realizar la consulta a los registros
-        self.img2ComboBoxReading.addItem(self.imag2_icon,"image_2") #de imagenes vamos a llenar estos datos con las 
-        self.img2ComboBoxReading.addItem(self.imag2_icon,"image_3") #imagenes que nos devuelva la busqueda.
-        self.img2ComboBoxReading.addItem(self.imag2_icon,"image_4") #por ahora lo dejamos hardcodeado
+        #self.img2ComboBoxReading.addItem(self.imag2_icon,"image_1") #despues de realizar la consulta a los registros
+        #self.img2ComboBoxReading.addItem(self.imag2_icon,"image_2") #de imagenes vamos a llenar estos datos con las 
+        #self.img2ComboBoxReading.addItem(self.imag2_icon,"image_3") #imagenes que nos devuelva la busqueda.
+        #self.img2ComboBoxReading.addItem(self.imag2_icon,"image_4") #por ahora lo dejamos hardcodeado
         self.img2ComboBoxReading.setToolTip("Push for select the image to show")
-        
+        self.img2ComboBoxReading.activated.connect(self.cachedSelectedImagesFolderDer)
+        #boton para popup carga de imagenes manual
         self.botonLeerArchivoDer = QPushButton("ManSelFile")
         self.botonLeerArchivoDer.clicked.connect(self.leerArchivoDer)
         self.botonLeerArchivoDer.setEnabled(False)
         self.botonLeerArchivoDer.setToolTip("Push for search image in system folder")
         self.botonLeerArchivoDer.setIcon(QIcon(os.path.join(basedir,"appIcons","folder.png")))
-
+        #boton para retroceder en imagenes cargadas manualmente
         self.botonBackwardFileDer = QPushButton("BackwardFile")
         self.botonBackwardFileDer.clicked.connect(self.retrocederArchivoDer)
         self.botonBackwardFileDer.setEnabled(False)
         self.botonBackwardFileDer.setToolTip("Push for backward 1 image in selected folder")
         self.botonBackwardFileDer.setIcon(QIcon(os.path.join(basedir,"appIcons","arrow-180.png")))
-
+        #boton para avanzar en imagenes cargadas manualmente
         self.botonFordwardFileDer = QPushButton("FordwardFile")
         self.botonFordwardFileDer.clicked.connect(self.avanzarArchivoDer)
         self.botonFordwardFileDer.setEnabled(False)
@@ -8641,6 +8782,40 @@ class MainWindow(QWidget):#(QDialog):
         self.setLayout(mainLayout)
  
     #***************************************************
+    #funcion folder imagen seleccionada. Cuando se busca las imagenes con el filtro de fecha se trae una lista con todos los paths
+    #luego es a lista se carga en el combobox de imagenes. Cuando en este se selecciona una imagen se debe cargar en el visualizador de imagenes
+    #y habilitar para que se pueda navegar entre imagenes con los botones 
+    def cachedSelectedImagesFolder(self):
+        print("cambio combobox folder imagenes")        
+        basedir = os.path.dirname(__file__)
+        pathStrFolderImagenes = basedir + "/" +self.img1ComboBoxReading.currentText()
+        pathStrFolderImagenes = pathStrFolderImagenes.replace('\\','/')
+        #print(os.path.abspath(pathStrFolderImagenes))
+        pathFolderImagenesSel = os.path.abspath(pathStrFolderImagenes)
+        nombreArchivo = pathFolderImagenesSel[:-8]
+        #print(nombreArchivo)
+        valorRetornadoMatriz = leerArchivoSincronico(nombreArchivo)        
+        self.matrizImgThIzq = valorRetornadoMatriz[0]
+        self.matrizImgCvIzq = valorRetornadoMatriz[1]
+        #print(np.shape(self.matrizImgThIzq))
+        self.botonBackwardFileIzq.setEnabled(True)
+        self.botonFordwardFileIzq.setEnabled(True)
+    #defino el manejo de archivos para el combobox imagenes buscadas derecha
+    def cachedSelectedImagesFolderDer(self):
+        print("cambio combobox folder imagenes")        
+        basedir = os.path.dirname(__file__)
+        pathStrFolderImagenes = basedir + "/" +self.img2ComboBoxReading.currentText()
+        pathStrFolderImagenes = pathStrFolderImagenes.replace('\\','/')
+        #print(os.path.abspath(pathStrFolderImagenes))
+        pathFolderImagenesSel = os.path.abspath(pathStrFolderImagenes)
+        nombreArchivo = pathFolderImagenesSel[:-8]
+        #print(nombreArchivo)
+        valorRetornadoMatriz = leerArchivoSincronico(nombreArchivo)        
+        self.matrizImgThDer = valorRetornadoMatriz[0]
+        self.matrizImgCvDer = valorRetornadoMatriz[1]
+        #print(np.shape(self.matrizImgThIzq))
+        self.botonBackwardFileDer.setEnabled(True)
+        self.botonFordwardFileDer.setEnabled(True)
     #inicializo preset aplicacion al startup
     def inicializacionPreset (self,nombre, valor):
         presetAGuardar = valor
@@ -9550,121 +9725,206 @@ class MainWindow(QWidget):#(QDialog):
         ##
         #Tenemos que agregar la popup W
         if checkbox.isChecked() == True:
-            #creo un hilo para mostrar la imagen y permitir ajustar los parametros de la camara
-            self.configuracionFoco = PopUPWritePresetFocoCam(self.thread, self.image_label, nameCamera="cam1")
-            self.configuracionFoco.show()
-            print("mostramos popup ajuste de foco")
-            self.mostrarImagenPopUpCambioFoco = True
+            if self.statusConnectionCam1:
+                #creo un hilo para mostrar la imagen y permitir ajustar los parametros de la camara
+                self.configuracionFoco = PopUPWritePresetFocoCam(self.thread, self.image_label, nameCamera="cam1")
+                self.configuracionFoco.show()
+                print("mostramos popup ajuste de foco")
+                self.mostrarImagenPopUpCambioFoco = True
+            else:
+                print("camara no conectada no mostramos popup Foco")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
     
     def popUpConfiguracionPreset2Cam1(self, checkbox):
         if checkbox.isChecked() == True:
-            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionRango = PopUpWritePresetTempRangeCam(self.thread, self.image_label, nameCamera="cam1")
-            self.configuracionRango.show()
-            print("mostramos popup ajuste de rango")
-            self.mostrarImagenPopUpCambioRango = True
+            if self.statusConnectionCam1:
+                #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+                self.configuracionRango = PopUpWritePresetTempRangeCam(self.thread, self.image_label, nameCamera="cam1")
+                self.configuracionRango.show()
+                print("mostramos popup ajuste de rango")
+                self.mostrarImagenPopUpCambioRango = True
+            else:
+                print("camara no conectada no mostramos popup Temp Range Cam")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
     
     def popUpConfiguracionPreset3Cam1(self, checkbox):
         if checkbox.isChecked() == True:
-            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionLimManPaleta = PopUpWritePresetLimManualPalleteCam(self.thread, self.image_label, nameCamera="cam1")
-            self.configuracionLimManPaleta.show()
-            print("mostramos popup ajuste de rango")
-            self.mostrarImagenPopUpLimManPaleta = True
+            if self.statusConnectionCam1:
+                #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+                self.configuracionLimManPaleta = PopUpWritePresetLimManualPalleteCam(self.thread, self.image_label, nameCamera="cam1")
+                self.configuracionLimManPaleta.show()
+                print("mostramos popup ajuste de rango")
+                self.mostrarImagenPopUpLimManPaleta = True
+            else:
+                print("camara no conectada no mostramos popup Lim Man Paleta")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
     
     def popUpConfiguracionPreset4Cam1(self, checkbox):
         if checkbox.isChecked() == True:
-            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionManAutPaleta = PopUpWritePresetAutoManPalleteCam(self.thread, self.image_label, nameCamera="cam1")
-            self.configuracionManAutPaleta.show()
-            print("mostramos popup cambio de paleta")
-            self.mostrarImagenPopUpManAutPaleta = True
+            if self.statusConnectionCam1:
+                #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+                self.configuracionManAutPaleta = PopUpWritePresetAutoManPalleteCam(self.thread, self.image_label, nameCamera="cam1")
+                self.configuracionManAutPaleta.show()
+                print("mostramos popup cambio de paleta")
+                self.mostrarImagenPopUpManAutPaleta = True
+            else:
+                print("camara no conectada no mostramos popup Auto Man")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
 
     def popUpConfiguracionPreset5Cam1(self, checkbox):
         if checkbox.isChecked() == True:
-            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionPaleta = PopUpWritePresetPalleteCam(self.thread, self.image_label, nameCamera="cam1")
-            self.configuracionPaleta.show()
-            print("mostramos popup cambio de paleta")
-            self.mostrarImagenPopUpCambioPaleta = True
+            if self.statusConnectionCam1:
+                #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+                self.configuracionPaleta = PopUpWritePresetPalleteCam(self.thread, self.image_label, nameCamera="cam1")
+                self.configuracionPaleta.show()
+                print("mostramos popup cambio de paleta")
+                self.mostrarImagenPopUpCambioPaleta = True
+            else:
+                print("camara no conectada no mostramos popup Paleta")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
     
     def popUpConfiguracionPreset6Cam1(self, checkbox):
         if checkbox.isChecked() == True:
-            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionTmp = PopUpWritePresetTempAmbienteCam(self.thread, self.image_label, nameCamera="cam1")
-            self.configuracionTmp.show()
-            print("mostramos popup cambio de temperatura")
-            self.mostrarImagenPopUpCambioTmpAmb = True
+            if self.statusConnectionCam1:
+                #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+                self.configuracionTmp = PopUpWritePresetTempAmbienteCam(self.thread, self.image_label, nameCamera="cam1")
+                self.configuracionTmp.show()
+                print("mostramos popup cambio de temperatura")
+                self.mostrarImagenPopUpCambioTmpAmb = True
+            else:
+                print("camara no conectada no mostramos popip Temp Amb")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
 
     def popUpConfiguracionPreset7Cam1(self, checkbox):
         if checkbox.isChecked() == True:
-            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
-            self.configuracionTmd = PopUpWritePresetTransmisividadCam(self.thread, self.image_label, nameCamera="cam1")
-            self.configuracionTmd.show()
-            print("mostramos popup cambio de transmisividad")
-            self.mostrarImagenPopUpCambioTmdAmb = True
+            if self.statusConnectionCam1:
+                #creamos un hilo para mostrar la imagen y permitir ajustar el rango de temperatura 
+                self.configuracionTmd = PopUpWritePresetTransmisividadCam(self.thread, self.image_label, nameCamera="cam1")
+                self.configuracionTmd.show()
+                print("mostramos popup cambio de transmisividad")
+                self.mostrarImagenPopUpCambioTmdAmb = True
+            else:
+                print("camara no conectada no mostramos popup Transmisividad")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
     
     def popUpConfiguracionPreset8Cam1(self, checkbox):
         if checkbox.isChecked() == True:
-            #creamos un hilo para mostrar la imagen y permitir ajustar el rango de emisividad 
-            self.configuracionEmi = PopUpWritePresetEmisividadCam(self.thread, self.image_label, nameCamera="cam1")
-            self.configuracionEmi.show()
-            print("mostramos popup cambio de emisividad")
-            self.mostrarImagenPopUpCambioEmisividad = True
+            if self.statusConnectionCam1:
+                #creamos un hilo para mostrar la imagen y permitir ajustar el rango de emisividad 
+                self.configuracionEmi = PopUpWritePresetEmisividadCam(self.thread, self.image_label, nameCamera="cam1")
+                self.configuracionEmi.show()
+                print("mostramos popup cambio de emisividad")
+                self.mostrarImagenPopUpCambioEmisividad = True
+            else:
+                print("camara no conectada no mostramos popip Emisividada")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
 
     def popUpRestartConfiguracionPresetCam1(self, checkbox):
         print("reset preset seleccion en camara 1")
-        if checkbox.isChecked() == False:            
-            self.dlgDefaultPresetCam1 = PopUpResetPresetCam()
-            self.dlgDefaultPresetCam1.show()
+        if checkbox.isChecked() == False:  
+            if self.statusConnectionCam1:
+                self.dlgDefaultPresetCam1 = PopUpResetPresetCam()
+                self.dlgDefaultPresetCam1.show()
+            else:
+                print("camara no conectada")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
 
     def popUpRestartConfiguracionPresetFocoCam1(self, checkbox):
         print("reset preset foco seleccion en camara 1")
         if checkbox.isChecked() == False:            
-            self.dlgDefaultPresetCam1 = PopUpResetPresetFocoCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
-            self.dlgDefaultPresetCam1.show()
-    
+            if self.statusConnectionCam1:
+                self.dlgDefaultPresetCam1 = PopUpResetPresetFocoCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+                self.dlgDefaultPresetCam1.show()
+            else:
+                print("camara no conectada")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
+
     def popUpRestartConfiguracionPresetTempRangeCam1(self, checkbox):
         print("reset preset foco seleccion en camara 1")
-        if checkbox.isChecked() == False:            
-            self.dlgDefaultPresetCam1 = PopUpResetPresetTempRangeCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
-            self.dlgDefaultPresetCam1.show()
+        if checkbox.isChecked() == False:
+            if self.statusConnectionCam1:            
+                self.dlgDefaultPresetCam1 = PopUpResetPresetTempRangeCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+                self.dlgDefaultPresetCam1.show()
+            else:
+                print("camara no conectada")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
 
     def popUpRestartConfiguracionPresetPalleteCam1(self, checkbox):
         print("reset preset foco seleccion en camara 1")
-        if checkbox.isChecked() == False:            
-            self.dlgDefaultPresetCam1 = PopUpResetPresetPalleteCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
-            self.dlgDefaultPresetCam1.show()
+        if checkbox.isChecked() == False:    
+            if self.statusConnectionCam1:        
+                self.dlgDefaultPresetCam1 = PopUpResetPresetPalleteCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+                self.dlgDefaultPresetCam1.show()
+            else:
+                print("camara no conectada")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
     
     def popUpRestartConfiguracionPresetAutoManCam1(self, checkbox):
         print("reset preset foco seleccion en camara 1")
-        if checkbox.isChecked() == False:            
-            self.dlgDefaultPresetCam1 = PopUpResetPresetAutoManCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
-            self.dlgDefaultPresetCam1.show()
+        if checkbox.isChecked() == False:       
+            if self.statusConnectionCam1:     
+                self.dlgDefaultPresetCam1 = PopUpResetPresetAutoManCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+                self.dlgDefaultPresetCam1.show()
+            else:
+                print("camara no conectada")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
 
     def popUpRestartConfiguracionPresetLimManPalleteCam1(self, checkbox):
         print("reset preset foco seleccion en camara 1")
-        if checkbox.isChecked() == False:            
-            self.dlgDefaultPresetCam1 = PopUpResetPresetLimManPalleteCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
-            self.dlgDefaultPresetCam1.show()
+        if checkbox.isChecked() == False:  
+            if self.statusConnectionCam1:          
+                self.dlgDefaultPresetCam1 = PopUpResetPresetLimManPalleteCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+                self.dlgDefaultPresetCam1.show()
+            else:
+                print("camara no conectada")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
 
     def popUpRestartConfiguracionPresetTempAmbienteCam1(self, checkbox):
         print("reset preset foco seleccion en camara 1")
-        if checkbox.isChecked() == False:            
-            self.dlgDefaultPresetCam1 = PopUpResetPresetTempAmbienteCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
-            self.dlgDefaultPresetCam1.show()
+        if checkbox.isChecked() == False:  
+            if self.statusConnectionCam1:          
+                self.dlgDefaultPresetCam1 = PopUpResetPresetTempAmbienteCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+                self.dlgDefaultPresetCam1.show()
+            else:
+                print("camara no conectada")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
 
     def popUpRestartConfiguracionPresetTransmisividadCam1(self, checkbox):
         print("reset preset foco seleccion en camara 1")
-        if checkbox.isChecked() == False:            
-            self.dlgDefaultPresetCam1 = PopUpResetPresetTransmisividadCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
-            self.dlgDefaultPresetCam1.show()
+        if checkbox.isChecked() == False:
+            if self.statusConnectionCam1:            
+                self.dlgDefaultPresetCam1 = PopUpResetPresetTransmisividadCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+                self.dlgDefaultPresetCam1.show()
+            else:
+                print("camara no conectada")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
     
     def popUpRestartConfiguracionPresetEmisividadCam1(self, checkbox):
         print("reset preset foco seleccion en camara 1")
-        if checkbox.isChecked() == False:            
-            self.dlgDefaultPresetCam1 = PopUpResetPresetEmisividadCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
-            self.dlgDefaultPresetCam1.show()
+        if checkbox.isChecked() == False:  
+            if self.statusConnectionCam1:                          
+                self.dlgDefaultPresetCam1 = PopUpResetPresetEmisividadCam(miThreadAdqImagen=self.thread, nameCamera="cam1")
+                self.dlgDefaultPresetCam1.show()
+            else:
+                print("camara no conectada")
+                self.camaraNoConnected = popUpCamaraNoConectadaNoConfiguracion()
+                self.camaraNoConnected.show()
 
     #defino la funcion asociada con el cambio de preset de la camara 2
     def popUpConfiguracionPresetCam2(self, checkbox):
@@ -10791,7 +11051,11 @@ class MainWindow(QWidget):#(QDialog):
     #***
     #instancio a la clase que muestra la popup de busqueda en calendario
     def popUpSearchDateToHistory(self):
-        self.dlgDateSearch = PopUpDateSelected()
+        self.dlgDateSearch = PopUpDateSelected(self.img1ComboBoxReading)
+        self.dlgDateSearch.show()
+    #instancio a la clase que muestra la popup de busqueda en calendario
+    def popUpSearchDateToHistoryDer(self):
+        self.dlgDateSearch = PopUpDateSelected(self.img2ComboBoxReading)
         self.dlgDateSearch.show()
     #aca tengo que instanciar a la clase que muestra la popup que muestra los archivos donde buscar la imagen 
     def leerArchivoIzq(self):
